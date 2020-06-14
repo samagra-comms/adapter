@@ -14,4 +14,6 @@ import lombok.Setter;
 public class Sender {
   private String phone;
   private String name;
+  private String country_code;
+  private String dial_code;
 }

@@ -10,7 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @XmlRootElement
-public class Message {
+public class GSWhatsAppMessage {
   private String app;
 
   @Nullable
