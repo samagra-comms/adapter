@@ -10,6 +10,8 @@ import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 
+import java.util.HashMap;
+
 public class GupShupWhatsappAdapter {
 
 	public static XMessage convertMessageToXMsg(GSWhatsAppMessage message) throws JAXBException {
@@ -26,7 +28,15 @@ public class GupShupWhatsappAdapter {
 	}
 
 	public static RestTemplate convertToRestTemplate(XMessage xmsg) {
-		
+//		HashMap<String, String> params = new HashMap<String, String>();
+//		params.put("channel", "whatsapp");
+//		params.put("source", "917834811114");
+//		params.put("destination", "9718908699");
+//		params.put("src.name", "demobb");
+//		// params.put("type", "text");
+//		params.put("message", nextMessage);
+//		// params.put("isHSM", "false");
+
 		return null;
 	}
 }
