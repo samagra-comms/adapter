@@ -1,7 +1,10 @@
-package com.samagra.adapter;
+package com.samagra.adapter.gs.whatsapp;
 
 import javax.xml.bind.JAXBException;
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
 
 import com.samagra.common.Request.GSWhatsAppMessage;
@@ -10,11 +13,12 @@ import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 
-import java.util.HashMap;
-
 public class GupShupWhatsappAdapter {
+	@Autowired
+	@Qualifier("gupshupWhatsappService")
+	private GupshupWhatsappService gsWhatsappService;
 
-	public static XMessage convertMessageToXMsg(GSWhatsAppMessage message) throws JAXBException {
+	public XMessage convertMessageToXMsg(GSWhatsAppMessage message) throws JAXBException {
 		SenderReceiverInfo from = SenderReceiverInfo.builder().userIdentifier(message.getApp()).build();
 		SenderReceiverInfo to = SenderReceiverInfo.builder().userIdentifier(message.getPayload().getSource()).build();
 
@@ -27,16 +31,8 @@ public class GupShupWhatsappAdapter {
 		return xmessage;
 	}
 
-	public static RestTemplate convertToRestTemplate(XMessage xmsg) {
-//		HashMap<String, String> params = new HashMap<String, String>();
-//		params.put("channel", "whatsapp");
-//		params.put("source", "917834811114");
-//		params.put("destination", "9718908699");
-//		params.put("src.name", "demobb");
-//		// params.put("type", "text");
-//		params.put("message", nextMessage);
-//		// params.put("isHSM", "false");
-
+	public RestTemplate convertToAPI(XMessage nextXms) throws Exception{
+		gsWhatsappService.processInBoundMessage(nextXms);
 		return null;
 	}
 }
