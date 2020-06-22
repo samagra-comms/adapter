@@ -13,6 +13,7 @@
 	<artifactId>adapter</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>adapter</name>
+	<packaging>jar</packaging>
 	<description>adapter</description>
 
 	<properties>
