@@ -13,6 +13,7 @@
 	<artifactId>adapter</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>adapter</name>
+	<packaging>jar</packaging>
 	<description>adapter</description>
 
 	<properties>
@@ -62,6 +63,15 @@
 			<groupId>com.samagra</groupId>
 			<artifactId>message-rosa</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+        </dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
 		</dependency>
 	</dependencies>
 	<build>
