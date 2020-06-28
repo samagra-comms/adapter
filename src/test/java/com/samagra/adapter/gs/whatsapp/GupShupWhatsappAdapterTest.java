@@ -2,7 +2,6 @@ package com.samagra.adapter.gs.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.samagra.common.Request.GSWhatsAppMessage;
 import messagerosa.core.model.XMessage;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

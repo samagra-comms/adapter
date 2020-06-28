@@ -8,14 +8,19 @@ import org.springframework.stereotype.Component;
 public class ProviderFactory {
 
     @Autowired
-    @Qualifier("gupshupWhatsappService")
+    @Qualifier("gupshupWhatsappAdapter")
     private IProvider gupshupWhatsapp;
 
-    public IProvider getProvider(String provider) {
-        if (provider.equals("gupshup.whatsapp")) {
+    @Autowired
+    @Qualifier("gupshupSMSAdapter")
+    private IProvider gupshupSMS;
+
+    public IProvider getProvider(String provider,String channel) {
+        if (provider.equals("gupshup") && channel.equals("whatsapp")) {
             return gupshupWhatsapp;
+        }else if (provider.equals("gupshup") && channel.equals("sms")) {
+            return gupshupSMS;
         }
         return null;
     }
-
 }

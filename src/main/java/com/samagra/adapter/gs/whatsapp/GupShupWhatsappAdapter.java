@@ -3,7 +3,8 @@ package com.samagra.adapter.gs.whatsapp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.common.Request.GSWhatsAppMessage;
+import com.samagra.common.Request.CommonMessage;
+import com.samagra.utils.GupShupUtills;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
@@ -26,7 +27,7 @@ import java.nio.charset.Charset;
 import java.util.*;
 
 @Slf4j
-@Qualifier("gupshupWhatsappService")
+@Qualifier("gupshupWhatsappAdapter")
 @Service
 public class GupShupWhatsappAdapter extends AbstractProvider implements IProvider {
 //TODO channel provider strings set
@@ -43,11 +44,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
-    @Autowired
-    @Qualifier("gupshupWhatsappService")
-    private GupShupWhatsappAdapter gsWhatsappService;
-
-    public XMessage convertMessageToXMsg(GSWhatsAppMessage message) throws JAXBException {
+    @Override
+    public XMessage convertMessageToXMsg(Object msg) throws JAXBException {
+        GSWhatsAppMessage message = (GSWhatsAppMessage)msg;
         SenderReceiverInfo from = SenderReceiverInfo.builder().userIdentifier(message.getApp()).build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userIdentifier(message.getPayload().getSource()).build();
 
@@ -80,41 +79,23 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         // params.put("isHSM", "false");
 
         String str2 =
-                URLEncodedUtils.format(hashMapToNameValuePairList(params), '&', Charset.defaultCharset());
+                URLEncodedUtils.format(GupShupUtills.hashMapToNameValuePairList(params), '&', Charset.defaultCharset());
 
         log.info("Question for user: {}", xMsg.getPayload().getText());
         
         HttpEntity<String> request = new HttpEntity<String>(str2, getVerifyHttpHeader());
-        restTemplate.getMessageConverters().add(getMappingJackson2HttpMessageConverter());
+        restTemplate.getMessageConverters().add(GupShupUtills.getMappingJackson2HttpMessageConverter());
 //        return restTemplate;
         restTemplate.postForObject(GUPSHUP_OUTBOUND, request, String.class);
         return null;
     }
 
-    public static List<NameValuePair> hashMapToNameValuePairList(HashMap<String, String> map) {
-        List<NameValuePair> list = new ArrayList<NameValuePair>();
-        for (Map.Entry<String, String> entry : map.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            list.add(new BasicNameValuePair(key, value));
-        }
-        return list;
-    }
-
-    private HttpHeaders getVerifyHttpHeader() throws Exception {
+    public  HttpHeaders getVerifyHttpHeader() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.add("Cache-Control", "no-cache");
         headers.add("apikey", gsApiKey);
         return headers;
-    }
-
-    public MappingJackson2HttpMessageConverter getMappingJackson2HttpMessageConverter() {
-        MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter =
-                new MappingJackson2HttpMessageConverter();
-        mappingJackson2HttpMessageConverter
-                .setSupportedMediaTypes(Collections.singletonList(MediaType.APPLICATION_FORM_URLENCODED));
-        return mappingJackson2HttpMessageConverter;
     }
 
     private HashMap<String, String> constructWhatsAppMessage(GSWhatsAppMessage message) {
