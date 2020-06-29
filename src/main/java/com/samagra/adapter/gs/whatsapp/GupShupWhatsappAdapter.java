@@ -6,6 +6,7 @@ import com.samagra.adapter.provider.factory.IProvider;
 import com.samagra.common.Request.CommonMessage;
 import com.samagra.utils.GupShupUtills;
 import lombok.extern.slf4j.Slf4j;
+import messagerosa.core.model.MessageID;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
@@ -47,14 +48,16 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public XMessage convertMessageToXMsg(Object msg) throws JAXBException {
         GSWhatsAppMessage message = (GSWhatsAppMessage)msg;
-        SenderReceiverInfo from = SenderReceiverInfo.builder().userIdentifier(message.getApp()).build();
-        SenderReceiverInfo to = SenderReceiverInfo.builder().userIdentifier(message.getPayload().getSource()).build();
+        SenderReceiverInfo from = SenderReceiverInfo.builder().userID(message.getApp()).build();
+        SenderReceiverInfo to = SenderReceiverInfo.builder().userID(message.getPayload().getSource()).build();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().text(message.getPayload().getPayload().getText())
                 .build();
 
-        XMessage xmessage = XMessage.builder().to(to).from(from).channelURI("whatsapp").providerURI("gupshup")
-                .messageId(message.getPayload().getId()).timestamp(message.getTimestamp().toString())
+        MessageID messageId = MessageID.builder().gupshupMessageID(message.getPayload().getId()).build();
+        XMessage xmessage = XMessage.builder().app(message.getApp()).to(to).from(from).channelURI("whatsapp").providerURI("gupshup")
+                .messageId(messageId).timestamp(message.getTimestamp())
+
                 .payload(xmsgPayload).build();
         return xmessage;
     }
@@ -71,8 +74,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
         HashMap<String, String> params = new HashMap<String, String>();
         params.put("channel", xMsg.getChannelURI());
-        params.put("source", xMsg.getFrom().getUserIdentifier());
-        params.put("destination", xMsg.getTo().getUserIdentifier());
+        params.put("source", xMsg.getFrom().getUserID());
+        params.put("destination", xMsg.getTo().getUserID());
         params.put("src.name", "demobb");
         // params.put("type", "text");
         params.put("message",  xMsg.getPayload().getText());
