@@ -64,11 +64,6 @@
 			<artifactId>message-rosa</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
-
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-        </dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
@@ -76,6 +71,8 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
+            <version>5.2.7.RELEASE</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 	<build>
