@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 @XmlEnum
+
 public enum MessageType {
   message("message"),
   userevent("user-event"),

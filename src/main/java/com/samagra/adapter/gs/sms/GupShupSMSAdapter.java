@@ -50,7 +50,7 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         HashMap<String, String> params = new HashMap<String, String>();
         params.put("method", "SendMessage");
-        params.put("send_to", xMsg.getTo().getUserIdentifier());
+        params.put("send_to", xMsg.getTo().getUserID());
         params.put("msg",  xMsg.getPayload().getText());
         params.put("msg_type", "Text");
         params.put("userid", "2000164521");
@@ -70,7 +70,7 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
         log.info(" {}",restTemplate.postForObject(GUPSHUP_SMS_OUTBOUND, request, String.class));
         return null;
     }
-    
+
     private HttpHeaders getVerifyHttpHeader() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
