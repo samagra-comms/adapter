@@ -16,7 +16,7 @@ public class ProviderFactory {
     private IProvider gupshupSMS;
 
     public IProvider getProvider(String provider,String channel) {
-        if (provider.equals("gupshup") && channel.equals("whatsapp")) {
+        if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             return gupshupWhatsapp;
         }else if (provider.equals("gupshup") && channel.equals("sms")) {
             return gupshupSMS;

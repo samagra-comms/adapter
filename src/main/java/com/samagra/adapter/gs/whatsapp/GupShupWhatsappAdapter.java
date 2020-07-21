@@ -55,9 +55,13 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .build();
 
         MessageID messageId = MessageID.builder().gupshupMessageID(message.getPayload().getId()).build();
-        XMessage xmessage = XMessage.builder().app(message.getApp()).to(to).from(from).channelURI("whatsapp").providerURI("gupshup")
-                .messageId(messageId).timestamp(message.getTimestamp())
-
+        XMessage xmessage = XMessage.builder().app(message.getApp())
+                .to(to)
+                .from(from)
+                .channelURI("whatsapp")
+                .providerURI("gupshup")
+                .messageID(messageId)
+                .timestamp(message.getTimestamp())
                 .payload(xmsgPayload).build();
         return xmessage;
     }
@@ -76,7 +80,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         params.put("channel", xMsg.getChannelURI());
         params.put("source", xMsg.getFrom().getUserID());
         params.put("destination", xMsg.getTo().getUserID());
-        params.put("src.name", "demobb");
+        params.put("src.name", "testingBotTemp");
         // params.put("type", "text");
         params.put("message",  xMsg.getPayload().getText());
         // params.put("isHSM", "false");
@@ -88,7 +92,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         
         HttpEntity<String> request = new HttpEntity<String>(str2, getVerifyHttpHeader());
         restTemplate.getMessageConverters().add(GupShupUtills.getMappingJackson2HttpMessageConverter());
-//        return restTemplate;
         restTemplate.postForObject(GUPSHUP_OUTBOUND, request, String.class);
         return null;
     }

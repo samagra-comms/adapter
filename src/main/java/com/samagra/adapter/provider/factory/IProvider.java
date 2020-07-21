@@ -7,7 +7,11 @@ import javax.xml.bind.JAXBException;
 
 public interface IProvider {
 
-      public   void processInBoundMessage(XMessage nextMsg, XMessage currentMsg) throws Exception;
-     public   void processInBoundMessage(XMessage nextMsg) throws Exception;
-     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception ;
-    public XMessage convertMessageToXMsg(Object message) throws JAXBException ;}
+    public void processInBoundMessage(XMessage nextMsg, XMessage currentMsg) throws Exception;
+
+    public void processInBoundMessage(XMessage nextMsg) throws Exception;
+
+    public XMessage callOutBoundAPI(XMessage xMsg) throws Exception;
+
+    public XMessage convertMessageToXMsg(Object message) throws JAXBException;
+}

@@ -21,7 +21,7 @@ class GupShupWhatsappAdapterTest {
         String payload = "{\r\n            \"app\": \"DemoApp\",\r\n                \"timestamp\": 1580227766370,\r\n                \"version\": 2,\r\n                \"type\": \"message\",\r\n                \"payload\": {\r\n            \"id\": \"ABEGkYaYVSEEAhAL3SLAWwHKeKrt6s3FKB0c\",\r\n                    \"source\": \"918x98xx21x4\",\r\n                    \"type\": \"text\",\r\n                    \"payload\": {\r\n                \"text\": \"Hi\"\r\n            },\r\n            \"sender\": {\r\n                \"phone\": \"918x98xx21x4\",\r\n                        \"name\": \"Smit\",\r\n                        \"country_code\": \"91\",\r\n                        \"dial_code\": \"8x98xx21x4\"\r\n            }\r\n        }\r\n        }";
         GSWhatsAppMessage message = new ObjectMapper().readValue(payload, GSWhatsAppMessage.class);
         XMessage xMessage = adapter.convertMessageToXMsg(message);
-        assertEquals(xMessage.getMessageId(), "ABEGkYaYVSEEAhAL3SLAWwHKeKrt6s3FKB0c");
+        assertEquals(xMessage.getMessageID(), "ABEGkYaYVSEEAhAL3SLAWwHKeKrt6s3FKB0c");
     }
 
 }
