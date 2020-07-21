@@ -6,7 +6,7 @@ import com.samagra.adapter.provider.factory.IProvider;
 import com.samagra.common.Request.CommonMessage;
 import com.samagra.utils.GupShupUtills;
 import lombok.extern.slf4j.Slf4j;
-import messagerosa.core.model.MessageID;
+import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
@@ -54,13 +54,13 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         XMessagePayload xmsgPayload = XMessagePayload.builder().text(message.getPayload().getPayload().getText())
                 .build();
 
-        MessageID messageId = MessageID.builder().gupshupMessageID(message.getPayload().getId()).build();
+        MessageId messageId = MessageId.builder().gupshupMessageID(message.getPayload().getId()).build();
         XMessage xmessage = XMessage.builder().app(message.getApp())
                 .to(to)
                 .from(from)
                 .channelURI("whatsapp")
                 .providerURI("gupshup")
-                .messageID(messageId)
+                .messageId(messageId)
                 .timestamp(message.getTimestamp())
                 .payload(xmsgPayload).build();
         return xmessage;
