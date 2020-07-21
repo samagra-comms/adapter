@@ -9,8 +9,11 @@ import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
+import messagerosa.dao.XMessageDAO;
 import messagerosa.dao.XMessageDAOUtills;
+import messagerosa.dao.XMessageRepo;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,9 +45,16 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
+    @Autowired
+    @Qualifier("gupshupWhatsappAdapter")
+    private GupShupWhatsappAdapter gupShupWhatsappAdapter;
+
+    @Autowired
+    public XMessageRepo xmsgRepo;
+
     @Override
     public XMessage convertMessageToXMsg(Object msg) throws JAXBException {
-        GSWhatsAppMessage message = (GSWhatsAppMessage)msg;
+        GSWhatsAppMessage message = (GSWhatsAppMessage) msg;
         SenderReceiverInfo from = SenderReceiverInfo.builder().build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
 
@@ -52,14 +62,15 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         MessageId messageIdentifier = MessageId.builder().build();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
+        long lastMsgId = 0;
 
         //TODO: Update "thread" and "lastMessageID"; Get these from the database.
 
-        if(message.getType().equals("message-event")){
+        if (message.getType().equals("message-event")) {
             String payloadType = message.getPayload().getType();
             xmsgPayload.setText("");
             from.setUserID(message.getPayload().getDestination().substring(2));
-            switch (payloadType){
+            switch (payloadType) {
                 case "enqueued":
                     messageState = XMessage.MessageState.ENQUEUED;
                     messageIdentifier.setWhatsappMessageId(message.getPayload().getPayload().getWhatsappMessageId());
@@ -81,30 +92,34 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     messageState = XMessage.MessageState.READ;
                     break;
                 default:
-                    messageState = XMessage.MessageState.REPLIED; break;
+                    messageState = XMessage.MessageState.REPLIED;
+                    break;
             }
-        }else if(message.getType().equals("user-event")){
+        } else if (message.getType().equals("user-event")) {
             String payloadType = message.getPayload().getType();
             xmsgPayload.setText(message.getPayload().getPayload().getText());
             xmsgPayload.setText("");
-            switch (payloadType){
+            switch (payloadType) {
                 case "opted-in":
                     from.setUserID(message.getPayload().getPhone().substring(2));
-                    messageState = XMessage.MessageState.OPTED_IN; break;
+                    messageState = XMessage.MessageState.OPTED_IN;
+                    break;
                 case "opted-out":
                     from.setUserID(message.getPayload().getPhone().substring(2));
-                    messageState = XMessage.MessageState.OPTED_OUT; break;
-
-        } }else{
+                    messageState = XMessage.MessageState.OPTED_OUT;
+                    break;
+            }
+        } else {
             //Actual Message with payload (User response)
             xmsgPayload.setText(message.getPayload().getPayload().getText());
             messageIdentifier.setGupshupMessageId(message.getPayload().getId());
-
-            //TODO: Add LastMessage ID as the ID for which the user replied. [Last message sent to user]
-
+            from.setUserID(message.getPayload().getSource().substring(2));
+            List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimeStampDsc(from.getUserID());
+            if (msg1.size() > 0) {
+                XMessageDAO msg0 = msg1.get(0);
+                lastMsgId = msg0.getId();
+            }
         }
-
-
         XMessage xmessage = XMessage.builder().app(message.getApp())
                 .to(to)
                 .from(from)
@@ -113,8 +128,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .messageState(messageState)
                 .messageId(messageIdentifier)
                 .timestamp(message.getTimestamp())
-                .payload(xmsgPayload).build();
-
+                .payload(xmsgPayload)
+                .lastMessageID(String.valueOf(lastMsgId)).build();
         return xmessage;
     }
 
@@ -122,13 +137,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     public void processInBoundMessage(XMessage nextMsg) throws Exception {
         log.info("nextXmsg {}", new ObjectMapper().writeValueAsString(nextMsg));
         XMessage message = callOutBoundAPI(nextMsg);
-        // TODO: Persist this to DB
-
     }
 
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
-        log.info("next question to user is {}" , new ObjectMapper().writeValueAsString(xMsg));
+        log.info("next question to user is {}", new ObjectMapper().writeValueAsString(xMsg));
 
         HashMap<String, String> params = new HashMap<String, String>();
         params.put("channel", xMsg.getChannelURI().toLowerCase());
@@ -136,7 +149,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         params.put("destination", "91" + xMsg.getTo().getUserID());
         params.put("src.name", "MissionPrerna");
         // params.put("type", "text");
-        params.put("message",  xMsg.getPayload().getText());
+        params.put("message", xMsg.getPayload().getText());
         // params.put("isHSM", "false");
 
         String str2 = URLEncodedUtils.format(
@@ -148,14 +161,17 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         restTemplate.getMessageConverters().add(GupShupUtills.getMappingJackson2HttpMessageConverter());
         String result = restTemplate.postForObject(GUPSHUP_OUTBOUND, request, String.class);
 
-        // TODO update gupshup message ID and send this to database
-        // xMsg.setMessageId(MessageId.builder().gupshupMessageId("").build());
+        JSONObject json = new JSONObject(result);
+        xMsg.setMessageId(MessageId.builder().gupshupMessageId(json.getString("messageId")).build());
+
+        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
+        xmsgRepo.save(dao);
 
         log.error(result);
         return xMsg;
     }
 
-    public  HttpHeaders getVerifyHttpHeader() throws Exception {
+    public HttpHeaders getVerifyHttpHeader() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.add("Cache-Control", "no-cache");
