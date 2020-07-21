@@ -28,7 +28,7 @@ import java.util.*;
 @Qualifier("gupshupSMSAdapter")
 public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
 
-    @Value("{provider.gupshup.whatsapp.apikey}")
+    @Value("${provider.gupshup.whatsapp.apikey}")
     private String gsApiKey;
 
     @Autowired

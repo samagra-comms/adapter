@@ -3,23 +3,20 @@ package com.samagra.adapter.gs.whatsapp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.common.Request.CommonMessage;
 import com.samagra.utils.GupShupUtills;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
-import org.apache.http.NameValuePair;
+import messagerosa.dao.XMessageDAOUtills;
 import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.http.message.BasicNameValuePair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -36,7 +33,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Value("${provider.gupshup.whatsapp.appname}")
     private String gupshupWhatsappApp;
 
-    @Value("{provider.gupshup.whatsapp.apikey}")
+    @Value("${provider.gupshup.whatsapp.apikey}")
     private String gsApiKey;
 
     private final static String GUPSHUP_OUTBOUND = "https://api.gupshup.io/sm/api/v1/msg";
@@ -48,28 +45,85 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public XMessage convertMessageToXMsg(Object msg) throws JAXBException {
         GSWhatsAppMessage message = (GSWhatsAppMessage)msg;
-        SenderReceiverInfo from = SenderReceiverInfo.builder().userID(message.getApp()).build();
-        SenderReceiverInfo to = SenderReceiverInfo.builder().userID(message.getPayload().getSource()).build();
+        SenderReceiverInfo from = SenderReceiverInfo.builder().build();
+        SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
 
-        XMessagePayload xmsgPayload = XMessagePayload.builder().text(message.getPayload().getPayload().getText())
-                .build();
+        XMessage.MessageState messageState = XMessage.MessageState.REPLIED;
+        MessageId messageIdentifier = MessageId.builder().build();
 
-        MessageId messageId = MessageId.builder().gupshupMessageID(message.getPayload().getId()).build();
+        XMessagePayload xmsgPayload = XMessagePayload.builder().build();
+
+        //TODO: Update "thread" and "lastMessageID"; Get these from the database.
+
+        if(message.getType().equals("message-event")){
+            String payloadType = message.getPayload().getType();
+            xmsgPayload.setText("");
+            from.setUserID(message.getPayload().getDestination().substring(2));
+            switch (payloadType){
+                case "enqueued":
+                    messageState = XMessage.MessageState.ENQUEUED;
+                    messageIdentifier.setWhatsappMessageId(message.getPayload().getPayload().getWhatsappMessageId());
+                    messageIdentifier.setGupshupMessageId(message.getPayload().getId());
+                    break;
+                case "sent":
+                    messageIdentifier.setWhatsappMessageId(message.getPayload().getId());
+                    messageIdentifier.setGupshupMessageId(message.getPayload().getGsId());
+                    messageState = XMessage.MessageState.SENT;
+                    break;
+                case "delivered":
+                    messageIdentifier.setWhatsappMessageId(message.getPayload().getId());
+                    messageIdentifier.setGupshupMessageId(message.getPayload().getGsId());
+                    messageState = XMessage.MessageState.DELIVERED;
+                    break;
+                case "read":
+                    messageIdentifier.setWhatsappMessageId(message.getPayload().getId());
+                    messageIdentifier.setGupshupMessageId(message.getPayload().getGsId());
+                    messageState = XMessage.MessageState.READ;
+                    break;
+                default:
+                    messageState = XMessage.MessageState.REPLIED; break;
+            }
+        }else if(message.getType().equals("user-event")){
+            String payloadType = message.getPayload().getType();
+            xmsgPayload.setText(message.getPayload().getPayload().getText());
+            xmsgPayload.setText("");
+            switch (payloadType){
+                case "opted-in":
+                    from.setUserID(message.getPayload().getPhone().substring(2));
+                    messageState = XMessage.MessageState.OPTED_IN; break;
+                case "opted-out":
+                    from.setUserID(message.getPayload().getPhone().substring(2));
+                    messageState = XMessage.MessageState.OPTED_OUT; break;
+
+        } }else{
+            //Actual Message with payload (User response)
+            xmsgPayload.setText(message.getPayload().getPayload().getText());
+            messageIdentifier.setGupshupMessageId(message.getPayload().getId());
+
+            //TODO: Add LastMessage ID as the ID for which the user replied. [Last message sent to user]
+
+        }
+
+
         XMessage xmessage = XMessage.builder().app(message.getApp())
                 .to(to)
                 .from(from)
                 .channelURI("whatsapp")
                 .providerURI("gupshup")
-                .messageId(messageId)
+                .messageState(messageState)
+                .messageId(messageIdentifier)
                 .timestamp(message.getTimestamp())
                 .payload(xmsgPayload).build();
+
         return xmessage;
     }
 
     @Override
     public void processInBoundMessage(XMessage nextMsg) throws Exception {
         log.info("nextXmsg {}", new ObjectMapper().writeValueAsString(nextMsg));
-        callOutBoundAPI(nextMsg);
+        XMessage message = callOutBoundAPI(nextMsg);
+        // TODO: Persist this to DB
+
     }
 
 
@@ -77,23 +131,28 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         log.info("next question to user is {}" , new ObjectMapper().writeValueAsString(xMsg));
 
         HashMap<String, String> params = new HashMap<String, String>();
-        params.put("channel", xMsg.getChannelURI());
-        params.put("source", xMsg.getFrom().getUserID());
-        params.put("destination", xMsg.getTo().getUserID());
-        params.put("src.name", "testingBotTemp");
+        params.put("channel", xMsg.getChannelURI().toLowerCase());
+        params.put("source", "917834811114");
+        params.put("destination", "91" + xMsg.getTo().getUserID());
+        params.put("src.name", "MissionPrerna");
         // params.put("type", "text");
         params.put("message",  xMsg.getPayload().getText());
         // params.put("isHSM", "false");
 
-        String str2 =
-                URLEncodedUtils.format(GupShupUtills.hashMapToNameValuePairList(params), '&', Charset.defaultCharset());
+        String str2 = URLEncodedUtils.format(
+                GupShupUtills.hashMapToNameValuePairList(params),
+                '&', Charset.defaultCharset()
+        );
 
-        log.info("Question for user: {}", xMsg.getPayload().getText());
-        
         HttpEntity<String> request = new HttpEntity<String>(str2, getVerifyHttpHeader());
         restTemplate.getMessageConverters().add(GupShupUtills.getMappingJackson2HttpMessageConverter());
-        restTemplate.postForObject(GUPSHUP_OUTBOUND, request, String.class);
-        return null;
+        String result = restTemplate.postForObject(GUPSHUP_OUTBOUND, request, String.class);
+
+        // TODO update gupshup message ID and send this to database
+        // xMsg.setMessageId(MessageId.builder().gupshupMessageId("").build());
+
+        log.error(result);
+        return xMsg;
     }
 
     public  HttpHeaders getVerifyHttpHeader() throws Exception {
