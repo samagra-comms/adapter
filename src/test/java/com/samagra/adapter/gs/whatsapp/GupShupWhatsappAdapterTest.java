@@ -56,7 +56,4 @@ class GupShupWhatsappAdapterTest {
         assertEquals(xMessage.getMessageState(), XMessage.MessageState.OPTED_IN);
     }
 
-
-
-
 }

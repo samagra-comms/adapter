@@ -91,13 +91,17 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     messageIdentifier.setGupshupMessageId(message.getPayload().getGsId());
                     messageState = XMessage.MessageState.READ;
                     break;
+                case "failed":
+                    messageIdentifier.setWhatsappMessageId(message.getPayload().getId());
+                    messageIdentifier.setGupshupMessageId(message.getPayload().getGsId());
+                    messageState = XMessage.MessageState.FAILED_TO_DELIVER;
+                    break;
                 default:
                     messageState = XMessage.MessageState.REPLIED;
                     break;
             }
         } else if (message.getType().equals("user-event")) {
             String payloadType = message.getPayload().getType();
-            xmsgPayload.setText(message.getPayload().getPayload().getText());
             xmsgPayload.setText("");
             switch (payloadType) {
                 case "opted-in":
@@ -114,7 +118,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             xmsgPayload.setText(message.getPayload().getPayload().getText());
             messageIdentifier.setGupshupMessageId(message.getPayload().getId());
             from.setUserID(message.getPayload().getSource().substring(2));
-            List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimeStampDsc(from.getUserID());
+            List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimestamp(from.getUserID());
             if (msg1.size() > 0) {
                 XMessageDAO msg0 = msg1.get(0);
                 lastMsgId = msg0.getId();
@@ -123,11 +127,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         XMessage xmessage = XMessage.builder().app(message.getApp())
                 .to(to)
                 .from(from)
-                .channelURI("whatsapp")
+                .channelURI("WhatsApp")
                 .providerURI("gupshup")
                 .messageState(messageState)
                 .messageId(messageIdentifier)
-                .timestamp(message.getTimestamp())
+                .timestamp(message.getTimestamp()/1000)
                 .payload(xmsgPayload)
                 .lastMessageID(String.valueOf(lastMsgId)).build();
         return xmessage;
@@ -136,7 +140,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public void processInBoundMessage(XMessage nextMsg) throws Exception {
         log.info("nextXmsg {}", new ObjectMapper().writeValueAsString(nextMsg));
-        XMessage message = callOutBoundAPI(nextMsg);
+        callOutBoundAPI(nextMsg);
     }
 
 
@@ -147,7 +151,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         params.put("channel", xMsg.getChannelURI().toLowerCase());
         params.put("source", "917834811114");
         params.put("destination", "91" + xMsg.getTo().getUserID());
-        params.put("src.name", "MissionPrerna");
+        params.put("src.name", gupshupWhatsappApp);
         // params.put("type", "text");
         params.put("message", xMsg.getPayload().getText());
         // params.put("isHSM", "false");
