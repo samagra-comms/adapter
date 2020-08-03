@@ -3,6 +3,7 @@ package com.samagra.adapter.gs.whatsapp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
+import com.samagra.user.CampaignService;
 import com.samagra.utils.GupShupUtills;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
@@ -107,6 +108,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 case "opted-in":
                     from.setUserID(message.getPayload().getPhone().substring(2));
                     messageState = XMessage.MessageState.OPTED_IN;
+                    CampaignService.addUserToCampaign(from.getUserID(), message.getApp());
                     break;
                 case "opted-out":
                     from.setUserID(message.getPayload().getPhone().substring(2));
@@ -114,7 +116,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     break;
             }
         } else {
-            //Actual Message with payload (User response)
+            //Actual Message with payload (user response)
             xmsgPayload.setText(message.getPayload().getPayload().getText());
             messageIdentifier.setGupshupMessageId(message.getPayload().getId());
             from.setUserID(message.getPayload().getSource().substring(2));
@@ -124,7 +126,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 lastMsgId = msg0.getId();
             }
         }
-        XMessage xmessage = XMessage.builder().app(message.getApp())
+        return XMessage.builder()
+                .app(message.getApp())
                 .to(to)
                 .from(from)
                 .channelURI("WhatsApp")
@@ -134,7 +137,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .timestamp(message.getTimestamp()/1000)
                 .payload(xmsgPayload)
                 .lastMessageID(String.valueOf(lastMsgId)).build();
-        return xmessage;
     }
 
     @Override

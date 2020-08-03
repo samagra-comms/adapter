@@ -49,7 +49,7 @@ class GupShupWhatsappAdapterTest {
 
     @Test
     public void testForOptedIn() throws JsonProcessingException, JAXBException {
-        String payload = "{\"app\":\"MissionPrerna\",\"timestamp\":1595353492083,\"version\":2,\"type\":\"user-event\",\"payload\":{\"phone\":\"917837833100\",\"type\":\"opted-in\"}}";
+        String payload = "{\"app\":\"testingBotTemp\",\"timestamp\":1595353492083,\"version\":2,\"type\":\"user-event\",\"payload\":{\"phone\":\"919415787824\",\"type\":\"opted-in\"}}";
         GSWhatsAppMessage message = new ObjectMapper().readValue(payload, GSWhatsAppMessage.class);
         GupShupWhatsappAdapter adapter = new GupShupWhatsappAdapter();
         XMessage xMessage = adapter.convertMessageToXMsg(message);
