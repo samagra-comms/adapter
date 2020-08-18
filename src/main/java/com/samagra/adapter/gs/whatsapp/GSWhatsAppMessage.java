@@ -10,6 +10,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.json.JSONObject;
 
+import java.util.List;
+
 @Getter
 @Setter
 @XmlRootElement
@@ -20,12 +22,9 @@ public class GSWhatsAppMessage extends CommonMessage {
   private String messageId;
   @Nullable
   private Long timestamp;
-
   private String name;
-
   @Nullable
   private int version;
-
   @JsonProperty
   private String type;
   private String text;
@@ -35,8 +34,9 @@ public class GSWhatsAppMessage extends CommonMessage {
   private WAInboundFile audio;
   private WAInboundFile video;
   private WALocation location;
-//  private JSONObject contacts;
+  private String response;
 
+//  private JSONObject contacts;
 //
 //  @NotNull
 //  @JsonProperty
