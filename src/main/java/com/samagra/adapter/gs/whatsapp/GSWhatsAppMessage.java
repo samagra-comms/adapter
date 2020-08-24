@@ -35,7 +35,8 @@ public class GSWhatsAppMessage extends CommonMessage {
   private WAInboundFile video;
   private WALocation location;
   private String response;
-
+  private String extra;
+  private String app;
 //  private JSONObject contacts;
 //
 //  @NotNull

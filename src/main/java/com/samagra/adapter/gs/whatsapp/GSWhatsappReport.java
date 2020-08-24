@@ -17,5 +17,5 @@ public class GSWhatsappReport {
     private String cause;
     private String errorCode;
     private String channel;
-
+    private String extra;
 }
