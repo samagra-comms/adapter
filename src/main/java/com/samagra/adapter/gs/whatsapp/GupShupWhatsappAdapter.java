@@ -168,7 +168,18 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 "    <messageId/>\n" +
                 "    <messageState>REPLIED</messageState>\n" +
                 "    <payload>\n" +
-                "        <text>HI</text>\n" +
+                "        <text>Hi! Welcome . SamagraBot welcomes you!\n" +
+                "\n" +
+                "I will help you with different Org Workflows. During the flow, Press # to go to the previous step and * to go back to the original menu. \n" +
+                "__ \n" +
+                "\n" +
+                "Please select the number corresponding to the option you want to proceed ahead with. \n" +
+                "__ \n" +
+                "\n" +
+                "1 Leave Balance\n" +
+                "2 Leave Application\n" +
+                "3 Air Ticket\n" +
+                "4 Train Ticket</text>\n" +
                 "    </payload>\n" +
                 "    <provider>gupshup</provider>\n" +
                 "    <providerURI>gupshup</providerURI>\n" +
@@ -176,7 +187,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 "    <to>\n" +
                 "        <bot>false</bot>\n" +
                 "        <broadcast>false</broadcast>\n" +
-                "        <userID>admin</userID>\n" +
+                "        <userID>9718908699</userID>\n" +
                 "    </to>\n" +
                 "</xMessage>";
         XMessage currentXmsg = XMessageParser.parse(new ByteArrayInputStream(x.getBytes()));
@@ -198,24 +209,16 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     queryParam("phone_number", "91" + xMsg.getTo().getUserID()).
                     queryParam("method", "OPT_IN");
         } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+            System.out.println(xMsg.getPayload().getText());
             builder.queryParam("method", "SendMessage").
-                    queryParam("send_to", "91" + xMsg.getFrom().getUserID()).
-                    queryParam("send_to","919718908699").
+                    queryParam("send_to", "91" + xMsg.getTo().getUserID()).
                     queryParam("msg", xMsg.getPayload().getText()).
-//                    queryParam("msg", "Hi Bhola! *This is to inform*\n you that your leave has been  rejected by your manager.").
                     queryParam("msg_type", "TEXT");
         }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
-
-        String url = builder.toUriString();
-        URI expanded = new UriTemplate(url).expand();
-        url = URLDecoder.decode(url, "UTF-8");
-
+        URI expanded = URI.create(builder.toUriString());
         RestTemplate restTemplate = new RestTemplate();
-        GSWhatsappOutBoundResponse response = restTemplate.getForObject(url, GSWhatsappOutBoundResponse.class);
-
+        GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
         log.info("response ================{}",new ObjectMapper().writeValueAsString(response));
         xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
 
