@@ -71,7 +71,7 @@ public class CampaignService {
      * @return Application
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static Application getCampaignFromGupshupAppName(String appName) throws Exception {
+    public static Application getCampaignFromGupshupAppName(String appName) {
         List<Application> applications = getApplications();
 
         Application currentApplication = null;
@@ -83,6 +83,31 @@ public class CampaignService {
                     }
                 } catch (Exception e) {
                     log.info("Campaign has not app Name: " + application.data.toString());
+                }
+            }
+        }
+        return currentApplication;
+    }
+
+    /**
+     * Retrieve Campaign Params From its Name
+     *
+     * @param startingMessage - Starting Message
+     * @return Application
+     * @throws Exception Error Exception, in failure in Network request.
+     */
+    public static Application getCampaignFromStartingMessage(String startingMessage){
+        List<Application> applications = getApplications();
+
+        Application currentApplication = null;
+        if (applications.size() > 0) {
+            for (Application application : applications) {
+                try {
+                    if (application.data.get("startingMessage").equals(startingMessage)) {
+                        currentApplication = application;
+                    }
+                } catch (Exception e) {
+                    log.info("Campaign has no startingMessage: " + application.data.toString());
                 }
             }
         }

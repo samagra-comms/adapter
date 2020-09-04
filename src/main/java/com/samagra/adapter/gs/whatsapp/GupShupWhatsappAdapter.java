@@ -74,6 +74,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
         long lastMsgId = 0;
+        String appName = "";
+
 
         if (message.getResponse() != null) {
             String reportResponse = message.getResponse();
@@ -85,6 +87,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 xmsgPayload.setText("");
                 messageIdentifier.setChannelMessageId(reportMsg.getExternalId());
                 from.setUserID(reportMsg.getDestAddr().substring(2));
+                appName = getAppName(from, message.getText());
                 switch (eventType) {
                     case "SENT":
                         messageState = XMessage.MessageState.SENT;
@@ -99,27 +102,13 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                         messageState = XMessage.MessageState.FAILED_TO_DELIVER;
                         break;
                 }
-//            }
-//        } else
-//            if (message.getType().equals("user-event")) {
-//            String payloadType = message.getPayload().getType();
-//            xmsgPayload.setText("");
-//            switch (payloadType) {
-//                case "opted-in":
-//                    from.setUserID(message.getPayload().getPhone().substring(2));
-//                    messageState = XMessage.MessageState.OPTED_IN;
-//                    CampaignService.addUserToCampaign(from.getUserID(), message.getApp());
-//                    break;
-//                case "opted-out":
-//                    from.setUserID(message.getPayload().getPhone().substring(2));
-//                    messageState = XMessage.MessageState.OPTED_OUT;
-//                    break;
             }
         } else if (message.getType().equals("text")) {
-//            Actual Message with payload (user response)
+            //Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
+            appName = getAppName(from, message.getText());
+            messageIdentifier.setReplyId(message.getReplyId());
             if (message.getType().equals("OPT_IN")) {
-                xmsgPayload.setText("");
                 messageState = XMessage.MessageState.OPTED_IN;
             } else if (message.getType().equals("OPT_OUT")) {
                 xmsgPayload.setText("stop-wa");
@@ -128,7 +117,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 messageState = XMessage.MessageState.REPLIED;
                 xmsgPayload.setText(message.getText());
                 messageIdentifier.setChannelMessageId(message.getMessageId());
-                from.setUserID(message.getMobile().substring(2));
             }
             List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimestamp(from.getUserID());
             if (msg1.size() > 0) {
@@ -137,7 +125,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             }
         }
         return XMessage.builder()
-                .app(message.getApp())
+                .app(appName)
                 .to(to)
                 .from(from)
                 .channelURI("WhatsApp")
@@ -149,11 +137,28 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .lastMessageID(String.valueOf(lastMsgId)).build();
     }
 
+    /**
+     * @param from: User form the whom the message was received.
+     * @param text: User's text
+     * @return appName
+     */
+    private String getAppName(SenderReceiverInfo from, String text) {
+        String appName;
+        try {
+            appName = (String) CampaignService.getCampaignFromStartingMessage(text).data.get("appName");
+            return appName;
+        } catch (Exception e) {
+            XMessageDAO xMessageLast = xmsgRepo.findTopByFromIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
+            return xMessageLast.getApp();
+        }
+    }
+
     @Override
     public void processInBoundMessage(XMessage nextMsg) throws Exception {
         log.info("nextXmsg {}", new ObjectMapper().writeValueAsString(nextMsg));
         callOutBoundAPI(nextMsg);
     }
+
     public static void main(String arg[]) throws Exception {
         GupShupWhatsappAdapter adapter = new GupShupWhatsappAdapter();
         String x = "<xMessage>\n" +
@@ -219,7 +224,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         URI expanded = URI.create(builder.toUriString());
         RestTemplate restTemplate = new RestTemplate();
         GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
-        log.info("response ================{}",new ObjectMapper().writeValueAsString(response));
+        log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
         xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
 
         XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
@@ -234,35 +239,4 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         headers.add("apikey", gsApiKey);
         return headers;
     }
-
-//    private HashMap<String, String> constructWhatsAppMessage(GSWhatsAppMessage message) {
-//        HashMap<String, String> params = new HashMap<String, String>();
-//        if (message.getPayload().getType().equals("message")
-//                && message.getPayload().getPayload().getType().equals("text")) {
-//            params.put("type", message.getPayload().getPayload().getType());
-//            params.put("text", message.getPayload().getPayload().getType());
-//            params.put("isHSM", String.valueOf(message.getPayload().getPayload().getHsm()));
-//        } else if (message.getPayload().getType().equals("message")
-//                && message.getPayload().getPayload().getType().equals("image")) {
-//            params.put("type", message.getPayload().getPayload().getType());
-//            params.put("originalUrl", message.getPayload().getPayload().getUrl());
-//            params.put("previewUrl", (message.getPayload().getPayload().getUrl()));
-//            if (message.getPayload().getPayload().getCaption() != null) {
-//                params.put("caption", message.getPayload().getPayload().getCaption());
-//            }
-//        } else if (message.getPayload().getType().equals("message")
-//                && (message.getPayload().getPayload().getType().equals("file")
-//                || message.getPayload().getPayload().getType().equals("audio")
-//                || message.getPayload().getPayload().getType().equals("video"))) {
-//            params.put("type", message.getPayload().getPayload().getType());
-//            params.put("url", message.getPayload().getPayload().getUrl());
-//            if (message.getPayload().getPayload().getFileName() != null) {
-//                params.put("fileName", message.getPayload().getPayload().getFileName());
-//            }
-//            if (message.getPayload().getPayload().getCaption() != null) {
-//                params.put("caption", message.getPayload().getPayload().getCaption());
-//            }
-//        }
-//        return params;
-//    }
 }
