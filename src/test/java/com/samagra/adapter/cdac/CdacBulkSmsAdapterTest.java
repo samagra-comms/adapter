@@ -1,6 +1,7 @@
 package com.samagra.adapter.cdac;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
@@ -74,14 +75,14 @@ class CdacBulkSmsAdapterTest {
     }
 
     @Test
-    public void marshallTrackCDACBulkSMS(){
+    public void marshallTrackCDACBulkSMS() throws Exception{
         String response = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><dept value=\"hpgovt-hpssa\"><msgid>290920201601346533977hpgovt-hpssa</msgid><delvSMSCount>2</delvSMSCount><fldSMSCount>0</fldSMSCount><subSMSCount>0</subSMSCount><undelv/><del><no mobNo=\"919415787824\">DELIVRED</no><no mobNo=\"919673409136\">DELIVRED</no></del><sub/><fld/></dept>";
         JAXBContext context = null;
         try {
             context = JAXBContext.newInstance(TrackDetails.class);
             Unmarshaller jaxbUnmarshaller = context.createUnmarshaller();
             TrackDetails trackSMSResponse = (TrackDetails) jaxbUnmarshaller.unmarshal((new ByteArrayInputStream(response.getBytes())));
-            System.out.println(trackSMSResponse.toString());
+            System.out.println(new ObjectMapper().writeValueAsString(trackSMSResponse));
         } catch (JAXBException e) {
             e.printStackTrace();
         }

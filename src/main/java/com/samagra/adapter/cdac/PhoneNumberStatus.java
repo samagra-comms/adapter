@@ -12,11 +12,23 @@ import javax.xml.bind.annotation.XmlValue;
 @JsonSerialize
 public class PhoneNumberStatus {
 
+    private  String mobileNumber;
+    private  String status;
+
     @XmlAttribute(name="mobNo")
-    protected String mobileNumber;
+    public String getMobileNumber() {
+        return mobileNumber;
+    }
 
+    public void setMobileNumber(String mobileNumber) {
+        this.mobileNumber = mobileNumber;
+    }
     @XmlValue
-    protected String status;
+    public String getStatus() {
+        return status;
+    }
 
-
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }
