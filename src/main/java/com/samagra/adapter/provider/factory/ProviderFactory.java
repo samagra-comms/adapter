@@ -15,11 +15,17 @@ public class ProviderFactory {
     @Qualifier("gupshupSMSAdapter")
     private IProvider gupshupSMS;
 
+    @Autowired
+    @Qualifier("cdacSMSBulkAdapter")
+    private IProvider cdacSMSBulk;
+
     public IProvider getProvider(String provider,String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             return gupshupWhatsapp;
         }else if (provider.equals("gupshup") && channel.equals("sms")) {
             return gupshupSMS;
+        } else if(provider.equals("cdac") && channel.toLowerCase().equals("sms")){
+            return cdacSMSBulk;
         }
         return null;
     }

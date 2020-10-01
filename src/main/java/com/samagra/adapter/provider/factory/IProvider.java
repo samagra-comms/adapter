@@ -12,7 +12,5 @@ public interface IProvider {
 
     public void processInBoundMessage(XMessage nextMsg) throws Exception;
 
-    public XMessage callOutBoundAPI(XMessage xMsg) throws Exception;
-
     public XMessage convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException;
 }

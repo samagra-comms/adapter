@@ -46,7 +46,7 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     public void processInBoundMessage(XMessage xMsg) throws Exception {
         callOutBoundAPI(xMsg);
     }
-    @Override
+
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         HashMap<String, String> params = new HashMap<String, String>();
         params.put("method", "SendMessage");

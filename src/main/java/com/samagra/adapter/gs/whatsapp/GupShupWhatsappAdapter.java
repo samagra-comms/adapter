@@ -148,7 +148,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             appName = (String) CampaignService.getCampaignFromStartingMessage(text).data.get("appName");
             return appName;
         } catch (Exception e) {
-            XMessageDAO xMessageLast = xmsgRepo.findTopByFromIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
+            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
             return xMessageLast.getApp();
         }
     }
@@ -201,25 +201,57 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", new ObjectMapper().writeValueAsString(xMsg));
+
+        // UAT credentials
+        /*
+
+        String passwordHSM = "SvKg3U74";
+        String usernameHSM = "2000193031";
+
+        String password2Way = "v@MPj33Q";
+        String username2Way = "2000193033";
+         */
+
+        // Prod credentials
+
+        String passwordHSM = "H8SPeFbJ";
+        String usernameHSM = "2000193032";
+
+        String password2Way = "JyVG5#a!";
+        String username2Way = "2000193034";
+
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
-                queryParam("userid", "2000193033").
-                queryParam("password", "v@MPj33Q").
                 queryParam("v", "1.1").
                 queryParam("format", "json").
                 queryParam("auth_scheme", "plain").
-                queryParam("extra", "Umang").
+                queryParam("extra", "Samagra").
+                queryParam("data_encoding", "text").
                 queryParam("messageId", "123456789");
         if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
             builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
+                    queryParam("userid", username2Way).
+                    queryParam("password", password2Way).
                     queryParam("phone_number", "91" + xMsg.getTo().getUserID()).
                     queryParam("method", "OPT_IN");
-        } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+        }  else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)){
+            optInUser(xMsg);
+
+            builder.queryParam("method", "SendMessage").
+                    queryParam("userid", usernameHSM).
+                    queryParam("password", passwordHSM).
+                    queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+                    queryParam("msg", xMsg.getPayload().getText()).
+                    queryParam("isHSM", true).
+                    queryParam("msg_type", "HSM");
+        }else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
             System.out.println(xMsg.getPayload().getText());
             builder.queryParam("method", "SendMessage").
+                    queryParam("userid", username2Way).
+                    queryParam("password", password2Way).
                     queryParam("send_to", "91" + xMsg.getTo().getUserID()).
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("msg_type", "TEXT");
-        }
+        }else{}
 
         URI expanded = URI.create(builder.toUriString());
         RestTemplate restTemplate = new RestTemplate();
@@ -230,6 +262,25 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
         xmsgRepo.save(dao);
         return xMsg;
+    }
+
+    private void optInUser(XMessage xMsg) {
+        UriComponentsBuilder optInBuilder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
+                queryParam("v", "1.1").
+                queryParam("format", "json").
+                queryParam("auth_scheme", "plain").
+                queryParam("method", "OPT_IN").
+                queryParam("userid", "2000193031").
+                queryParam("password", "SvKg3U74").
+                queryParam("channel", "WHATSAPP").
+                queryParam("phone_number", "91" + xMsg.getTo().getUserID()).
+                queryParam("messageId", "123456789");
+
+        URI expanded = URI.create(optInBuilder.toUriString());
+        System.out.println(expanded.toString());
+        RestTemplate restTemplate = new RestTemplate();
+        String result = restTemplate.getForObject(expanded, String.class);
+        System.out.println(result);
     }
 
     public HttpHeaders getVerifyHttpHeader() throws Exception {

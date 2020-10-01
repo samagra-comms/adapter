@@ -31,10 +31,6 @@ public class CampaignService {
         ClientResponse<ApplicationResponse, Void> applicationResponse = staticClient.retrieveApplication(UUID.fromString(campaignID));
         if (applicationResponse.wasSuccessful()) {
             Application application = applicationResponse.successResponse.application;
-            Map<String, Object> campaignData = new HashMap<>();
-            ArrayList<String> transformers = new ArrayList<>();
-            campaignData.put("transformers", transformers);
-            application.data = campaignData;
             return application;
         } else if (applicationResponse.exception != null) {
             Exception exception = applicationResponse.exception;
