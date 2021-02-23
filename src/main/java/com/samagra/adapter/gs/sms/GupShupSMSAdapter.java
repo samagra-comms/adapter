@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import reactor.core.publisher.Flux;
 
 import javax.xml.bind.JAXBException;
 import java.nio.charset.Charset;
@@ -45,6 +46,11 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     @Override
     public void processInBoundMessage(XMessage xMsg) throws Exception {
         callOutBoundAPI(xMsg);
+    }
+
+    @Override
+    public Flux<Boolean> processInBoundMessageFlux(XMessage nextMsg) throws Exception {
+        return null;
     }
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {

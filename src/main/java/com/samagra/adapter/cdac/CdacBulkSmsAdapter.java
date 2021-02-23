@@ -18,12 +18,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.util.List;
 
 @Slf4j
 @Qualifier("cdacSMSBulkAdapter")
@@ -76,6 +78,11 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         xmsgRepo.save(dao);
     }
 
+    @Override
+    public Flux<Boolean> processInBoundMessageFlux(XMessage nextMsg) throws Exception {
+        return null;
+    }
+
     public static String trackMessage(String username, String password, String messageID, String baseURL) {
         // track the message and sends response to inbound.
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseURL)
@@ -88,26 +95,30 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         return restTemplate.getForObject(expanded, String.class);
     }
 
-    public TrackDetails trackAndUpdate(XMessageDAO xMessageDAO){
-        String response = trackMessage(username, password, xMessageDAO.getMessageId(), TRACK_BASE_URL);
-        JAXBContext context = null;
-        TrackDetails trackSMSResponse = null;
+    public TrackDetails trackAndUpdate(XMessageDAO xMessageDAO) {
+        CDACClient cdacClient = CDACClient.builder()
+                .batchSize(20)
+                .username(username)
+                .password(password)
+                .trackBaseURL(TRACK_BASE_URL)
+                .build();
+        TrackDetails trackDetails = null;
         try {
-            context = JAXBContext.newInstance(TrackDetails.class);
-            Unmarshaller jaxbUnmarshaller = context.createUnmarshaller();
-            trackSMSResponse = (TrackDetails) jaxbUnmarshaller.unmarshal((new ByteArrayInputStream(response.getBytes())));
-            xMessageDAO.setAuxData(response);
+            trackDetails = cdacClient.trackMultipleMessages(xMessageDAO.getMessageId());
+            xMessageDAO.setAuxData(trackDetails.toString());
             xmsgRepo.save(xMessageDAO);
-        } catch (JAXBException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        return trackSMSResponse;
+        return trackDetails;
     }
 
     public TrackDetails getLastTrackingReport(String campaignID) throws Exception {
         Application campaign = CampaignService.getCampaignFromID(campaignID);
         String appName = (String) campaign.data.get("appName");
         XMessageDAO xMessage = xmsgRepo.findFirstByAppOrderByTimestampDesc(appName);
+        return trackAndUpdate(xMessage);
+        /*
         try {
             JAXBContext context = JAXBContext.newInstance(TrackDetails.class);
             Unmarshaller jaxbUnmarshaller = context.createUnmarshaller();
@@ -118,36 +129,53 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
             trackAndUpdate(xMessage);
             return null;
         }
+         */
     }
 
     static XMessage callOutBoundAPI(XMessage xMsg, String baseURL, String username, String password) throws Exception {
 
         String message = xMsg.getPayload().getText();
-        String finalmessage = "";
+        StringBuilder finalmessage = new StringBuilder();
         message = message.trim();
-        for(int i = 0 ; i< message.length();i++){
+        for (int i = 0; i < message.length(); i++) {
             char ch = message.charAt(i);
             int j = (int) ch;
-            String sss = "&#"+j+";";
-            finalmessage = finalmessage + sss;
+            String sss = "&#" + j + ";";
+            finalmessage.append(sss);
         }
 
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseURL)
-                .queryParam("password", password)
-                .queryParam("username", username)
-                .queryParam("bulkmobno", xMsg.getTo().getUserID())
-                .queryParam("content", finalmessage)
-                .queryParam("smsservicetype", "singlemsg")
-                .queryParam("senderid", xMsg.getFrom().getMeta().get("senderID"));
+        CDACClient cdacClient = CDACClient.builder()
+                .xMsg(xMsg)
+                .batchSize(20)
+                .username(username)
+                .password(password)
+                .message(finalmessage.toString())
+                .baseURL(baseURL)
+                .trackBaseURL(TRACK_BASE_URL)
+                .build();
 
-        URI expanded = URI.create(builder.toUriString());
-        RestTemplate restTemplate = new RestTemplate();
-        String response = restTemplate.postForObject(expanded, null, String.class);
-        String messageID = getChannelMessageId(response);
-        if (messageID.equals("")) {
-            throw new Exception("No messageID found. Response => " + response);
+        //TEST
+        /*
+        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
+        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
+        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
+        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
+        */
+
+        List<String> messageIds = cdacClient.sendBulkSMS();
+
+        if (messageIds.size() == 0) {
+            throw new Exception("No messageID found. Response => ");
         } else {
-            xMsg.setMessageId(MessageId.builder().channelMessageId(messageID).build());
+            StringBuilder sb = new StringBuilder();
+            String prefix = "";
+            for (String messageId : messageIds) {
+                sb.append(prefix);
+                prefix = ",";
+                sb.append(messageId);
+            }
+
+            xMsg.setMessageId(MessageId.builder().channelMessageId(sb.toString()).build());
             SenderReceiverInfo to = xMsg.getTo();
             to.setUserID("Bulk");
             xMsg.setTo(to);
@@ -155,13 +183,4 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         }
     }
 
-    private static String getChannelMessageId(String response) {
-        try {
-            String messageID = response.split(" = ")[1].trim();
-            if (messageID.matches("[0-9]+hpgovt-hpssa")) return response.split(" = ")[1].trim();
-            else return "";
-        } catch (Exception e) {
-            return "";
-        }
-    }
 }

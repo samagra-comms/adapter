@@ -110,6 +110,18 @@ public class CampaignService {
         return currentApplication;
     }
 
+    public static Application getButtonLinkedApp(String appName){
+        try {
+            Application application = CampaignService.getCampaignFromName(appName);
+            String buttonLinkedAppID = (String) ((ArrayList<Map>) application.data.get("parts")).get(0).get("buttonLinkedApp");
+            Application linkedApplication = CampaignService.getCampaignFromID(buttonLinkedAppID);
+            return linkedApplication;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     private static List<Application> getApplications() {
         List<Application> applications = new ArrayList<>();
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
