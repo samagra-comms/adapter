@@ -7,6 +7,8 @@ import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
 import com.samagra.user.CampaignService;
 import io.fusionauth.domain.Application;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
@@ -53,8 +55,22 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Autowired
     public XMessageRepo xmsgRepo;
 
+    @Getter
+    @Setter
+    class GWCredentials {
+        String passwordHSM;
+        String usernameHSM;
+        String password2Way;
+        String username2Way;
+
+        public GWCredentials getGwCredentialsForAdapter(String adapterID){
+            String url = "http://localhost:9999/admin/v1/adapter/getCredentials/" + adapterID;
+            return restTemplate.getForObject(url, GWCredentials.class);
+        }
+    }
+
     @Override
-    public XMessage convertMessageToXMsg(Object msg) throws JAXBException, JsonProcessingException {
+    public XMessage convertMessageToXMsg(Object msg) throws JsonProcessingException {
         GSWhatsAppMessage message = (GSWhatsAppMessage) msg;
         SenderReceiverInfo from = SenderReceiverInfo.builder().build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
@@ -147,19 +163,20 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      * @return appName
      */
     private String getAppName(SenderReceiverInfo from, String text) {
-        String appName;
+        String appName = null;
         try {
-            appName = (String) CampaignService.getCampaignFromStartingMessage(text).data.get("appName");
-            return appName;
-        } catch (Exception e) {
-            try{
-                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                return xMessageLast.getApp();
-            }catch (Exception e2){
-                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                return xMessageLast.getApp();
+            appName = CampaignService.getCampaignFromStartingMessage(text);
+            if(appName == null){
+                try{
+                    XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+                    appName = xMessageLast.getApp();
+                }catch (Exception e2){
+                    XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+                    appName = xMessageLast.getApp();
+                }
             }
-        }
+        } catch (Exception e) {}
+        return appName;
     }
 
     @Override
@@ -173,64 +190,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         return null;
     }
 
-    public static void main(String arg[]) throws Exception {
-        GupShupWhatsappAdapter adapter = new GupShupWhatsappAdapter();
-        String x = "<xMessage>\n" +
-                "    <channel>WhatsApp</channel>\n" +
-                "    <channelURI>WhatsApp</channelURI>\n" +
-                "    <from>\n" +
-                "        <bot>false</bot>\n" +
-                "        <broadcast>false</broadcast>\n" +
-                "        <userID>9718908699</userID>\n" +
-                "    </from>\n" +
-                "    <lastMessageID>0</lastMessageID>\n" +
-                "    <messageId/>\n" +
-                "    <messageState>REPLIED</messageState>\n" +
-                "    <payload>\n" +
-                "        <text>Hi! Welcome . SamagraBot welcomes you!\n" +
-                "\n" +
-                "I will help you with different Org Workflows. During the flow, Press # to go to the previous step and * to go back to the original menu. \n" +
-                "__ \n" +
-                "\n" +
-                "Please select the number corresponding to the option you want to proceed ahead with. \n" +
-                "__ \n" +
-                "\n" +
-                "1 Leave Balance\n" +
-                "2 Leave Application\n" +
-                "3 Air Ticket\n" +
-                "4 Train Ticket</text>\n" +
-                "    </payload>\n" +
-                "    <provider>gupshup</provider>\n" +
-                "    <providerURI>gupshup</providerURI>\n" +
-                "    <timestamp>1597777963000</timestamp>\n" +
-                "    <to>\n" +
-                "        <bot>false</bot>\n" +
-                "        <broadcast>false</broadcast>\n" +
-                "        <userID>9718908699</userID>\n" +
-                "    </to>\n" +
-                "</xMessage>";
-        XMessage currentXmsg = XMessageParser.parse(new ByteArrayInputStream(x.getBytes()));
-        adapter.callOutBoundAPI(currentXmsg);
-    }
-
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
-
-        //TODO: Get credentials and other info from Adapter API.
-
-        // UAT credentials
-//        String passwordHSM = "SvKg3U74";
-//        String usernameHSM = "2000193031";
-//
-//        String password2Way = "v@MPj33Q";
-//        String username2Way = "2000193033";
-
-        // Prod credentials
-        String passwordHSM = "H8SPeFbJ";
-        String usernameHSM = "2000193032";
-
-        String password2Way = "JyVG5#a!";
-        String username2Way = "2000193034";
+        GWCredentials credentials = (new GWCredentials()).getGwCredentialsForAdapter(xMsg.getAdapterId());
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
                 queryParam("v", "1.1").
@@ -241,26 +203,26 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 queryParam("messageId", "123456789");
         if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
             builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
-                    queryParam("userid", username2Way).
-                    queryParam("password", password2Way).
+                    queryParam("userid", credentials.username2Way).
+                    queryParam("password", credentials.password2Way).
                     queryParam("phone_number", "91" + xMsg.getTo().getUserID()).
                     queryParam("method", "OPT_IN");
         }  else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)){
-            optInUser(xMsg, usernameHSM, passwordHSM, username2Way, password2Way);
+            optInUser(xMsg, credentials.usernameHSM, credentials.passwordHSM, credentials.username2Way, credentials.password2Way);
 
             builder.queryParam("method", "SendMessage").
-                    queryParam("userid", usernameHSM).
-                    queryParam("password", passwordHSM).
+                    queryParam("userid", credentials.usernameHSM).
+                    queryParam("password", credentials.passwordHSM).
                     queryParam("send_to", "91" + xMsg.getTo().getUserID()).
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("isHSM", true).
                     queryParam("msg_type", "HSM");
         }else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)){
-            optInUser(xMsg, usernameHSM, passwordHSM, username2Way, password2Way);
+            optInUser(xMsg, credentials.usernameHSM, credentials.passwordHSM, credentials.username2Way, credentials.password2Way);
 
             builder.queryParam("method", "SendMessage").
-                    queryParam("userid", usernameHSM).
-                    queryParam("password", passwordHSM).
+                    queryParam("userid", credentials.usernameHSM).
+                    queryParam("password", credentials.passwordHSM).
                     queryParam("send_to", "91" + xMsg.getTo().getUserID()).
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("isTemplate", "true").
@@ -268,8 +230,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         }else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
             System.out.println(xMsg.getPayload().getText());
             builder.queryParam("method", "SendMessage").
-                    queryParam("userid", username2Way).
-                    queryParam("password", password2Way).
+                    queryParam("userid", credentials.username2Way).
+                    queryParam("password", credentials.password2Way).
                     queryParam("send_to", "91" + xMsg.getTo().getUserID()).
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("msg_type", "TEXT");
@@ -305,13 +267,5 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         RestTemplate restTemplate = new RestTemplate();
         String result = restTemplate.getForObject(expanded, String.class);
         System.out.println(result);
-    }
-
-    public HttpHeaders getVerifyHttpHeader() throws Exception {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.add("Cache-Control", "no-cache");
-        headers.add("apikey", gsApiKey);
-        return headers;
     }
 }

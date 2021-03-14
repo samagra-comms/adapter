@@ -1,5 +1,6 @@
 package com.samagra.adapter.app.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -13,6 +14,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
 
 @Configuration
@@ -40,6 +42,14 @@ public class AppConfiguration1 {
 
         return builder
                 .requestFactory(() -> new HttpComponentsClientHttpRequestFactory(httpClient))
+                .build();
+    }
+
+    @Bean
+    @Qualifier("json")
+    public RestTemplate getJSONRestTemplate() {
+        return new RestTemplateBuilder()
+                .additionalMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()))
                 .build();
     }
 }

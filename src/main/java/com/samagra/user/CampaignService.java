@@ -1,5 +1,8 @@
 package com.samagra.user;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inversoft.error.Errors;
 import com.inversoft.rest.ClientResponse;
 import io.fusionauth.client.FusionAuthClient;
@@ -9,7 +12,10 @@ import io.fusionauth.domain.GroupMember;
 import io.fusionauth.domain.User;
 import io.fusionauth.domain.api.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
@@ -92,25 +98,27 @@ public class CampaignService {
      * @return Application
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static Application getCampaignFromStartingMessage(String startingMessage){
-        List<Application> applications = getApplications();
-
-        Application currentApplication = null;
-        if (applications.size() > 0) {
-            for (Application application : applications) {
-                try {
-                    if (application.data.get("startingMessage").equals(startingMessage)) {
-                        currentApplication = application;
-                    }
-                } catch (Exception e) {
-                    log.info("Campaign has no startingMessage: " + application.data.toString());
-                }
+    public static String getCampaignFromStartingMessage(String startingMessage) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String baseURL = "http://localhost:9999/admin/v1/bot/get/?startingMessage=";
+            ResponseEntity<String> response
+                    = restTemplate.getForEntity(baseURL + startingMessage, String.class);
+            if (response.getStatusCode() == HttpStatus.OK) {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(response.getBody());
+                JsonNode name = root.path("data").path("name");
+                return name.asText();
+            } else {
+                return null;
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        return currentApplication;
     }
 
-    public static Application getButtonLinkedApp(String appName){
+    public static Application getButtonLinkedApp(String appName) {
         try {
             Application application = CampaignService.getCampaignFromName(appName);
             String buttonLinkedAppID = (String) ((ArrayList<Map>) application.data.get("parts")).get(0).get("buttonLinkedApp");
@@ -167,7 +175,7 @@ public class CampaignService {
                                 log.info("User already there: " + user.id);
                                 assignGroupToUser(staticClient, groupToBeAssigned, user.id);
                             }
-                        }else{
+                        } else {
                             log.error("No group assigned to the campaign");
                         }
                     }

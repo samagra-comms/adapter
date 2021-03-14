@@ -59,7 +59,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     private String getAppName(SenderReceiverInfo from, String text) {
         String appName;
         try {
-            appName = (String) CampaignService.getCampaignFromStartingMessage(text).data.get("appName");
+            appName = CampaignService.getCampaignFromStartingMessage(text);
             return appName;
         } catch (Exception e) {
             XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
