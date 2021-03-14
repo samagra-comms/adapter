@@ -1,6 +1,5 @@
 package com.samagra.adapter.cdac;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;

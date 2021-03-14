@@ -1,6 +1,5 @@
 package com.samagra.common.Request;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.istack.Nullable;
 import lombok.AllArgsConstructor;

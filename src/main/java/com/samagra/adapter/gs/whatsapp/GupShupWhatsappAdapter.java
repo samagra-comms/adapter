@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
 import com.samagra.user.CampaignService;
-import com.samagra.utils.GupShupUtills;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
@@ -17,39 +16,28 @@ import messagerosa.dao.XMessageDAO;
 import messagerosa.dao.XMessageDAOUtills;
 import messagerosa.dao.XMessageRepo;
 import messagerosa.xml.XMessageParser;
-import org.apache.http.client.utils.URLEncodedUtils;
-import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.web.util.UriTemplate;
 import reactor.core.publisher.Flux;
 
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.temporal.TemporalField;
 import java.util.*;
 
 @Slf4j
 @Qualifier("gupshupWhatsappAdapter")
 @Service
 public class GupShupWhatsappAdapter extends AbstractProvider implements IProvider {
-    //TODO channel provider strings set
-    @Value("${provider.gupshup.whatsapp.appname}")
-    private String gupshupWhatsappApp;
+
     @Value("${provider.gupshup.whatsapp.apikey}")
     private String gsApiKey;
 
@@ -102,10 +90,10 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                         break;
                     default:
                         messageState = XMessage.MessageState.FAILED_TO_DELIVER;
+                        //TODO: Save the state of message and reason in this case.
                         break;
                 }
             }
-
         } else if (message.getType().equals("text")) {
             //Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
@@ -228,8 +216,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
 
-        // UAT credentials
+        //TODO: Get credentials and other info from Adapter API.
 
+        // UAT credentials
 //        String passwordHSM = "SvKg3U74";
 //        String usernameHSM = "2000193031";
 //
@@ -285,8 +274,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("msg_type", "TEXT");
         }else{}
-
+        log.info(xMsg.getPayload().getText());
         URI expanded = URI.create(builder.toUriString());
+        log.info(expanded.toString());
         RestTemplate restTemplate = new RestTemplate();
         GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
         log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
