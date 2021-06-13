@@ -1,7 +1,6 @@
 package com.samagra.adapter.netcore.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.OutboundMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.SendMessageResponse;
@@ -9,7 +8,7 @@ import com.samagra.adapter.netcore.whatsapp.outbound.SingleMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.Text;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.user.BotService;
+import com.samagra.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.Builder;
 import lombok.Getter;
@@ -28,11 +27,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 
-import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j

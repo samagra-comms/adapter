@@ -2,7 +2,7 @@ package com.samagra.adapter.provider.factory;
 
 import com.samagra.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.samagra.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
-import com.samagra.user.BotService;
+import com.samagra.utils.BotService;
 import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

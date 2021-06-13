@@ -1,7 +1,8 @@
-package com.samagra.user;
+package com.samagra.utils;
 
 import com.inversoft.error.Errors;
 import com.inversoft.rest.ClientResponse;
+import com.samagra.utils.BotService;
 import io.fusionauth.client.FusionAuthClient;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
@@ -31,7 +32,6 @@ public class UserService {
             // Exception Handling
             Exception exception = response.exception;
         }
-
         return null;
     }
 

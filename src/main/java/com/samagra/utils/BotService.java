@@ -1,4 +1,4 @@
-package com.samagra.user;
+package com.samagra.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -60,31 +60,6 @@ public class BotService{
             for (Application application : applications) {
                 if (application.name.equals(campaignName)) {
                     currentApplication = application;
-                }
-            }
-        }
-        return currentApplication;
-    }
-
-    /**
-     * Retrieve Campaign Params From its Name
-     *
-     * @param appName - Gupshup bot AppName
-     * @return Application
-     * @throws Exception Error Exception, in failure in Network request.
-     */
-    public static Application getCampaignFromGupshupAppName(String appName) {
-        List<Application> applications = getApplications();
-
-        Application currentApplication = null;
-        if (applications.size() > 0) {
-            for (Application application : applications) {
-                try {
-                    if (application.data.get("appName").equals(appName)) {
-                        currentApplication = application;
-                    }
-                } catch (Exception e) {
-                    log.info("Campaign has not app Name: " + application.data.toString());
                 }
             }
         }
@@ -156,69 +131,5 @@ public class BotService{
             Exception exception = response.exception;
         }
         return applications;
-    }
-
-    public static void addUserToCampaign(String phoneNumber, String appName) {
-        FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
-        try {
-            Application application = getCampaignFromGupshupAppName(appName);
-            if ((boolean) application.data.get("addNewUserOnOptIn")) {
-                ClientResponse<GroupResponse, Void> response = staticClient.retrieveGroups();
-                if (response.wasSuccessful()) {
-                    List<Group> groups = response.successResponse.groups;
-                    Group groupToBeAssigned;
-                    for (Group group : groups) {
-                        if (group.id.toString().equals(application.data.get("group"))) {
-                            groupToBeAssigned = group;
-                            User user;
-                            // Check if a user is there, otherwise create new
-                            user = UserService.findByPhone(phoneNumber);
-
-                            if (user == null) {
-                                user = new User();
-                                user.username = phoneNumber;
-                                user.password = "defaultPasswordForUserNotSomeRandomString";
-                                user.mobilePhone = phoneNumber;
-                                UserRequest userRequest = new UserRequest(user);
-                                ClientResponse<UserResponse, Errors> userResponse = staticClient.createUser(null, userRequest);
-                                if (!userResponse.wasSuccessful()) {
-                                    log.error("Error in creating a new user");
-                                } else {
-                                    log.info("New user created: " + userResponse.successResponse.user.id);
-                                    assignGroupToUser(staticClient, groupToBeAssigned, userResponse.successResponse.user.id);
-                                }
-                            } else {
-                                log.info("User already there: " + user.id);
-                                assignGroupToUser(staticClient, groupToBeAssigned, user.id);
-                            }
-                        } else {
-                            log.error("No group assigned to the campaign");
-                        }
-                    }
-                } else if (response.exception != null) {
-                    Exception exception = response.exception;
-                    log.error("Error in creating a new user");
-                }
-            } else {
-                log.info("Campaign closed; New users cannot be added" + appName);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static void assignGroupToUser(FusionAuthClient staticClient, Group groupToBeAssigned, UUID id) {
-        List<GroupMember> users = new ArrayList<>();
-        GroupMember groupMember = new GroupMember();
-        groupMember.userId = id;
-        users.add(groupMember);
-        MemberRequest memberRequest = new MemberRequest(groupToBeAssigned.id, users);
-        ClientResponse<MemberResponse, Errors> memberAddedResponse = staticClient.createGroupMembers(memberRequest);
-        if (memberAddedResponse.wasSuccessful()) {
-            log.info("User added to campaign");
-        } else {
-            log.info(memberAddedResponse.errorResponse.toString());
-            log.info("Failed to add user to groupId: " + groupToBeAssigned.id);
-        }
     }
 }

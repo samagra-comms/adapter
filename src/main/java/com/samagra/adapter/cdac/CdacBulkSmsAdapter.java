@@ -3,7 +3,7 @@ package com.samagra.adapter.cdac;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.user.BotService;
+import com.samagra.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
@@ -114,18 +114,6 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         String appName = (String) campaign.data.get("appName");
         XMessageDAO xMessage = xmsgRepo.findFirstByAppOrderByTimestampDesc(appName);
         return trackAndUpdate(xMessage);
-        /*
-        try {
-            JAXBContext context = JAXBContext.newInstance(TrackDetails.class);
-            Unmarshaller jaxbUnmarshaller = context.createUnmarshaller();
-            TrackDetails trackDetails = (TrackDetails) jaxbUnmarshaller.unmarshal((new ByteArrayInputStream(xMessage.getAuxData().getBytes())));
-            return trackDetails;
-        } catch (Exception e) {
-            e.printStackTrace();
-            trackAndUpdate(xMessage);
-            return null;
-        }
-         */
     }
 
     static XMessage callOutBoundAPI(XMessage xMsg, String baseURL, String username, String password) throws Exception {
