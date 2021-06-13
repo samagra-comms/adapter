@@ -2,58 +2,132 @@ package com.samagra.adapter.gs.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.samagra.user.BotService;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
-import org.junit.jupiter.api.Test;
+import messagerosa.dao.XMessageDAO;
+import messagerosa.dao.XMessageRepo;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.xml.bind.JAXBException;
 
+import java.util.ArrayList;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.notNull;
+import static org.mockito.Mockito.when;
 
-class GupShupWhatsappAdapterTest {
+@Slf4j
+@ExtendWith(MockitoExtension.class)
+class GupShupWhatsappAdapterTest{
 
-    @Autowired
-    private GupShupWhatsappAdapter adapter;
+    GupShupWhatsappAdapter adapter;
+    ObjectMapper objectMapper;
+    String simplePayload, readPayload, sentPayload, deliveredPayload;
+
+    @Mock
+    BotService botService;
+
+    @Mock
+    XMessageRepo xMessageRepo;
+
+    @Mock
+    XMessageDAO xMessageDAO;
+
+    @SneakyThrows
+    @BeforeEach
+    public void init() {
+        when(botService.getCurrentAdapter(any())).thenReturn("A");
+        when(botService.getCampaignFromStartingMessage(any())).thenReturn("test");
+
+        objectMapper = new ObjectMapper();
+        simplePayload = "{\"waNumber\":\"919311415686\",\"mobile\":\"919415787824\",\"replyId\":null,\"messageId\":null,\"timestamp\":1616952476000,\"name\":\"chaks\",\"version\":0,\"type\":\"text\",\"text\":\"*\",\"image\":null,\"document\":null,\"voice\":null,\"audio\":null,\"video\":null,\"location\":null,\"response\":null,\"extra\":null,\"app\":null}";
+        readPayload = "{\"waNumber\":null,\"mobile\":null,\"replyId\":null,\"messageId\":null,\"timestamp\":null,\"name\":null,\"version\":0,\"type\":null,\"text\":null,\"image\":null,\"document\":null,\"voice\":null,\"audio\":null,\"video\":null,\"location\":null,\"response\":\"[{\\\"srcAddr\\\":\\\"SDTEXT\\\",\\\"extra\\\":\\\"Samagra\\\",\\\"channel\\\":\\\"WHATSAPP\\\",\\\"externalId\\\":\\\"4340925846643462155-31668054994359383\\\",\\\"cause\\\":\\\"READ\\\",\\\"errorCode\\\":\\\"026\\\",\\\"destAddr\\\":\\\"919415787824\\\",\\\"eventType\\\":\\\"READ\\\",\\\"eventTs\\\":1616990315000}]\",\"extra\":null,\"app\":null}";
+        sentPayload = "{\"waNumber\":null,\"mobile\":null,\"replyId\":null,\"messageId\":null,\"timestamp\":null,\"name\":null,\"version\":0,\"type\":null,\"text\":null,\"image\":null,\"document\":null,\"voice\":null,\"audio\":null,\"video\":null,\"location\":null,\"response\":\"[{\\\"srcAddr\\\":\\\"SDTEXT\\\",\\\"extra\\\":\\\"Samagra\\\",\\\"channel\\\":\\\"WHATSAPP\\\",\\\"externalId\\\":\\\"4340925846643462155-31668054994359383\\\",\\\"cause\\\":\\\"SENT\\\",\\\"errorCode\\\":\\\"025\\\",\\\"destAddr\\\":\\\"919415787824\\\",\\\"eventType\\\":\\\"SENT\\\",\\\"eventTs\\\":1616990314000}]\",\"extra\":null,\"app\":null}";
+        deliveredPayload = "{\"waNumber\":null,\"mobile\":null,\"replyId\":null,\"messageId\":null,\"timestamp\":null,\"name\":null,\"version\":0,\"type\":null,\"text\":null,\"image\":null,\"document\":null,\"voice\":null,\"audio\":null,\"video\":null,\"location\":null,\"response\":\"[{\\\"srcAddr\\\":\\\"SDTEXT\\\",\\\"extra\\\":\\\"Samagra\\\",\\\"channel\\\":\\\"WHATSAPP\\\",\\\"externalId\\\":\\\"4340928795421794315-368294223055997520\\\",\\\"cause\\\":\\\"SUCCESS\\\",\\\"errorCode\\\":\\\"000\\\",\\\"destAddr\\\":\\\"919415787824\\\",\\\"eventType\\\":\\\"DELIVERED\\\",\\\"eventTs\\\":1616990666000}]\",\"extra\":null,\"app\":null}";
+
+        //TODO: Add a payload for Files, Videos and Location.
+
+        adapter = GupShupWhatsappAdapter
+                .builder()
+                .botservice(botService)
+                .xmsgRepo(xMessageRepo)
+                .build();
+    }
 
     @Test
-    public void testForSimplePayload() throws JsonProcessingException, JAXBException {
-        // Get this from https://www.gupshup.io/developer/docs/bot-platform/guide/whatsapp-api-documentation#IMNE
-        // Convert it to string using => https://www.freeformatter.com/json-escape.html#ad-output
-        String payload = "{\r\n            \"app\": \"DemoApp\",\r\n                \"timestamp\": 1580227766370,\r\n                \"version\": 2,\r\n                \"type\": \"message\",\r\n                \"payload\": {\r\n            \"id\": \"ABEGkYaYVSEEAhAL3SLAWwHKeKrt6s3FKB0c\",\r\n                    \"source\": \"918x98xx21x4\",\r\n                    \"type\": \"text\",\r\n                    \"payload\": {\r\n                \"text\": \"Hi\"\r\n            },\r\n            \"sender\": {\r\n                \"phone\": \"918x98xx21x4\",\r\n                        \"name\": \"Smit\",\r\n                        \"country_code\": \"91\",\r\n                        \"dial_code\": \"8x98xx21x4\"\r\n            }\r\n        }\r\n        }";
-        GSWhatsAppMessage message = new ObjectMapper().readValue(payload, GSWhatsAppMessage.class);
-        // XMessage xMessage = adapter.convertMessageToXMsg(message);
-        assertEquals(1, 1);
+    public void simplePayloadParsing() throws JsonProcessingException, JAXBException {
+        ArrayList<XMessageDAO> xMessageDAOArrayList = new ArrayList<>();
+        xMessageDAOArrayList.add(xMessageDAO);
+        when(xMessageRepo.findAllByUserIdOrderByTimestamp((String) notNull())).thenReturn(xMessageDAOArrayList);
+
+        GSWhatsAppMessage message = objectMapper.readValue(simplePayload, GSWhatsAppMessage.class);
+        XMessage xMessage = adapter.convertMessageToXMsg(message);
+        assertEquals("test", xMessage.getApp());
+        assertEquals("9415787824", xMessage.getFrom().getUserID());
+        assertEquals("A", xMessage.getAdapterId());
+        assertEquals("WhatsApp", xMessage.getChannelURI());
+        assertEquals("gupshup", xMessage.getProviderURI());
+        assertEquals("REPLIED", xMessage.getMessageState().toString());
+    }
+
+    @Test
+    public void readPayloadParsing() throws JsonProcessingException, JAXBException {
+
+        GSWhatsAppMessage message = objectMapper.readValue(readPayload, GSWhatsAppMessage.class);
+        XMessage xMessage = adapter.convertMessageToXMsg(message);
+        assertEquals("test", xMessage.getApp());
+        assertEquals("9415787824", xMessage.getFrom().getUserID());
+        assertEquals("A", xMessage.getAdapterId());
+        assertEquals("WhatsApp", xMessage.getChannelURI());
+        assertEquals("gupshup", xMessage.getProviderURI());
+        assertEquals("READ", xMessage.getMessageState().toString());
+    }
+
+    @Test
+    public void sentPayloadParsing() throws JsonProcessingException, JAXBException {
+
+        GSWhatsAppMessage message = objectMapper.readValue(sentPayload, GSWhatsAppMessage.class);
+        XMessage xMessage = adapter.convertMessageToXMsg(message);
+        assertEquals("test", xMessage.getApp());
+        assertEquals("9415787824", xMessage.getFrom().getUserID());
+        assertEquals("A", xMessage.getAdapterId());
+        assertEquals("WhatsApp", xMessage.getChannelURI());
+        assertEquals("gupshup", xMessage.getProviderURI());
+        assertEquals("SENT", xMessage.getMessageState().toString());
+    }
+
+    @Test
+    public void deliveredPayloadParsing() throws JsonProcessingException, JAXBException {
+
+        GSWhatsAppMessage message = objectMapper.readValue(deliveredPayload, GSWhatsAppMessage.class);
+        XMessage xMessage = adapter.convertMessageToXMsg(message);
+        assertEquals("test", xMessage.getApp());
+        assertEquals("9415787824", xMessage.getFrom().getUserID());
+        assertEquals("A", xMessage.getAdapterId());
+        assertEquals("WhatsApp", xMessage.getChannelURI());
+        assertEquals("gupshup", xMessage.getProviderURI());
+        assertEquals("DELIVERED",xMessage.getMessageState().toString());
     }
 
 //    @Test
-//    public void testForEnqueued() throws JsonProcessingException, JAXBException {
-//        String payload = "{\"app\":\"MissionPrerna\",\"timestamp\":1595350687406,\"version\":2,\"type\":\"message-event\",\"payload\":{\"id\":\"ee2ac3d0-705f-44e0-b3f6-bd55b86f1e65\",\"type\":\"enqueued\",\"destination\":\"917837833100\",\"payload\":{\"whatsappMessageId\":\"gBEGkXg3gzEAAglCV_5H94iO6RI\",\"type\":\"session\"}}}";
+//    public void optedInPayloadParsing() throws JsonProcessingException, JAXBException {
+//        String payload = "";
 //        GSWhatsAppMessage message = new ObjectMapper().readValue(payload, GSWhatsAppMessage.class);
-//        GupShupWhatsappAdapter adapter = new GupShupWhatsappAdapter();
 //        XMessage xMessage = adapter.convertMessageToXMsg(message);
-//        assertEquals(xMessage.getMessageState(), XMessage.MessageState.ENQUEUED);
-//        assertEquals(xMessage.getMessageId().getWhatsappMessageId(), "gBEGkXg3gzEAAglCV_5H94iO6RI");
-//        assertEquals(xMessage.getMessageId().getGupshupMessageId(), "ee2ac3d0-705f-44e0-b3f6-bd55b86f1e65");
-//    }
-//
-//    @Test
-//    public void testForDelivered() throws JsonProcessingException, JAXBException {
-//        String payload = "{\"app\":\"MissionPrerna\",\"timestamp\":1595350693330,\"version\":2,\"type\":\"message-event\",\"payload\":{\"id\":\"gBEGkXg3gzEAAglCV_5H94iO6RI\",\"gsId\":\"ee2ac3d0-705f-44e0-b3f6-bd55b86f1e65\",\"type\":\"delivered\",\"destination\":\"917837833100\",\"payload\":{\"ts\":1595350688}}}";
-//        GSWhatsAppMessage message = new ObjectMapper().readValue(payload, GSWhatsAppMessage.class);
-//        GupShupWhatsappAdapter adapter = new GupShupWhatsappAdapter();
-//        XMessage xMessage = adapter.convertMessageToXMsg(message);
-//        assertEquals(xMessage.getMessageState(), XMessage.MessageState.DELIVERED);
-//        assertEquals(xMessage.getMessageId().getWhatsappMessageId(), "gBEGkXg3gzEAAglCV_5H94iO6RI");
-//        assertEquals(xMessage.getMessageId().getGupshupMessageId(), "ee2ac3d0-705f-44e0-b3f6-bd55b86f1e65");
+//        assertEquals(xMessage.getMessageState(), XMessage.MessageState.OPTED_IN);
 //    }
 
-    @Test
-    public void testForOptedIn() throws JsonProcessingException, JAXBException {
-        String payload = "{\"app\":\"testingBotTemp\",\"timestamp\":1595353492083,\"version\":2,\"type\":\"user-event\",\"payload\":{\"phone\":\"919415787824\",\"type\":\"opted-in\"}}";
-        GSWhatsAppMessage message = new ObjectMapper().readValue(payload, GSWhatsAppMessage.class);
-        GupShupWhatsappAdapter adapter = new GupShupWhatsappAdapter();
-        XMessage xMessage = adapter.convertMessageToXMsg(message);
-        assertEquals(xMessage.getMessageState(), XMessage.MessageState.OPTED_IN);
+    @AfterAll
+    static void teardown() {
+        System.out.println("Teardown 43");
     }
 
 }

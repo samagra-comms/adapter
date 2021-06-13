@@ -7,6 +7,8 @@ import com.sun.istack.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @XmlRootElement
@@ -28,7 +30,7 @@ public class GSWhatsAppMessage extends CommonMessage {
   private WAInboundFile voice;
   private WAInboundFile audio;
   private WAInboundFile video;
-  private WALocation location;
+  private String location;
   private String response;
   private String extra;
   private String app;

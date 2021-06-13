@@ -3,7 +3,7 @@ package com.samagra.adapter.cdac;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.user.CampaignService;
+import com.samagra.user.BotService;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
@@ -59,7 +59,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     private String getAppName(SenderReceiverInfo from, String text) {
         String appName;
         try {
-            appName = CampaignService.getCampaignFromStartingMessage(text);
+            appName = new BotService().getCampaignFromStartingMessage(text);
             return appName;
         } catch (Exception e) {
             XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
@@ -68,14 +68,14 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     }
 
     @Override
-    public void processInBoundMessage(XMessage nextMsg) throws Exception {
+    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
         XMessage xMsg = callOutBoundAPI(nextMsg, OUTBOUND, username, password);
         XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
         xmsgRepo.save(dao);
     }
 
     @Override
-    public Flux<Boolean> processInBoundMessageFlux(XMessage nextMsg) throws Exception {
+    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 
@@ -110,7 +110,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     }
 
     public TrackDetails getLastTrackingReport(String campaignID) throws Exception {
-        Application campaign = CampaignService.getCampaignFromID(campaignID);
+        Application campaign = BotService.getCampaignFromID(campaignID);
         String appName = (String) campaign.data.get("appName");
         XMessageDAO xMessage = xmsgRepo.findFirstByAppOrderByTimestampDesc(appName);
         return trackAndUpdate(xMessage);
@@ -149,14 +149,6 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
                 .baseURL(baseURL)
                 .trackBaseURL(TRACK_BASE_URL)
                 .build();
-
-        //TEST
-        /*
-        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
-        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
-        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
-        cdacClient.trackMessage("290920201601346533977hpgovt-hpssa");
-        */
 
         List<String> messageIds = cdacClient.sendBulkSMS();
 

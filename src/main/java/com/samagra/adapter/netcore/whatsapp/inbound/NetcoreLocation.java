@@ -1,11 +1,11 @@
-package com.samagra.adapter.gs.whatsapp;
+package com.samagra.adapter.netcore.whatsapp.inbound;
 
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class WALocation {
+public class NetcoreLocation {
     private double latitude;
     private double longitude;
 }

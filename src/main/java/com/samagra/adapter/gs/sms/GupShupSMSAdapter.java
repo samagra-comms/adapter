@@ -40,12 +40,12 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     }
 
     @Override
-    public void processInBoundMessage(XMessage xMsg) throws Exception {
+    public void processOutBoundMessage(XMessage xMsg) throws Exception {
         callOutBoundAPI(xMsg);
     }
 
     @Override
-    public Flux<Boolean> processInBoundMessageFlux(XMessage nextMsg) throws Exception {
+    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 

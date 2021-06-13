@@ -5,8 +5,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.user.CampaignService;
+import com.samagra.user.BotService;
 import io.fusionauth.domain.Application;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -17,27 +18,33 @@ import messagerosa.core.model.XMessagePayload;
 import messagerosa.dao.XMessageDAO;
 import messagerosa.dao.XMessageDAOUtills;
 import messagerosa.dao.XMessageRepo;
-import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 
-import javax.xml.bind.JAXBException;
-import java.io.ByteArrayInputStream;
+import javax.inject.Inject;
 import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
 
+@Getter
+@Setter
+class GWCredentials {
+    String passwordHSM;
+    String usernameHSM;
+    String password2Way;
+    String username2Way;
+}
+
 @Slf4j
-@Qualifier("gupshupWhatsappAdapter")
-@Service
+@Getter
+@Setter
+@Builder
 public class GupShupWhatsappAdapter extends AbstractProvider implements IProvider {
 
     @Value("${provider.gupshup.whatsapp.apikey}")
@@ -48,26 +55,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
-    @Autowired
-    @Qualifier("gupshupWhatsappAdapter")
-    private GupShupWhatsappAdapter gupShupWhatsappAdapter;
+    private BotService botservice;
 
-    @Autowired
     public XMessageRepo xmsgRepo;
-
-    @Getter
-    @Setter
-    class GWCredentials {
-        String passwordHSM;
-        String usernameHSM;
-        String password2Way;
-        String username2Way;
-
-        public GWCredentials getGwCredentialsForAdapter(String adapterID){
-            String url = "http://localhost:9999/admin/v1/adapter/getCredentials/" + adapterID;
-            return restTemplate.getForObject(url, GWCredentials.class);
-        }
-    }
 
     @Override
     public XMessage convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -76,12 +66,15 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
 
         XMessage.MessageState messageState = XMessage.MessageState.REPLIED;
+        messageState = XMessage.MessageState.REPLIED;
         MessageId messageIdentifier = MessageId.builder().build();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
         long lastMsgId = 0;
         String appName = "";
+        String adapter = "";
 
+        log.info("test");
 
         if (message.getResponse() != null) {
             String reportResponse = message.getResponse();
@@ -94,6 +87,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 messageIdentifier.setChannelMessageId(reportMsg.getExternalId());
                 from.setUserID(reportMsg.getDestAddr().substring(2));
                 appName = getAppName(from, message.getText());
+                adapter = botservice.getCurrentAdapter(appName);
                 switch (eventType) {
                     case "SENT":
                         messageState = XMessage.MessageState.SENT;
@@ -114,6 +108,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             //Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
             appName = getAppName(from, message.getText());
+            adapter = botservice.getCurrentAdapter(appName);
             messageIdentifier.setReplyId(message.getReplyId());
             if (message.getType().equals("OPT_IN")) {
                 messageState = XMessage.MessageState.OPTED_IN;
@@ -140,14 +135,16 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
             lastMsgId = lastMessage.getId();
             appName = lastMessage.getApp();
-            Application application = CampaignService.getButtonLinkedApp(appName);
+            Application application = botservice.getButtonLinkedApp(appName);
             appName = application.name;
             xmsgPayload.setText((String) application.data.get("startingMessage"));
         }
+        if(message.getLocation() !=null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .app(appName)
                 .to(to)
                 .from(from)
+                .adapterId(adapter)
                 .channelURI("WhatsApp")
                 .providerURI("gupshup")
                 .messageState(messageState)
@@ -165,7 +162,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     private String getAppName(SenderReceiverInfo from, String text) {
         String appName = null;
         try {
-            appName = CampaignService.getCampaignFromStartingMessage(text);
+            appName = botservice.getCampaignFromStartingMessage(text);
             if(appName == null){
                 try{
                     XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
@@ -180,19 +177,20 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     @Override
-    public void processInBoundMessage(XMessage nextMsg) throws Exception {
+    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
         log.info("nextXmsg {}", nextMsg.toXML());
         callOutBoundAPI(nextMsg);
     }
 
     @Override
-    public Flux<Boolean> processInBoundMessageFlux(XMessage nextMsg) throws Exception {
+    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
-        GWCredentials credentials = (new GWCredentials()).getGwCredentialsForAdapter(xMsg.getAdapterId());
+        String url = "http://federation-service:9999/admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
+        GWCredentials credentials = restTemplate.getForObject(url, GWCredentials.class);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
                 queryParam("v", "1.1").

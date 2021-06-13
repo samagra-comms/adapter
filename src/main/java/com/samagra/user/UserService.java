@@ -54,7 +54,7 @@ public class UserService {
 
     public static List<User> findUsersForCampaign(String campaignName) throws Exception {
 
-        Application currentApplication = CampaignService.getCampaignFromName(campaignName);
+        Application currentApplication = BotService.getCampaignFromName(campaignName);
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         if(currentApplication != null){
             UserSearchCriteria usc = new UserSearchCriteria();

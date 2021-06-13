@@ -8,11 +8,9 @@ import javax.xml.bind.JAXBException;
 
 public interface IProvider {
 
-    public void processInBoundMessage(XMessage nextMsg, XMessage currentMsg) throws Exception;
+    public void processOutBoundMessage(XMessage nextMsg) throws Exception;
 
-    public void processInBoundMessage(XMessage nextMsg) throws Exception;
-
-    public Flux<Boolean> processInBoundMessageFlux(XMessage nextMsg) throws Exception;
+    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception;
 
     public XMessage convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException;
 }

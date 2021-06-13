@@ -1,8 +1,8 @@
 package com.samagra.user;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.inversoft.error.Errors;
 import com.inversoft.rest.ClientResponse;
 import io.fusionauth.client.FusionAuthClient;
@@ -21,7 +21,7 @@ import java.util.*;
 
 @Component
 @Slf4j
-public class CampaignService {
+public class BotService{
 
     /**
      * Retrieve Campaign Params From its Identifier
@@ -98,12 +98,11 @@ public class CampaignService {
      * @return Application
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static String getCampaignFromStartingMessage(String startingMessage) {
+    public String getCampaignFromStartingMessage(String startingMessage) {
         try {
             RestTemplate restTemplate = new RestTemplate();
-            String baseURL = "http://localhost:9999/admin/v1/bot/get/?startingMessage=";
-            ResponseEntity<String> response
-                    = restTemplate.getForEntity(baseURL + startingMessage, String.class);
+            String baseURL = "http://federation-service:9999/admin/v1/bot/get/?startingMessage=";
+            ResponseEntity<String> response = restTemplate.getForEntity(baseURL + startingMessage, String.class);
             if (response.getStatusCode() == HttpStatus.OK) {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode root = mapper.readTree(response.getBody());
@@ -113,16 +112,33 @@ public class CampaignService {
                 return null;
             }
         } catch (Exception e) {
-            e.printStackTrace();
             return null;
         }
     }
 
-    public static Application getButtonLinkedApp(String appName) {
+    public String getCurrentAdapter(String botName){
         try {
-            Application application = CampaignService.getCampaignFromName(appName);
+            RestTemplate restTemplate = new RestTemplate();
+            String baseURL = "http://federation-service:9999/admin/v1/bot/get/?name=";
+            ResponseEntity<String> response = restTemplate.getForEntity(baseURL + botName, String.class);
+            if (response.getStatusCode() == HttpStatus.OK) {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(response.getBody());
+                ArrayNode login = (ArrayNode) root.path("data").path("logic");
+                return ((JsonNode)login.get(0)).path("adapter").asText();
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public Application getButtonLinkedApp(String appName) {
+        try {
+            Application application = BotService.getCampaignFromName(appName);
             String buttonLinkedAppID = (String) ((ArrayList<Map>) application.data.get("parts")).get(0).get("buttonLinkedApp");
-            Application linkedApplication = CampaignService.getCampaignFromID(buttonLinkedAppID);
+            Application linkedApplication = BotService.getCampaignFromID(buttonLinkedAppID);
             return linkedApplication;
         } catch (Exception e) {
             e.printStackTrace();
