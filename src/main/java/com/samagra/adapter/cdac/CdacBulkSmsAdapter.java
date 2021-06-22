@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.List;
@@ -75,7 +75,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     }
 
     @Override
-    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
+    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 

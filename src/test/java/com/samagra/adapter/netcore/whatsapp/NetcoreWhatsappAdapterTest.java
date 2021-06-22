@@ -15,9 +15,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import javax.xml.bind.JAXBException;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -117,6 +120,26 @@ class NetcoreWhatsappAdapterTest {
         assertEquals("DELIVERED",xMessage.getMessageState().toString());
     }
 
+    @Test
+    public void processOutBoundMessageF() throws Exception {
+        ArrayList<XMessageDAO> xMessageDAOArrayList = new ArrayList<>();
+        xMessageDAOArrayList.add(xMessageDAO);
+        when(xMessageRepo.findAllByUserIdOrderByTimestamp((String) notNull())).thenReturn(xMessageDAOArrayList);
+
+        NetcoreWhatsAppMessage message = objectMapper.readValue(simplePayload, NetcoreWhatsAppMessage.class);
+        XMessage xMessage = adapter.convertMessageToXMsg(message);
+        long start = System.currentTimeMillis();
+        for(int i=0;i<10000;i++){
+            Mono<Boolean> b = adapter.processOutBoundMessageF(xMessage);
+
+            StepVerifier.create(b)
+                    .expectNext(true)
+                    .expectComplete()
+                    .verify();
+        }
+        long end = System.currentTimeMillis();
+        System.out.println("Time Taken :-" + (end-start));
+    }
     @AfterAll
     static void teardown() {
         System.out.println("Teardown 43");

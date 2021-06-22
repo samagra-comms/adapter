@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
 import java.nio.charset.Charset;
@@ -45,7 +46,7 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     }
 
     @Override
-    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
+    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 
