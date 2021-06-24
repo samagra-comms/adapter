@@ -12,16 +12,21 @@ import io.fusionauth.domain.GroupMember;
 import io.fusionauth.domain.User;
 import io.fusionauth.domain.api.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
-@Component
+@Service
 @Slf4j
 public class BotService{
+
+    @Value("${campaign.url}")
+    public String CAMPAIGN_URL;
 
     /**
      * Retrieve Campaign Params From its Identifier
@@ -76,7 +81,7 @@ public class BotService{
     public String getCampaignFromStartingMessage(String startingMessage) {
         try {
             RestTemplate restTemplate = new RestTemplate();
-            String baseURL = "http://federation-service:9999/admin/v1/bot/get/?startingMessage=";
+            String baseURL = CAMPAIGN_URL + "admin/v1/bot/getByParam/?startingMessage=";
             ResponseEntity<String> response = restTemplate.getForEntity(baseURL + startingMessage, String.class);
             if (response.getStatusCode() == HttpStatus.OK) {
                 ObjectMapper mapper = new ObjectMapper();
@@ -94,7 +99,7 @@ public class BotService{
     public String getCurrentAdapter(String botName){
         try {
             RestTemplate restTemplate = new RestTemplate();
-            String baseURL = "http://federation-service:9999/admin/v1/bot/get/?name=";
+            String baseURL = CAMPAIGN_URL + "admin/v1/bot/get/?name=";
             ResponseEntity<String> response = restTemplate.getForEntity(baseURL + botName, String.class);
             if (response.getStatusCode() == HttpStatus.OK) {
                 ObjectMapper mapper = new ObjectMapper();

@@ -48,7 +48,7 @@ class NetcoreWhatsappAdapterTest {
         when(botService.getCampaignFromStartingMessage(any())).thenReturn("test");
 
         objectMapper = new ObjectMapper();
-        simplePayload = "{\"message_id\":\"ABEGkZlgQyWAAgo-sDVSUOa9jH0z\",\"from\":\"919415787824\",\"received_at\":\"1567090835\",\"context\": {\"ncmessage_id\":null,\"message_id\":null},\"message_type\":\"TEXT\",\"text_type\":{\"text\":\"test\"}}";
+        simplePayload = "{\"waNumber\":null,\"mobile\":\"919910522257\",\"replyId\":null,\"messageId\":\"ABEGkZkQUiJXAgo-sD-i5EX9J_S5\",\"timestamp\":\"1624370212\",\"name\":null,\"version\":0,\"type\":\"TEXT\",\"text\":{\"text\":\"1\"},\"eventType\":null,\"context\":{\"ncmessage_id\":null,\"message_id\":null},\"statusRemark\":null,\"source\":null,\"image\":null,\"document\":null,\"voice\":null,\"audio\":null,\"video\":null,\"location\":null,\"response\":null,\"extra\":null,\"app\":null}";
         readPayload = "{\"ncmessage_id\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875d12\",\"recipient\":\"919415787824\",\"status\":\"read\",\"status_remark\":\"\",\"received_at\":\"2019-05-16 15:36:58\",\"source\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875dc1\"}";
         sentPayload = "{\"ncmessage_id\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875d12\",\"recipient\":\"919415787824\",\"status\":\"sent\",\"status_remark\":\"\",\"received_at\":\"2019-05-16 15:36:58\",\"source\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875dc1\"}";
         deliveredPayload = "{\"ncmessage_id\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875d12\",\"recipient\":\"919415787824\",\"status\":\"delivered\",\"status_remark\":\"\",\"received_at\":\"2019-05-16 15:36:58\",\"source\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875dc1\"}";;

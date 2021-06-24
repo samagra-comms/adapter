@@ -157,7 +157,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         String appName = null;
         try {
             appName = botservice.getCampaignFromStartingMessage(text);
-            if(appName == null){
+            if(appName == null || appName.equals("")){
                 try{
                     XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
                     appName = xMessageLast.getApp();

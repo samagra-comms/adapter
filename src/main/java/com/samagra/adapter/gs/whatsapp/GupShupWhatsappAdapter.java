@@ -123,7 +123,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 XMessageDAO msg0 = msg1.get(0);
                 lastMsgId = msg0.getId();
             }
-        }else if (message.getType().equals("button")){
+        } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
             // Get the app from that message
@@ -137,7 +137,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             appName = application.name;
             xmsgPayload.setText((String) application.data.get("startingMessage"));
         }
-        if(message.getLocation() !=null) xmsgPayload.setText(message.getLocation());
+        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .app(appName)
                 .to(to)
@@ -161,16 +161,17 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         String appName = null;
         try {
             appName = botservice.getCampaignFromStartingMessage(text);
-            if(appName == null){
-                try{
+            if (appName == null) {
+                try {
                     XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
                     appName = xMessageLast.getApp();
-                }catch (Exception e2){
+                } catch (Exception e2) {
                     XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
                     appName = xMessageLast.getApp();
                 }
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
         return appName;
     }
 
@@ -187,7 +188,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
-        String url = "http://federation-service:9999/admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
+        String url = botservice.CAMPAIGN_URL + "admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
         GWCredentials credentials = restTemplate.getForObject(url, GWCredentials.class);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
@@ -203,7 +204,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     queryParam("password", credentials.password2Way).
                     queryParam("phone_number", "91" + xMsg.getTo().getUserID()).
                     queryParam("method", "OPT_IN");
-        }  else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)){
+        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
             optInUser(xMsg, credentials.usernameHSM, credentials.passwordHSM, credentials.username2Way, credentials.password2Way);
 
             builder.queryParam("method", "SendMessage").
@@ -213,7 +214,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("isHSM", true).
                     queryParam("msg_type", "HSM");
-        }else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)){
+        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
             optInUser(xMsg, credentials.usernameHSM, credentials.passwordHSM, credentials.username2Way, credentials.password2Way);
 
             builder.queryParam("method", "SendMessage").
@@ -223,7 +224,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("isTemplate", "true").
                     queryParam("msg_type", "HSM");
-        }else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+        } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
             System.out.println(xMsg.getPayload().getText());
             builder.queryParam("method", "SendMessage").
                     queryParam("userid", credentials.username2Way).
@@ -231,7 +232,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     queryParam("send_to", "91" + xMsg.getTo().getUserID()).
                     queryParam("msg", xMsg.getPayload().getText()).
                     queryParam("msg_type", "TEXT");
-        }else{}
+        } else {
+        }
         log.info(xMsg.getPayload().getText());
         URI expanded = URI.create(builder.toUriString());
         log.info(expanded.toString());
