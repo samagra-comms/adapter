@@ -10,6 +10,7 @@ import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
 import com.samagra.utils.BotService;
 import io.fusionauth.domain.Application;
+import liquibase.pro.packaged.N;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,12 +25,13 @@ import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Flux;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Consumer;
 
 @Slf4j
 @Getter
@@ -105,7 +107,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
                 XMessageDAO msg0 = msg1.get(0);
                 lastMsgId = msg0.getId();
             }
-        }else if (message.getType().equals("button")){
+        } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
             // Get the app from that message
@@ -118,11 +120,11 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             Application application = botservice.getButtonLinkedApp(appName);
             appName = application.name;
             xmsgPayload.setText((String) application.data.get("startingMessage"));
-        }else{
+        } else {
             System.out.println("No Match for parsing");
         }
 
-        if(message.getLocation() !=null) xmsgPayload.setText(message.getLocation());
+        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .app(appName)
                 .to(to)
@@ -138,7 +140,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     Long getTimestamp(String eventType, String timestamp) {
-        return timestamp == null ? Timestamp.valueOf(LocalDateTime.now()).getTime() : Long.parseLong(timestamp)*1000;
+        return timestamp == null ? Timestamp.valueOf(LocalDateTime.now()).getTime() : Long.parseLong(timestamp) * 1000;
 //        if (eventType != null)
 //            return timestamp == null ? Timestamp.valueOf(LocalDateTime.now()).getTime() : Long.parseLong(timestamp)*1000;
 //        else{
@@ -161,12 +163,13 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
                 try{
                     XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
                     appName = xMessageLast.getApp();
-                }catch (Exception e2){
+                } catch (Exception e2) {
                     XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
                     appName = xMessageLast.getApp();
                 }
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
         return appName;
     }
 
@@ -177,8 +180,44 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     @Override
-    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        return null;
+    public Mono<Boolean> processOutBoundMessageF(XMessage xMsg) throws Exception {
+        String token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
+        String phoneNo = "";
+        String text = "";
+
+//        phoneNo = "91" + xMsg.getTo().getUserID();
+
+//        if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
+//            //no implementation
+//        } else
+        if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
+            // OPT in user
+            text = xMsg.getPayload().getText();
+        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
+            // OPT in user
+            text = xMsg.getPayload().getText();
+        } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+            text = xMsg.getPayload().getText();
+        }
+//            else {
+//            //no implementation
+//        }
+
+        // SendMessage
+        Text t = Text.builder().content(text).previewURL("false").build();
+        Text[] texts = {t};
+        return NewNetcoreService.getInstance(new NWCredentials(token)).
+                sendOutboundMessage(OutboundMessage.builder().message(new SingleMessage[]{SingleMessage
+                        .builder()
+                        .from("461089f9-1000-4211-b182-c7f0291f3d45")
+                        .to(phoneNo)
+                        .recipientType("individual")
+                        .messageType("text")
+                        .header("custom_data")
+                        .text(texts)
+                        .build()}).build());
+
+
     }
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
@@ -186,31 +225,23 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         // String url = "http://federation-service:9999/admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
         // NWCredentials credentials = restTemplate.getForObject(url, NWCredentials.class);
 
-        String channel = "";
         String phoneNo = "";
         String text = "";
 
-        channel = xMsg.getChannelURI().toLowerCase();
         phoneNo = "91" + xMsg.getTo().getUserID();
 
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
-                queryParam("v", "1.1").
-                queryParam("format", "json").
-                queryParam("auth_scheme", "plain").
-                queryParam("extra", "Samagra").
-                queryParam("data_encoding", "text").
-                queryParam("messageId", "123456789");
         if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
 
-        }  else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)){
+        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
             // OPT in user
             text = xMsg.getPayload().getText();
-        }else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)){
+        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
             // OPT in user
             text = xMsg.getPayload().getText();
-        }else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+        } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
             text = xMsg.getPayload().getText();
-        }else{}
+        } else {
+        }
 
         // SendMessage
         Text t = Text.builder().content(text).previewURL("false").build();

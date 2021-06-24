@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.sql.Timestamp;
@@ -182,7 +183,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     @Override
-    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
+    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 
