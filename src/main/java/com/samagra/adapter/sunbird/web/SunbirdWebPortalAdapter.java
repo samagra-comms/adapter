@@ -7,8 +7,8 @@ import com.samagra.adapter.sunbird.web.inbound.SunbirdWebMessage;
 import com.samagra.adapter.sunbird.web.outbound.OutboundMessage;
 import com.samagra.adapter.sunbird.web.outbound.SunbirdMessage;
 import com.samagra.adapter.sunbird.web.outbound.SunbirdWebResponse;
-import com.samagra.utils.BotService;
 import com.samagra.utils.PropertiesCache;
+import com.uci.utils.BotService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,7 +23,7 @@ import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
-import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
 import java.sql.Timestamp;
@@ -45,7 +45,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     public XMessageRepo xmsgRepo;
 
     @Override
-    public Flux<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
+    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 
