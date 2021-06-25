@@ -56,6 +56,8 @@ public class SunbirdWebPortalAdapterTest {
                 .build();
     }
 
+
+
     @Test
     public void simplePayloadParsing() throws JsonProcessingException, JAXBException {
         ArrayList<XMessageDAO> xMessageDAOArrayList = new ArrayList<>();
