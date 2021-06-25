@@ -1,7 +1,6 @@
 package com.samagra.adapter.app.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.samagra.utils.BotService;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;

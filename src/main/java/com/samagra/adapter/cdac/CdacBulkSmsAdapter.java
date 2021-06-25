@@ -3,7 +3,7 @@ package com.samagra.adapter.cdac;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.utils.BotService;
+import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;

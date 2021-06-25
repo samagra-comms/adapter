@@ -1,7 +1,7 @@
 package com.samagra.adapter.netcore.whatsapp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.samagra.utils.BotService;
+import com.uci.utils.BotService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.dao.XMessageDAO;

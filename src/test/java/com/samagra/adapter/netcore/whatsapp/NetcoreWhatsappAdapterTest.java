@@ -3,7 +3,7 @@ package com.samagra.adapter.netcore.whatsapp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
-import com.samagra.utils.BotService;
+import com.uci.utils.BotService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;

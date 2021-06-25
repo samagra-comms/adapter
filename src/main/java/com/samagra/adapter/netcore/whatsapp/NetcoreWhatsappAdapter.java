@@ -8,7 +8,7 @@ import com.samagra.adapter.netcore.whatsapp.outbound.SingleMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.Text;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.utils.BotService;
+import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import liquibase.pro.packaged.N;
 import lombok.Builder;

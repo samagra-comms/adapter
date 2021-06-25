@@ -75,4 +75,3 @@ samagra.gupshup.incoming.iml
 
 src/main/resources/application-adapter.properties
 target/
-*.iml

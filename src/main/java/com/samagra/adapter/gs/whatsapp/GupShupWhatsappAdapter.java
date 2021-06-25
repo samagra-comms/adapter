@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.utils.BotService;
+import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.Builder;
 import lombok.Getter;
