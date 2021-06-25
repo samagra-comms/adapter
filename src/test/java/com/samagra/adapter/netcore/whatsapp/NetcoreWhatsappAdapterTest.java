@@ -3,7 +3,7 @@ package com.samagra.adapter.netcore.whatsapp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
-import com.samagra.utils.BotService;
+import com.uci.utils.BotService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
@@ -15,9 +15,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import javax.xml.bind.JAXBException;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,7 +51,7 @@ class NetcoreWhatsappAdapterTest {
         when(botService.getCampaignFromStartingMessage(any())).thenReturn("test");
 
         objectMapper = new ObjectMapper();
-        simplePayload = "{\"message_id\":\"ABEGkZlgQyWAAgo-sDVSUOa9jH0z\",\"from\":\"919415787824\",\"received_at\":\"1567090835\",\"context\": {\"ncmessage_id\":null,\"message_id\":null},\"message_type\":\"TEXT\",\"text_type\":{\"text\":\"test\"}}";
+        simplePayload = "{\"waNumber\":null,\"mobile\":\"919910522257\",\"replyId\":null,\"messageId\":\"ABEGkZkQUiJXAgo-sD-i5EX9J_S5\",\"timestamp\":\"1624370212\",\"name\":null,\"version\":0,\"type\":\"TEXT\",\"text\":{\"text\":\"1\"},\"eventType\":null,\"context\":{\"ncmessage_id\":null,\"message_id\":null},\"statusRemark\":null,\"source\":null,\"image\":null,\"document\":null,\"voice\":null,\"audio\":null,\"video\":null,\"location\":null,\"response\":null,\"extra\":null,\"app\":null}";
         readPayload = "{\"ncmessage_id\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875d12\",\"recipient\":\"919415787824\",\"status\":\"read\",\"status_remark\":\"\",\"received_at\":\"2019-05-16 15:36:58\",\"source\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875dc1\"}";
         sentPayload = "{\"ncmessage_id\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875d12\",\"recipient\":\"919415787824\",\"status\":\"sent\",\"status_remark\":\"\",\"received_at\":\"2019-05-16 15:36:58\",\"source\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875dc1\"}";
         deliveredPayload = "{\"ncmessage_id\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875d12\",\"recipient\":\"919415787824\",\"status\":\"delivered\",\"status_remark\":\"\",\"received_at\":\"2019-05-16 15:36:58\",\"source\":\"fa9d647a-c8d7-423e-bd27-7d2ca2875dc1\"}";;
@@ -117,6 +120,26 @@ class NetcoreWhatsappAdapterTest {
         assertEquals("DELIVERED",xMessage.getMessageState().toString());
     }
 
+    @Test
+    public void processOutBoundMessageF() throws Exception {
+        ArrayList<XMessageDAO> xMessageDAOArrayList = new ArrayList<>();
+        xMessageDAOArrayList.add(xMessageDAO);
+        when(xMessageRepo.findAllByUserIdOrderByTimestamp((String) notNull())).thenReturn(xMessageDAOArrayList);
+
+        NetcoreWhatsAppMessage message = objectMapper.readValue(simplePayload, NetcoreWhatsAppMessage.class);
+        XMessage xMessage = adapter.convertMessageToXMsg(message);
+        long start = System.currentTimeMillis();
+        for(int i=0;i<10000;i++){
+            Mono<Boolean> b = adapter.processOutBoundMessageF(xMessage);
+
+            StepVerifier.create(b)
+                    .expectNext(true)
+                    .expectComplete()
+                    .verify();
+        }
+        long end = System.currentTimeMillis();
+        System.out.println("Time Taken :-" + (end-start));
+    }
     @AfterAll
     static void teardown() {
         System.out.println("Teardown 43");

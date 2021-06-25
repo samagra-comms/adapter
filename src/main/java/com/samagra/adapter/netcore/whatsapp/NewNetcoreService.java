@@ -6,24 +6,42 @@ import com.samagra.adapter.netcore.whatsapp.outbound.ManageUserRequestMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.ManageUserResponse;
 import com.samagra.adapter.netcore.whatsapp.outbound.OutboundMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.SendMessageResponse;
-import lombok.*;
 import okhttp3.*;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
-public class NetcoreService {
+public class NewNetcoreService {
 
+    private final WebClient webClient;
     private OkHttpClient client;
     private MediaType mediaType;
     private String baseURL;
     private NWCredentials credentials;
 
+    private static NewNetcoreService newNetcoreService = null;
 
-    public NetcoreService(NWCredentials credentials){
+    public NewNetcoreService(NWCredentials credentials) {
         this.client = new OkHttpClient().newBuilder().build();
         this.mediaType = MediaType.parse("application/json");
         this.baseURL = "https://waapi.pepipost.com/api/v2/";
         this.credentials = credentials;
+        webClient = WebClient.builder()
+                .baseUrl("https://waapi.pepipost.com/api/v2")
+                .defaultHeader("Content-Type", "application/json")
+                .defaultHeader("Authorization", "Bearer " + credentials.getToken())
+                .build();
+    }
+
+    public static NewNetcoreService getInstance(NWCredentials credentials){
+       if(newNetcoreService == null){
+           return new NewNetcoreService(credentials);
+       }
+       else{
+           return newNetcoreService;
+       }
     }
 
     public ManageUserResponse manageUser(ManageUserRequestMessage message){
@@ -76,4 +94,31 @@ public class NetcoreService {
         }
     }
 
+    public Mono<Boolean> sendOutboundMessage(OutboundMessage outboundMessage) {
+        return webClient.post()
+                .uri("/message/")
+                .body(Mono.just(outboundMessage), OutboundMessage.class)
+                .retrieve()
+                .bodyToMono(SendMessageResponse.class)
+                .map(sendMessageResponse -> {
+                    if(sendMessageResponse != null){
+                        System.out.println("MESSAGE RESPONSE "+ sendMessageResponse.getMessage());
+                        System.out.println("STATUS RESPONSE "+ sendMessageResponse.getStatus());
+                        System.out.println("DATA RESPONSE "+ sendMessageResponse.getData());
+//                        xMsg.setMessageId(MessageId.builder().channelMessageId(sendMessageResponse.getData().getIdentifier()).build());
+//                        xMsg.setMessageState(XMessage.MessageState.SENT);
+//
+//                        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
+//                        xmsgRepo.save(dao);
+                        return true;
+                    }else{
+                        return false;
+                    }
+                }).doOnError(new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) {
+                        System.out.println("ERROR IS " + throwable.getLocalizedMessage());
+                    }
+                });
+    }
 }

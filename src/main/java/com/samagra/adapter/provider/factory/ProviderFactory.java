@@ -2,7 +2,7 @@ package com.samagra.adapter.provider.factory;
 
 import com.samagra.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.samagra.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
-import com.samagra.utils.BotService;
+import com.uci.utils.BotService;
 import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,11 +22,14 @@ public class ProviderFactory {
     @Autowired
     public XMessageRepo xmsgRepo;
 
+    @Autowired
+    public BotService botService;
+
     public IProvider getProvider(String provider,String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
                     .builder()
-                    .botservice(new BotService())
+                    .botservice(botService)
                     .xmsgRepo(xmsgRepo)
                     .build();
             return gupshupWhatsapp;
@@ -37,7 +40,7 @@ public class ProviderFactory {
         }else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
                     .builder()
-                    .botservice(new BotService())
+                    .botservice(botService)
                     .xmsgRepo(xmsgRepo)
                     .build();
             return netcoreWhatsappAdapter;
