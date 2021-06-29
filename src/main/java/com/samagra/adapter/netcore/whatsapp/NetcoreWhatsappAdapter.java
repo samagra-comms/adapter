@@ -1,6 +1,5 @@
 package com.samagra.adapter.netcore.whatsapp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.OutboundMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.SendMessageResponse;
@@ -8,6 +7,7 @@ import com.samagra.adapter.netcore.whatsapp.outbound.SingleMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.Text;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
+import com.samagra.notification.Enums.MessageType;
 import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.Builder;
@@ -15,9 +15,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
-import messagerosa.dao.XMessageDAO;
-import messagerosa.dao.XMessageDAOUtills;
-import messagerosa.dao.XMessageRepo;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,7 +24,6 @@ import reactor.core.publisher.Mono;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Function;
 
 @Slf4j
@@ -37,16 +33,15 @@ import java.util.function.Function;
 public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvider {
 
     private final static String GUPSHUP_OUTBOUND = "https://media.smsgupshup.com/GatewayAPI/rest";
+
     @Autowired
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
     private BotService botservice;
 
-    public XMessageRepo xmsgRepo;
-
     @Override
-    public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
+    public Mono<XMessage> convertMessageToXMsg(Object msg) {
         NetcoreWhatsAppMessage message = (NetcoreWhatsAppMessage) msg;
         SenderReceiverInfo from = SenderReceiverInfo.builder().build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
@@ -54,33 +49,18 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         XMessage.MessageState messageState;
         messageState = XMessage.MessageState.REPLIED;
         MessageId messageIdentifier = MessageId.builder().build();
-
+        XMessage.MessageType messageType= XMessage.MessageType.TEXT;
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-        final long[] lastMsgId = {0};
         String appName = "";
-        final String[] adapter = {""};
-
         log.info("test");
-
         if (message.getEventType() != null) {
             xmsgPayload.setText("");
             messageIdentifier.setChannelMessageId(message.getMessageId());
             from.setUserID(message.getMobile().substring(2));
-            return getAppName(from, "").flatMap(new Function<String, Mono<? extends XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(String a) {
-                    return botservice.getCurrentAdapter(a).map(new Function<String, XMessage>() {
-                        @Override
-                        public XMessage apply(String frc) {
-                            adapter[0] = frc;
-                            XMessage.MessageState messageState1;
-                            String eventType = message.getEventType().toUpperCase();
-                            messageState1 = getMessageState(eventType);
-                            return processedXMessage(message, xmsgPayload, to, from, adapter[0], messageState1, messageIdentifier, lastMsgId[0], a);
-                        }
-                    });
-                }
-            });
+            XMessage.MessageState messageState1;
+            String eventType = message.getEventType().toUpperCase();
+            messageState1 = getMessageState(eventType);
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from,  messageState1, messageIdentifier,messageType));
 
         } else if (message.getType().equalsIgnoreCase("text")) {
             //Actual Message with payload (user response)
@@ -88,45 +68,25 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             from.setUserID(message.getMobile().substring(2));
 
             XMessage.MessageState finalMessageState = messageState;
-            return getAppName(from, message.getText().getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(String botName) {
-                  return botservice.getCurrentAdapter(botName).map(new Function<String, XMessage>() {
-                       @Override
-                       public XMessage apply(String adapterName) {
+            messageIdentifier.setReplyId(message.getReplyId());
+            xmsgPayload.setText(message.getText().getText());
 
-                           messageIdentifier.setReplyId(message.getReplyId());
-                           xmsgPayload.setText(message.getText().getText());
+            messageIdentifier.setChannelMessageId(message.getMessageId());
 
-                           messageIdentifier.setChannelMessageId(message.getMessageId());
-                           List<XMessageDAO> msg1 =  xmsgRepo.findAllByUserIdOrderByTimestamp(from.getUserID());
-                           if (msg1.size() > 0) {
-                               XMessageDAO msg0 = msg1.get(0);
-                               lastMsgId[0] = msg0.getId();
-                           }
-                           return processedXMessage(message, xmsgPayload, to, from, adapterName, finalMessageState, messageIdentifier, lastMsgId[0], botName);
-                       }
-                   });
-                }
-            });
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
             // Get the app from that message
             // Get the buttonLinkedApp
             // Add the starting text as the first message.
-
-            XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-            lastMsgId[0] = lastMessage.getId();
-            appName = lastMessage.getApp();
             Application application = botservice.getButtonLinkedApp(appName);
-            appName = application.name;
             xmsgPayload.setText((String) application.data.get("startingMessage"));
-            return Mono.just(processedXMessage(message, xmsgPayload, to, from, adapter[0], messageState, messageIdentifier, lastMsgId[0], appName));
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState, messageIdentifier,messageType));
 
         } else {
             System.out.println("No Match for parsing");
-            return Mono.just(processedXMessage(message, xmsgPayload, to, from, adapter[0], messageState, messageIdentifier, lastMsgId[0], appName));
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState, messageIdentifier,messageType));
 
         }
 
@@ -154,21 +114,19 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     private XMessage processedXMessage(NetcoreWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
-                                       SenderReceiverInfo from, String adapter, XMessage.MessageState messageState,
-                                       MessageId messageIdentifier, long lastMsgId, String appName) {
+                                       SenderReceiverInfo from, XMessage.MessageState messageState,
+                                       MessageId messageIdentifier, XMessage.MessageType messageType) {
         if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
-                .app(appName)
                 .to(to)
                 .from(from)
-                .adapterId(adapter)
                 .channelURI("WhatsApp")
                 .providerURI("Netcore")
                 .messageState(messageState)
                 .messageId(messageIdentifier)
+                .messageType(messageType)
                 .timestamp(getTimestamp(message.getEventType(), message.getTimestamp()))
-                .payload(xmsgPayload)
-                .lastMessageID(String.valueOf(lastMsgId)).build();
+                .payload(xmsgPayload).build();
     }
 
     Long getTimestamp(String eventType, String timestamp) {
@@ -182,39 +140,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 //        }
     }
 
-    /**
-     * @param from: User form the whom the message was received.
-     * @param text: User's text
-     * @return appName
-     */
-    private Mono<String> getAppName(SenderReceiverInfo from, String text) {
-        String appName;
-        try {
-            return botservice.getCampaignFromStartingMessage(text).map(appName1 -> {
-                if (appName1 == null || appName1.equals("")) {
-                    try {
-                        XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                        appName1 = xMessageLast.getApp();
-                    } catch (Exception e2) {
-                        XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                        appName1 = xMessageLast.getApp();
-                    }
-                }
-                return appName1;
-            });
-        } catch (Exception e) {
-            try {
-                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                appName = xMessageLast.getApp();
-            } catch (Exception e2) {
-                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                appName = xMessageLast.getApp();
-            }
-            return Mono.just(appName);
-        }
-
-    }
-
     @Override
     public void processOutBoundMessage(XMessage nextMsg) throws Exception {
         log.info("nextXmsg {}", nextMsg.toXML());
@@ -222,9 +147,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     @Override
-    public Mono<Boolean> processOutBoundMessageF(XMessage xMsg) {
+    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) {
         String token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
-        String phoneNo = "";
+        String phoneNo = "91" +xMsg.getTo().getUserID();
         String text = "";
 
 //        phoneNo = "91" + xMsg.getTo().getUserID();
@@ -257,13 +182,22 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
                         .messageType("text")
                         .header("custom_data")
                         .text(texts)
-                        .build()}).build());
+                        .build()}).build()).map(new Function<SendMessageResponse, XMessage>() {
+            @Override
+            public XMessage apply(SendMessageResponse sendMessageResponse) {
+                if(sendMessageResponse != null){
+                    xMsg.setMessageId(MessageId.builder().channelMessageId(sendMessageResponse.getData().getIdentifier()).build());
+                    xMsg.setMessageState(XMessage.MessageState.SENT);
+                }
+                return xMsg;
+            }
+        });
 
 
     }
 
     private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
-        StringBuilder processedChoicesBuilder = new StringBuilder("\n");
+        StringBuilder processedChoicesBuilder = new StringBuilder("");
         if(buttonChoices != null){
             for(ButtonChoice choice:buttonChoices){
                 processedChoicesBuilder.append(choice.getText()).append("\n");
@@ -323,8 +257,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         xMsg.setMessageId(MessageId.builder().channelMessageId(response.getData().getIdentifier()).build());
         xMsg.setMessageState(XMessage.MessageState.SENT);
 
-        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-        xmsgRepo.save(dao);
+
         return xMsg;
     }
 

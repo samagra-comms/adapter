@@ -41,7 +41,6 @@ public class ProviderFactory {
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
                     .builder()
                     .botservice(botService)
-                    .xmsgRepo(xmsgRepo)
                     .build();
             return netcoreWhatsappAdapter;
         }

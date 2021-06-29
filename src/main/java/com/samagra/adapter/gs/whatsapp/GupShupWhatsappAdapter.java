@@ -71,8 +71,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         MessageId messageIdentifier = MessageId.builder().build();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-        final long[] lastMsgId = {0};
-        String appName = "";
+         String appName = "";
         final String[] adapter = {""};
 
         log.info("test");
@@ -106,13 +105,18 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             return getAppName(from, message.getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
                 @Override
                 public Mono<XMessage> apply(String a) {
-                    return botservice.getCurrentAdapter(a).map(new Function<String, XMessage>() {
-                        @Override
-                        public XMessage apply(String frc) {
-                            return processedXMessage(message,xmsgPayload,a,to,from,frc,
-                                    messageState[0],messageIdentifier, lastMsgId[0]);
-                        }
-                    });
+                    if (a == null || a.isEmpty()) {
+                        return Mono.just(processedXMessage(message, xmsgPayload, a, to, from, "",
+                                messageState[0], messageIdentifier));
+                    } else {
+                        return botservice.getCurrentAdapter(a).map(new Function<String, XMessage>() {
+                            @Override
+                            public XMessage apply(String frc) {
+                                return processedXMessage(message, xmsgPayload, a, to, from, frc,
+                                        messageState[0], messageIdentifier);
+                            }
+                        });
+                    }
                 }
             });
         }
@@ -137,13 +141,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                                 xmsgPayload.setText(message.getText());
                                 messageIdentifier.setChannelMessageId(message.getMessageId());
                             }
-                            List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimestamp(from.getUserID());
-                            if (msg1.size() > 0) {
-                                XMessageDAO msg0 = msg1.get(0);
-                                lastMsgId[0] = msg0.getId();
-                            }
+
                             return processedXMessage(message, xmsgPayload, appName, to, from, adapterName,
-                                    messageState[0], messageIdentifier, lastMsgId[0]);
+                                    messageState[0], messageIdentifier);
                         }
                     });
                 }
@@ -156,12 +156,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             // Add the starting text as the first message.
 
             XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-            lastMsgId[0] = lastMessage.getId();
-            appName = lastMessage.getApp();
+             appName = lastMessage.getApp();
             Application application = botservice.getButtonLinkedApp(appName);
             appName = application.name;
             xmsgPayload.setText((String) application.data.get("startingMessage"));
-            return Mono.just(processedXMessage(message,xmsgPayload,appName,to,from, adapter[0], messageState[0],messageIdentifier, lastMsgId[0]));
+            return Mono.just(processedXMessage(message,xmsgPayload,appName,to,from, adapter[0], messageState[0],messageIdentifier));
         }
         return null;
 
@@ -169,8 +168,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload,
                                        String appName, SenderReceiverInfo to, SenderReceiverInfo from,
-                                       String adapter, XMessage.MessageState messageState, MessageId messageIdentifier,
-                                       long lastMsgId) {
+                                       String adapter, XMessage.MessageState messageState, MessageId messageIdentifier) {
         if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .app(appName)
@@ -182,8 +180,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .messageState(messageState)
                 .messageId(messageIdentifier)
                 .timestamp(message.getTimestamp() == null ? Timestamp.valueOf(LocalDateTime.now()).getTime() : message.getTimestamp())
-                .payload(xmsgPayload)
-                .lastMessageID(String.valueOf(lastMsgId)).build();
+                .payload(xmsgPayload).build();
     }
 
     /**
@@ -197,27 +194,28 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 @Override
                 public String apply(String appName) {
                     if (appName == null) {
-                        try {
-                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                            appName = xMessageLast.getApp();
-                        } catch (Exception e2) {
-                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                            appName = xMessageLast.getApp();
-                        }
+                        appName = "";
+//                        try {
+//                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+//                            appName = xMessageLast.getApp();
+//                        } catch (Exception e2) {
+//                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+//                            appName = xMessageLast.getApp();
+//                        }
                     }
                     return appName;
                 }
             });
 
         } catch (Exception e) {
-            String appName=null;
-            try {
-                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                appName = xMessageLast.getApp();
-            } catch (Exception e2) {
-                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                appName = xMessageLast.getApp();
-            }
+            String appName="";
+//            try {
+//                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+//                appName = xMessageLast.getApp();
+//            } catch (Exception e2) {
+//                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+//                appName = xMessageLast.getApp();
+//            }
             return Mono.justOrEmpty(appName);
         }
     }
@@ -229,7 +227,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     @Override
-    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
+    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 

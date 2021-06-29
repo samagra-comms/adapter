@@ -12,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class NewNetcoreService {
 
@@ -35,20 +36,19 @@ public class NewNetcoreService {
                 .build();
     }
 
-    public static NewNetcoreService getInstance(NWCredentials credentials){
-       if(newNetcoreService == null){
-           return new NewNetcoreService(credentials);
-       }
-       else{
-           return newNetcoreService;
-       }
+    public static NewNetcoreService getInstance(NWCredentials credentials) {
+        if (newNetcoreService == null) {
+            return new NewNetcoreService(credentials);
+        } else {
+            return newNetcoreService;
+        }
     }
 
-    public ManageUserResponse manageUser(ManageUserRequestMessage message){
+    public ManageUserResponse manageUser(ManageUserRequestMessage message) {
         ObjectMapper mapper = new ObjectMapper();
         RequestBody body = null;
         try {
-            body = RequestBody.create(mediaType,  mapper.writeValueAsString(message));
+            body = RequestBody.create(mediaType, mapper.writeValueAsString(message));
             Request request = new Request.Builder()
                     .url(baseURL + "consent/manage")
                     .method("POST", body)
@@ -64,16 +64,16 @@ public class NewNetcoreService {
         } catch (IOException e) {
             e.printStackTrace();
             return null;
-        } catch (Exception e){
+        } catch (Exception e) {
             return null;
         }
     }
 
-    public SendMessageResponse sendText(OutboundMessage message){
+    public SendMessageResponse sendText(OutboundMessage message) {
         ObjectMapper mapper = new ObjectMapper();
         RequestBody body = null;
         try {
-            body = RequestBody.create(mediaType,  mapper.writeValueAsString(message));
+            body = RequestBody.create(mediaType, mapper.writeValueAsString(message));
             Request request = new Request.Builder()
                     .url(baseURL + "message/")
                     .method("POST", body)
@@ -89,30 +89,28 @@ public class NewNetcoreService {
         } catch (IOException e) {
             e.printStackTrace();
             return null;
-        } catch (Exception e){
+        } catch (Exception e) {
             return null;
         }
     }
 
-    public Mono<Boolean> sendOutboundMessage(OutboundMessage outboundMessage) {
+    public Mono<SendMessageResponse> sendOutboundMessage(OutboundMessage outboundMessage) {
         return webClient.post()
                 .uri("/message/")
                 .body(Mono.just(outboundMessage), OutboundMessage.class)
                 .retrieve()
                 .bodyToMono(SendMessageResponse.class)
-                .map(sendMessageResponse -> {
-                    if(sendMessageResponse != null){
-                        System.out.println("MESSAGE RESPONSE "+ sendMessageResponse.getMessage());
-                        System.out.println("STATUS RESPONSE "+ sendMessageResponse.getStatus());
-                        System.out.println("DATA RESPONSE "+ sendMessageResponse.getData());
-//                        xMsg.setMessageId(MessageId.builder().channelMessageId(sendMessageResponse.getData().getIdentifier()).build());
-//                        xMsg.setMessageState(XMessage.MessageState.SENT);
-//
-//                        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-//                        xmsgRepo.save(dao);
-                        return true;
-                    }else{
-                        return false;
+                .map(new Function<SendMessageResponse, SendMessageResponse>() {
+                    @Override
+                    public SendMessageResponse apply(SendMessageResponse sendMessageResponse) {
+                        if (sendMessageResponse != null) {
+                            System.out.println("MESSAGE RESPONSE " + sendMessageResponse.getMessage());
+                            System.out.println("STATUS RESPONSE " + sendMessageResponse.getStatus());
+                            System.out.println("DATA RESPONSE " + sendMessageResponse.getData());
+                            return sendMessageResponse;
+                        } else {
+                            return null;
+                        }
                     }
                 }).doOnError(new Consumer<Throwable>() {
                     @Override

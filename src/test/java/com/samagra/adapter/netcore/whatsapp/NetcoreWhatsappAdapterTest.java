@@ -64,7 +64,6 @@ class NetcoreWhatsappAdapterTest {
         adapter = NetcoreWhatsappAdapter
                 .builder()
                 .botservice(botService)
-                .xmsgRepo(xMessageRepo)
                 .build();
     }
 

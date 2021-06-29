@@ -74,7 +74,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     }
 
     @Override
-    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
+    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 

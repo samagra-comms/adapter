@@ -11,7 +11,7 @@ public interface IProvider {
 
     public void processOutBoundMessage(XMessage nextMsg) throws Exception;
 
-    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception;
+    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception;
 
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException;
 }

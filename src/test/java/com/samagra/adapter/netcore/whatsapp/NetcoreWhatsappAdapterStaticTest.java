@@ -42,7 +42,6 @@ class NetcoreWhatsappAdapterStaticTest {
         adapter = NetcoreWhatsappAdapter
                 .builder()
                 .botservice(botService)
-                .xmsgRepo(xMessageRepo)
                 .build();
     }
 
