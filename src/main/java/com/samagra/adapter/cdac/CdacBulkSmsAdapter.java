@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.List;
+import java.util.function.Function;
 
 @Slf4j
 @Qualifier("cdacSMSBulkAdapter")
@@ -45,10 +46,10 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     public XMessageRepo xmsgRepo;
 
     @Override
-    public XMessage convertMessageToXMsg(Object msg) throws JsonProcessingException {
+    public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
 
         // Build xMessage => Most calls would be to update the status of Messages
-        return XMessage.builder().build();
+        return Mono.just(XMessage.builder().build());
     }
 
     /**
@@ -56,14 +57,12 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
      * @param text: User's text
      * @return appName
      */
-    private String getAppName(SenderReceiverInfo from, String text) {
-        String appName;
+    private Mono<String> getAppName(SenderReceiverInfo from, String text) {
         try {
-            appName = new BotService().getCampaignFromStartingMessage(text);
-            return appName;
+            return new BotService().getCampaignFromStartingMessage(text).map(s -> s);
         } catch (Exception e) {
             XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
-            return xMessageLast.getApp();
+            return Mono.just(xMessageLast.getApp());
         }
     }
 

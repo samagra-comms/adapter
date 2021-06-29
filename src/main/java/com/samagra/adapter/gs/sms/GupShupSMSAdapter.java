@@ -36,7 +36,7 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     private final static String GUPSHUP_SMS_OUTBOUND = "http://enterprise.smsgupshup.com/GatewayAPI/rest";
 
     @Override
-    public XMessage convertMessageToXMsg(Object message) throws JAXBException{
+    public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException{
         return null;
     }
 

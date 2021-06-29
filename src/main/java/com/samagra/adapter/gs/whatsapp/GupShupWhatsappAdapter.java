@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -30,6 +31,7 @@ import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 
 @Getter
 @Setter
@@ -59,19 +61,19 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     public XMessageRepo xmsgRepo;
 
     @Override
-    public XMessage convertMessageToXMsg(Object msg) throws JsonProcessingException {
+    public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
         GSWhatsAppMessage message = (GSWhatsAppMessage) msg;
         SenderReceiverInfo from = SenderReceiverInfo.builder().build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
 
-        XMessage.MessageState messageState = XMessage.MessageState.REPLIED;
-        messageState = XMessage.MessageState.REPLIED;
+        final XMessage.MessageState[] messageState = new XMessage.MessageState[1];
+        messageState[0] = XMessage.MessageState.REPLIED;
         MessageId messageIdentifier = MessageId.builder().build();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-        long lastMsgId = 0;
+        final long[] lastMsgId = {0};
         String appName = "";
-        String adapter = "";
+        final String[] adapter = {""};
 
         log.info("test");
 
@@ -85,45 +87,67 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 xmsgPayload.setText("");
                 messageIdentifier.setChannelMessageId(reportMsg.getExternalId());
                 from.setUserID(reportMsg.getDestAddr().substring(2));
-                appName = getAppName(from, message.getText());
-                adapter = botservice.getCurrentAdapter(appName);
                 switch (eventType) {
                     case "SENT":
-                        messageState = XMessage.MessageState.SENT;
+                        messageState[0] = XMessage.MessageState.SENT;
                         break;
                     case "DELIVERED":
-                        messageState = XMessage.MessageState.DELIVERED;
+                        messageState[0] = XMessage.MessageState.DELIVERED;
                         break;
                     case "READ":
-                        messageState = XMessage.MessageState.READ;
+                        messageState[0] = XMessage.MessageState.READ;
                         break;
                     default:
-                        messageState = XMessage.MessageState.FAILED_TO_DELIVER;
+                        messageState[0] = XMessage.MessageState.FAILED_TO_DELIVER;
                         //TODO: Save the state of message and reason in this case.
                         break;
                 }
             }
-        } else if (message.getType().equals("text")) {
+            return getAppName(from, message.getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
+                @Override
+                public Mono<XMessage> apply(String a) {
+                    return botservice.getCurrentAdapter(a).map(new Function<String, XMessage>() {
+                        @Override
+                        public XMessage apply(String frc) {
+                            return processedXMessage(message,xmsgPayload,a,to,from,frc,
+                                    messageState[0],messageIdentifier, lastMsgId[0]);
+                        }
+                    });
+                }
+            });
+        }
+
+        else if (message.getType().equals("text")) {
             //Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
-            appName = getAppName(from, message.getText());
-            adapter = botservice.getCurrentAdapter(appName);
-            messageIdentifier.setReplyId(message.getReplyId());
-            if (message.getType().equals("OPT_IN")) {
-                messageState = XMessage.MessageState.OPTED_IN;
-            } else if (message.getType().equals("OPT_OUT")) {
-                xmsgPayload.setText("stop-wa");
-                messageState = XMessage.MessageState.OPTED_OUT;
-            } else {
-                messageState = XMessage.MessageState.REPLIED;
-                xmsgPayload.setText(message.getText());
-                messageIdentifier.setChannelMessageId(message.getMessageId());
-            }
-            List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimestamp(from.getUserID());
-            if (msg1.size() > 0) {
-                XMessageDAO msg0 = msg1.get(0);
-                lastMsgId = msg0.getId();
-            }
+            return getAppName(from, message.getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
+                @Override
+                public Mono<XMessage> apply(String appName) {
+                    return botservice.getCurrentAdapter(appName).map(new Function<String, XMessage>() {
+                        @Override
+                        public XMessage apply(String adapterName) {
+                            messageIdentifier.setReplyId(message.getReplyId());
+                            if (message.getType().equals("OPT_IN")) {
+                                messageState[0] = XMessage.MessageState.OPTED_IN;
+                            } else if (message.getType().equals("OPT_OUT")) {
+                                xmsgPayload.setText("stop-wa");
+                                messageState[0] = XMessage.MessageState.OPTED_OUT;
+                            } else {
+                                messageState[0] = XMessage.MessageState.REPLIED;
+                                xmsgPayload.setText(message.getText());
+                                messageIdentifier.setChannelMessageId(message.getMessageId());
+                            }
+                            List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimestamp(from.getUserID());
+                            if (msg1.size() > 0) {
+                                XMessageDAO msg0 = msg1.get(0);
+                                lastMsgId[0] = msg0.getId();
+                            }
+                            return processedXMessage(message, xmsgPayload, appName, to, from, adapterName,
+                                    messageState[0], messageIdentifier, lastMsgId[0]);
+                        }
+                    });
+                }
+            });
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
@@ -132,12 +156,21 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             // Add the starting text as the first message.
 
             XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-            lastMsgId = lastMessage.getId();
+            lastMsgId[0] = lastMessage.getId();
             appName = lastMessage.getApp();
             Application application = botservice.getButtonLinkedApp(appName);
             appName = application.name;
             xmsgPayload.setText((String) application.data.get("startingMessage"));
+            return Mono.just(processedXMessage(message,xmsgPayload,appName,to,from, adapter[0], messageState[0],messageIdentifier, lastMsgId[0]));
         }
+        return null;
+
+    }
+
+    private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload,
+                                       String appName, SenderReceiverInfo to, SenderReceiverInfo from,
+                                       String adapter, XMessage.MessageState messageState, MessageId messageIdentifier,
+                                       long lastMsgId) {
         if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .app(appName)
@@ -158,22 +191,35 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      * @param text: User's text
      * @return appName
      */
-    private String getAppName(SenderReceiverInfo from, String text) {
-        String appName = null;
+    private Mono<String> getAppName(SenderReceiverInfo from, String text) {
         try {
-            appName = botservice.getCampaignFromStartingMessage(text);
-            if (appName == null) {
-                try {
-                    XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                    appName = xMessageLast.getApp();
-                } catch (Exception e2) {
-                    XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                    appName = xMessageLast.getApp();
+           return botservice.getCampaignFromStartingMessage(text).map(new Function<String, String>() {
+                @Override
+                public String apply(String appName) {
+                    if (appName == null) {
+                        try {
+                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+                            appName = xMessageLast.getApp();
+                        } catch (Exception e2) {
+                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+                            appName = xMessageLast.getApp();
+                        }
+                    }
+                    return appName;
                 }
-            }
+            });
+
         } catch (Exception e) {
+            String appName=null;
+            try {
+                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+                appName = xMessageLast.getApp();
+            } catch (Exception e2) {
+                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+                appName = xMessageLast.getApp();
+            }
+            return Mono.justOrEmpty(appName);
         }
-        return appName;
     }
 
     @Override
