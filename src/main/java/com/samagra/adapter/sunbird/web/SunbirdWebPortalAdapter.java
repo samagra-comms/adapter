@@ -8,7 +8,6 @@ import com.samagra.adapter.sunbird.web.outbound.OutboundMessage;
 import com.samagra.adapter.sunbird.web.outbound.SunbirdMessage;
 import com.samagra.adapter.sunbird.web.outbound.SunbirdWebResponse;
 import com.samagra.utils.PropertiesCache;
-import com.uci.utils.BotService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,9 +16,6 @@ import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
-import messagerosa.dao.XMessageDAO;
-import messagerosa.dao.XMessageDAOUtills;
-import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
@@ -28,7 +24,6 @@ import reactor.core.publisher.Mono;
 import javax.xml.bind.JAXBException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @Getter
@@ -40,17 +35,14 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
-    private BotService botservice;
-
-    public XMessageRepo xmsgRepo;
 
     @Override
-    public Mono<Boolean> processOutBoundMessageF(XMessage nextMsg) throws Exception {
+    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         return null;
     }
 
     @Override
-    public XMessage convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException {
+    public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException {
         SunbirdWebMessage webMessage = (SunbirdWebMessage) message;
         SenderReceiverInfo from = SenderReceiverInfo.builder().build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
@@ -58,32 +50,18 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         MessageId messageIdentifier = MessageId.builder().build();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-        long lastMsgId = 0;
-        String appName = "";
-        String adapter = "";
-        log.info("Sunbird Adapter Test");
+        log.info("XMessage Payload getting created >>>");
         xmsgPayload.setText(webMessage.getText());
         from.setUserID(webMessage.getFrom());
-        appName = getAppName(from,"");
-        adapter = botservice.getCurrentAdapter(appName);
-        List<XMessageDAO> msg1 = xmsgRepo.findAllByUserIdOrderByTimestamp(from.getUserID());
-        if (msg1.size() > 0) {
-            XMessageDAO msg0 = msg1.get(0);
-            lastMsgId = msg0.getId();
-        }
-
-        return XMessage.builder()
-                .app(appName)
+        return Mono.just(XMessage.builder()
                 .to(to)
                 .from(from)
-                .adapterId(adapter)
                 .channelURI("web")
                 .providerURI("sunbird")
                 .messageState(messageState)
                 .messageId(messageIdentifier)
                 .timestamp(Timestamp.valueOf(LocalDateTime.now()).getTime())
-                .payload(xmsgPayload)
-                .lastMessageID(String.valueOf(lastMsgId)).build();
+                .payload(xmsgPayload).build());
     }
 
 
@@ -94,7 +72,9 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     }
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception{
-        SunbirdMessage sunbirdMessage = SunbirdMessage.builder().text(xMsg.getPayload().getText()).build();
+        //TODO - Add choices from xMessage
+        //TODO - Make
+        SunbirdMessage sunbirdMessage = SunbirdMessage.builder().title(xMsg.getPayload().getText()).choices(xMsg.getPayload().getButtonChoices()).build();
         SunbirdMessage[] messages = {sunbirdMessage};
         OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
         String token = PropertiesCache.getInstance().getProperty("SUNBIRD_TOKEN");
@@ -106,24 +86,6 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         SunbirdWebResponse response = webService.sendText(outboundMessage);
         xMsg.setMessageId(MessageId.builder().channelMessageId(response.getId()).build());
         xMsg.setMessageState(XMessage.MessageState.SENT);
-        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-        xmsgRepo.save(dao);
         return xMsg;
-    }
-    private String getAppName(SenderReceiverInfo from, String text) {
-        String appName = null;
-        try {
-            appName = botservice.getCampaignFromStartingMessage(text);
-            if(appName == null){
-                try{
-                    XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                    appName = xMessageLast.getApp();
-                }catch (Exception e2){
-                    XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-                    appName = xMessageLast.getApp();
-                }
-            }
-        } catch (Exception e) {}
-        return appName;
     }
 }

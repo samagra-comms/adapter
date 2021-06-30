@@ -1,8 +1,10 @@
 package com.samagra.adapter.sunbird.web.outbound;
 
 import lombok.*;
+import messagerosa.core.model.*;
 
 import javax.xml.bind.annotation.XmlRootElement;
+import java.util.ArrayList;
 
 @Getter
 @Setter
@@ -11,5 +13,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 @Builder
 public class SunbirdMessage {
-    private String text;
+
+    private String title;
+    private ArrayList<ButtonChoice> choices;
 }

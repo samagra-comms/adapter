@@ -15,10 +15,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import javax.xml.bind.JAXBException;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,14 +47,13 @@ public class SunbirdWebPortalAdapterTest {
     @SneakyThrows
     @BeforeEach
     public void init() {
-        when(botService.getCurrentAdapter(any())).thenReturn("A");
-        when(botService.getCampaignFromStartingMessage(any())).thenReturn("test");
+        when(botService.getCurrentAdapter(any())).thenReturn(Mono.just("A"));
+        when(botService.getCampaignFromStartingMessage(any())).thenReturn(Mono.just("test"));
 
         objectMapper = new ObjectMapper();
         simplePayload = "{\"Body\":\"1\",\"userId\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"appId\":\"prod.diksha.portal\",\"channel\":\"ORG_001\",\"From\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"context\":null}";
         adapter =  SunbirdWebPortalAdapter.builder()
                 .botservice(botService)
-                .xmsgRepo(xMessageRepo)
                 .build();
     }
 
@@ -63,7 +65,15 @@ public class SunbirdWebPortalAdapterTest {
         xMessageDAOArrayList.add(xMessageDAO);
         when(xMessageRepo.findAllByUserIdOrderByTimestamp((String) notNull())).thenReturn(xMessageDAOArrayList);
         SunbirdWebMessage message = objectMapper.readValue(simplePayload, SunbirdWebMessage.class);
-        XMessage xMessage = adapter.convertMessageToXMsg(message);
-        assertEquals("2da3ad1ac0422d59ef004fdb173706ed", xMessage.getFrom().getUserID());
+        Mono<XMessage> xMessage = adapter.convertMessageToXMsg(message);
+        StepVerifier.create(xMessage)
+                .consumeNextWith(new Consumer<XMessage>() {
+                    @Override
+                    public void accept(XMessage xMessage) {
+                        assertEquals("2da3ad1ac0422d59ef004fdb173706ed", xMessage.getFrom().getUserID());
+                    }
+                })
+                .expectComplete()
+                .verify();
     }
 }
