@@ -38,7 +38,7 @@ public class SunbirdWebServiceTest {
     @Test
     public void sendTextTest() throws NoSuchFieldException, IOException {
 
-        SunbirdMessage sunbirdMessage = SunbirdMessage.builder().text("Test").build();
+        SunbirdMessage sunbirdMessage = SunbirdMessage.builder().title("Test").build();
         SunbirdMessage[] messages = {sunbirdMessage};
         String token = "token";
         SunbirdCredentials sc = SunbirdCredentials.builder().build();

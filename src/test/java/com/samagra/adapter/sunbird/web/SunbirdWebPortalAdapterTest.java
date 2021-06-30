@@ -35,8 +35,6 @@ public class SunbirdWebPortalAdapterTest {
     ObjectMapper objectMapper;
 
     SunbirdWebPortalAdapter adapter;
-    @Mock
-    BotService botService;
 
     @Mock
     XMessageRepo xMessageRepo;
@@ -47,13 +45,9 @@ public class SunbirdWebPortalAdapterTest {
     @SneakyThrows
     @BeforeEach
     public void init() {
-        when(botService.getCurrentAdapter(any())).thenReturn(Mono.just("A"));
-        when(botService.getCampaignFromStartingMessage(any())).thenReturn(Mono.just("test"));
-
         objectMapper = new ObjectMapper();
         simplePayload = "{\"Body\":\"1\",\"userId\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"appId\":\"prod.diksha.portal\",\"channel\":\"ORG_001\",\"From\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"context\":null}";
         adapter =  SunbirdWebPortalAdapter.builder()
-                .botservice(botService)
                 .build();
     }
 
@@ -63,7 +57,6 @@ public class SunbirdWebPortalAdapterTest {
     public void simplePayloadParsing() throws JsonProcessingException, JAXBException {
         ArrayList<XMessageDAO> xMessageDAOArrayList = new ArrayList<>();
         xMessageDAOArrayList.add(xMessageDAO);
-        when(xMessageRepo.findAllByUserIdOrderByTimestamp((String) notNull())).thenReturn(xMessageDAOArrayList);
         SunbirdWebMessage message = objectMapper.readValue(simplePayload, SunbirdWebMessage.class);
         Mono<XMessage> xMessage = adapter.convertMessageToXMsg(message);
         StepVerifier.create(xMessage)
