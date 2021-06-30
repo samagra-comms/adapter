@@ -73,7 +73,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception{
         //TODO - Add choices from xMessage
-        //TODO - Make
+        //TODO - Make service asynchronous
         SunbirdMessage sunbirdMessage = SunbirdMessage.builder().title(xMsg.getPayload().getText()).choices(xMsg.getPayload().getButtonChoices()).build();
         SunbirdMessage[] messages = {sunbirdMessage};
         OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
