@@ -49,6 +49,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
         log.info("XMessage Payload getting created >>>");
         xmsgPayload.setText(webMessage.getText());
+        //Todo: How to get Button choices from normal text
         from.setUserID(webMessage.getFrom());
         return Mono.just(XMessage.builder()
                 .to(to)
@@ -88,8 +89,6 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     }
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception{
-        //TODO - Add choices from xMessage
-
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         SunbirdCredentials sc = getCredentials();
         //Get the Sunbird Outbound Url for message push
