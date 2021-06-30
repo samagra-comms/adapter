@@ -24,9 +24,6 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.notNull;
-import static org.mockito.Mockito.when;
 
 @Slf4j
 @ExtendWith(MockitoExtension.class)
@@ -35,9 +32,6 @@ public class SunbirdWebPortalAdapterTest {
     ObjectMapper objectMapper;
 
     SunbirdWebPortalAdapter adapter;
-
-    @Mock
-    XMessageRepo xMessageRepo;
 
     @Mock
     XMessageDAO xMessageDAO;
