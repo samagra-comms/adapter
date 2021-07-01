@@ -74,4 +74,6 @@ fabric.properties
 samagra.gupshup.incoming.iml
 
 src/main/resources/application-adapter.properties
+
+.DS_store
 target/
