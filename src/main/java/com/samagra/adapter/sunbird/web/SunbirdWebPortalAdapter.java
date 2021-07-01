@@ -7,7 +7,7 @@ import com.samagra.adapter.sunbird.web.inbound.SunbirdWebMessage;
 import com.samagra.adapter.sunbird.web.outbound.OutboundMessage;
 import com.samagra.adapter.sunbird.web.outbound.SunbirdMessage;
 import com.samagra.adapter.sunbird.web.outbound.SunbirdWebResponse;
-import com.samagra.utils.PropertiesCache;
+import com.samagra.adapter.utils.PropertiesCache;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;

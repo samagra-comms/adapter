@@ -1,4 +1,4 @@
-package com.samagra.utils;
+package com.samagra.adapter.utils;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;

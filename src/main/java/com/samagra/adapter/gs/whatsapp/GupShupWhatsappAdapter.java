@@ -5,6 +5,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
+import com.uci.dao.models.XMessageDAO;
+import com.uci.dao.repository.XMessageRepository;
+import com.uci.dao.utils.XMessageDAOUtills;
 import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.Builder;
@@ -15,9 +18,7 @@ import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
-import messagerosa.dao.XMessageDAO;
-import messagerosa.dao.XMessageDAOUtills;
-import messagerosa.dao.XMessageRepo;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +59,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     private BotService botservice;
 
-    public XMessageRepo xmsgRepo;
+    public XMessageRepository xmsgRepo;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -71,7 +72,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         MessageId messageIdentifier = MessageId.builder().build();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-         String appName = "";
+        String appName = "";
         final String[] adapter = {""};
 
         log.info("test");
@@ -155,11 +156,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             // Get the buttonLinkedApp
             // Add the starting text as the first message.
 
-            XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-             appName = lastMessage.getApp();
-            Application application = botservice.getButtonLinkedApp(appName);
-            appName = application.name;
-            xmsgPayload.setText((String) application.data.get("startingMessage"));
+//            XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
+//             appName = lastMessage.getApp();
+//            Application application = botservice.getButtonLinkedApp(appName);
+//            appName = application.name;
+//            xmsgPayload.setText((String) application.data.get("startingMessage"));
             return Mono.just(processedXMessage(message,xmsgPayload,appName,to,from, adapter[0], messageState[0],messageIdentifier));
         }
         return null;
@@ -190,7 +191,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private Mono<String> getAppName(SenderReceiverInfo from, String text) {
         try {
-           return botservice.getCampaignFromStartingMessage(text).map(new Function<String, String>() {
+            return botservice.getCampaignFromStartingMessage(text).map(new Function<String, String>() {
                 @Override
                 public String apply(String appName) {
                     if (appName == null) {

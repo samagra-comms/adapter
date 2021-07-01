@@ -7,7 +7,6 @@ import com.samagra.adapter.netcore.whatsapp.outbound.SingleMessage;
 import com.samagra.adapter.netcore.whatsapp.outbound.Text;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.notification.Enums.MessageType;
 import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.Builder;

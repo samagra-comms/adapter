@@ -1,7 +1,7 @@
 package com.samagra.adapter.sunbird.web.inbound;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.samagra.common.Request.CommonMessage;
+import com.samagra.adapter.Request.CommonMessage;
 import com.sun.istack.Nullable;
 import lombok.Getter;
 import lombok.Setter;

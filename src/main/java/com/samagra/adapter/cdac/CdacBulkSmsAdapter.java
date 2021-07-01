@@ -3,15 +3,15 @@ package com.samagra.adapter.cdac;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
+import com.uci.dao.models.XMessageDAO;
+import com.uci.dao.repository.XMessageRepository;
+import com.uci.dao.utils.XMessageDAOUtills;
 import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
-import messagerosa.dao.XMessageDAO;
-import messagerosa.dao.XMessageDAOUtills;
-import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Slf4j
@@ -43,7 +44,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     private RestTemplate restTemplate;
 
     @Autowired
-    public XMessageRepo xmsgRepo;
+    public XMessageRepository xmsgRepo;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -61,9 +62,10 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         try {
             return new BotService().getCampaignFromStartingMessage(text).map(s -> s);
         } catch (Exception e) {
-            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
-            return Mono.just(xMessageLast.getApp());
+//            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
+//            return Mono.just(xMessageLast.getApp());
         }
+        return Mono.just("");
     }
 
     @Override
@@ -109,10 +111,16 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     }
 
     public TrackDetails getLastTrackingReport(String campaignID) throws Exception {
-        Application campaign = BotService.getCampaignFromID(campaignID);
-        String appName = (String) campaign.data.get("appName");
-        XMessageDAO xMessage = xmsgRepo.findFirstByAppOrderByTimestampDesc(appName);
-        return trackAndUpdate(xMessage);
+//        Application campaign = BotService.getCampaignFromID(campaignID);
+//        String appName = (String) campaign.data.get("appName");
+////        XMessageDAO xMessage =
+//              return   xmsgRepo.findFirstByAppOrderByTimestampDesc(appName).map(new Function<XMessageDAO, TrackDetails>() {
+//                    @Override
+//                    public TrackDetails apply(XMessageDAO xMessage) {
+//                        return trackAndUpdate(xMessage);
+//                    }
+//                });
+        return null;
     }
 
     static XMessage callOutBoundAPI(XMessage xMsg, String baseURL, String username, String password) throws Exception {

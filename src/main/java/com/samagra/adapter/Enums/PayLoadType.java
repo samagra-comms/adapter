@@ -1,4 +1,4 @@
-package com.samagra.notification.Enums;
+package com.samagra.adapter.Enums;
 
 import java.util.HashMap;
 import java.util.Map;

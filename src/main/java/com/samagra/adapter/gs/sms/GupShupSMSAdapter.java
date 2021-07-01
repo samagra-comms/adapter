@@ -2,7 +2,7 @@ package com.samagra.adapter.gs.sms;
 
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.samagra.utils.GupShupUtills;
+import com.samagra.adapter.utils.GupShupUtills;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -14,7 +14,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;

@@ -2,8 +2,8 @@ package com.samagra.adapter.provider.factory;
 
 import com.samagra.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.samagra.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
+import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
-import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -20,7 +20,7 @@ public class ProviderFactory {
     private IProvider cdacSMSBulk;
 
     @Autowired
-    public XMessageRepo xmsgRepo;
+    public XMessageRepository xmsgRepo;
 
     @Autowired
     public BotService botService;
