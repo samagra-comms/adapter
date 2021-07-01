@@ -136,6 +136,12 @@
 			<version>0.0.1-SNAPSHOT</version>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>dao</artifactId>
+			<version>1.0</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
