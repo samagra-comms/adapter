@@ -3,23 +3,21 @@ package com.samagra.adapter.cdac;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.adapter.provider.factory.AbstractProvider;
 import com.samagra.adapter.provider.factory.IProvider;
-import com.uci.dao.models.XMessageDAO;
-import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
-
-import com.uci.dao.utils.XMessageDAOUtills;
+import messagerosa.dao.XMessageDAO;
+import messagerosa.dao.XMessageDAOUtills;
+import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -45,7 +43,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     private RestTemplate restTemplate;
 
     @Autowired
-    public XMessageRepository xmsgRepository;
+    public XMessageRepo xmsgRepo;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -59,26 +57,20 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
      * @param text: User's text
      * @return appName
      */
-    private Flux<String> getAppName(SenderReceiverInfo from, String text) {
+    private Mono<String> getAppName(SenderReceiverInfo from, String text) {
         try {
             return new BotService().getCampaignFromStartingMessage(text).map(s -> s);
         } catch (Exception e) {
-//            return xmsgRepository.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED").
-//                    map(new Function<XMessageDAO, String>() {
-//                        @Override
-//                        public String apply(XMessageDAO xMessageDAO) {
-//                            return xMessageDAO.getApp();
-//                        }
-//                    });
+            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
+            return Mono.just(xMessageLast.getApp());
         }
-        return null;
     }
 
     @Override
     public void processOutBoundMessage(XMessage nextMsg) throws Exception {
         XMessage xMsg = callOutBoundAPI(nextMsg, OUTBOUND, username, password);
         XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-        xmsgRepository.save(dao);
+        xmsgRepo.save(dao);
     }
 
     @Override
@@ -109,22 +101,18 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         try {
             trackDetails = cdacClient.trackMultipleMessages(xMessageDAO.getMessageId());
             xMessageDAO.setAuxData(trackDetails.toString());
-            xmsgRepository.save(xMessageDAO);
+            xmsgRepo.save(xMessageDAO);
         } catch (Exception e) {
             e.printStackTrace();
         }
         return trackDetails;
     }
 
-    public Flux<TrackDetails> getLastTrackingReport(String campaignID) throws Exception {
+    public TrackDetails getLastTrackingReport(String campaignID) throws Exception {
         Application campaign = BotService.getCampaignFromID(campaignID);
         String appName = (String) campaign.data.get("appName");
-        return xmsgRepository.findFirstByAppOrderByTimestampDesc(appName).map(new Function<XMessageDAO, TrackDetails>() {
-                    @Override
-                    public TrackDetails apply(XMessageDAO xMessageDAO) {
-                        return trackAndUpdate(xMessageDAO);
-                    }
-                });
+        XMessageDAO xMessage = xmsgRepo.findFirstByAppOrderByTimestampDesc(appName);
+        return trackAndUpdate(xMessage);
     }
 
     static XMessage callOutBoundAPI(XMessage xMsg, String baseURL, String username, String password) throws Exception {

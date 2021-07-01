@@ -2,11 +2,12 @@ package com.samagra.adapter.gs.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.uci.dao.models.XMessageDAO;
 import com.uci.utils.BotService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
+import messagerosa.dao.XMessageDAO;
+import messagerosa.dao.XMessageRepo;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -33,6 +34,9 @@ class GupShupWhatsappAdapterTest{
 
     @Mock
     BotService botService;
+
+    @Mock
+    XMessageRepo xMessageRepo;
 
     @Mock
     XMessageDAO xMessageDAO;
@@ -62,6 +66,7 @@ class GupShupWhatsappAdapterTest{
     public void simplePayloadParsing() throws JsonProcessingException, JAXBException {
         ArrayList<XMessageDAO> xMessageDAOArrayList = new ArrayList<>();
         xMessageDAOArrayList.add(xMessageDAO);
+        when(xMessageRepo.findAllByUserIdOrderByTimestamp((String) notNull())).thenReturn(xMessageDAOArrayList);
 
         GSWhatsAppMessage message = objectMapper.readValue(simplePayload, GSWhatsAppMessage.class);
         Mono<XMessage> xMessage = adapter.convertMessageToXMsg(message);

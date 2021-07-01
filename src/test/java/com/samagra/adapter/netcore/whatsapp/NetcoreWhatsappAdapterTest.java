@@ -3,12 +3,12 @@ package com.samagra.adapter.netcore.whatsapp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
-import com.uci.dao.models.XMessageDAO;
-import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
+import messagerosa.dao.XMessageDAO;
+import messagerosa.dao.XMessageRepo;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class NetcoreWhatsappAdapterTest {
     BotService botService;
 
     @Mock
-    XMessageRepository xMessageRepo;
+    XMessageRepo xMessageRepo;
 
     @Mock
     XMessageDAO xMessageDAO;
@@ -57,7 +57,10 @@ class NetcoreWhatsappAdapterTest {
         deliveredPayload = "{\"waNumber\":null,\"mobile\":\"919415787824\",\"replyId\":null,\"messageId\":\"4ab8fa54-c7df-4c8c-98c6-2aa9e88d0503\",\"timestamp\":\"1624872903\",\"name\":null,\"version\":0,\"type\":null,\"text\":null,\"eventType\":\"delivered\",\"context\":null,\"statusRemark\":null,\"source\":\"461089f9-1000-4211-b182-c7f0291f3d45\",\"image\":null,\"document\":null,\"voice\":null,\"audio\":null,\"video\":null,\"location\":null,\"response\":null,\"extra\":null,\"app\":null}";
 
         XMessageDAO xMessageDAO =  XMessageDAO.builder().app("test").build();
+
+        when(xMessageRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(any(), any())).thenReturn(xMessageDAO);
         //TODO: Add a payload for Files, Videos and Location.
+
         adapter = NetcoreWhatsappAdapter
                 .builder()
                 .botservice(botService)
@@ -68,6 +71,8 @@ class NetcoreWhatsappAdapterTest {
     public void simplePayloadParsing() throws JsonProcessingException, JAXBException {
         ArrayList<XMessageDAO> xMessageDAOArrayList = new ArrayList<>();
         xMessageDAOArrayList.add(xMessageDAO);
+        when(xMessageRepo.findAllByUserIdOrderByTimestamp((String) notNull())).thenReturn(xMessageDAOArrayList);
+
         NetcoreWhatsAppMessage message = objectMapper.readValue(simplePayload, NetcoreWhatsAppMessage.class);
         Mono<XMessage> xMessage = adapter.convertMessageToXMsg(message);
 
