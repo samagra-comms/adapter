@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uci.utils.BotService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import messagerosa.dao.XMessageDAO;
-import messagerosa.dao.XMessageRepo;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,12 +25,6 @@ class NetcoreWhatsappAdapterStaticTest {
 
     @Mock
     BotService botService;
-
-    @Mock
-    XMessageRepo xMessageRepo;
-
-    @Mock
-    XMessageDAO xMessageDAO;
 
     @SneakyThrows
     @BeforeEach
