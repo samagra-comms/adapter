@@ -37,10 +37,6 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     private final static String TRACK_BASE_URL = "https://msdgweb.mgov.gov.in/XMLForReportG/reportXMLNew";
 
     @Autowired
-    @Qualifier("rest")
-    private RestTemplate restTemplate;
-
-    @Autowired
     public XMessageRepository xmsgRepo;
 
     @Override

@@ -73,7 +73,7 @@ fabric.properties
 */.DS_Store
 samagra.gupshup.incoming.iml
 
-src/main/resources/application-adapter.properties
+#src/main/resources/application-adapter.properties
 
 .DS_store
 target/
