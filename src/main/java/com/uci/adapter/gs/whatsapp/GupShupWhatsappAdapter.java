@@ -287,7 +287,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         xMsg.setMessageState(XMessage.MessageState.SENT);
 
         XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-        xmsgRepo.save(dao);
+        xmsgRepo.insert(dao);
         return xMsg;
     }
 
