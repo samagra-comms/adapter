@@ -46,17 +46,20 @@ class GWCredentials {
 @Builder
 public class GupShupWhatsappAdapter extends AbstractProvider implements IProvider {
 
-    @Value("${provider.gupshup.whatsapp.apikey}")
-    private String gsApiKey;
+    private String gsApiKey = "test";
 
     private final static String GUPSHUP_OUTBOUND = "https://media.smsgupshup.com/GatewayAPI/rest";
     @Autowired
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
+    @Autowired
     private BotService botservice;
 
     public XMessageRepository xmsgRepo;
+
+    @Value("${campaign.url}")
+    public String CAMPAIGN_URL;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -231,7 +234,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
-        String url = botservice.CAMPAIGN_URL + "admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
+        String url = CAMPAIGN_URL + "admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
         GWCredentials credentials = restTemplate.getForObject(url, GWCredentials.class);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
