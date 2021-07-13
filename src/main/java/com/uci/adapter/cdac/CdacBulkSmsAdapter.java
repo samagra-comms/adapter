@@ -27,17 +27,18 @@ import java.util.List;
 @Service
 public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
 
-    @Value("${provider.CDAC.SMS.username}")
-    private String username;
+    private String username = "test";
 
-    @Value("${provider.CDAC.SMS.password}")
-    private String password;
+    private String password = "test";
 
     private final static String OUTBOUND = "https://msdgweb.mgov.gov.in/esms/sendsmsrequest";
     private final static String TRACK_BASE_URL = "https://msdgweb.mgov.gov.in/XMLForReportG/reportXMLNew";
 
     @Autowired
     public XMessageRepository xmsgRepo;
+
+    @Autowired
+    public BotService botService;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -53,7 +54,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
      */
     private Mono<String> getAppName(SenderReceiverInfo from, String text) {
         try {
-            return new BotService().getCampaignFromStartingMessage(text).map(s -> s);
+            return botService.getCampaignFromStartingMessage(text).map(s -> s);
         } catch (Exception e) {
 //            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
 //            return Mono.just(xMessageLast.getApp());
