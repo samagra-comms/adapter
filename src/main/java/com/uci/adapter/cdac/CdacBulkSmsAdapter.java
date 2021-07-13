@@ -66,7 +66,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     public void processOutBoundMessage(XMessage nextMsg) throws Exception {
         XMessage xMsg = callOutBoundAPI(nextMsg, OUTBOUND, username, password);
         XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-        xmsgRepo.save(dao);
+        xmsgRepo.insert(dao);
     }
 
     @Override
@@ -97,7 +97,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         try {
             trackDetails = cdacClient.trackMultipleMessages(xMessageDAO.getMessageId());
             xMessageDAO.setAuxData(trackDetails.toString());
-            xmsgRepo.save(xMessageDAO);
+            xmsgRepo.insert(xMessageDAO);
         } catch (Exception e) {
             e.printStackTrace();
         }
