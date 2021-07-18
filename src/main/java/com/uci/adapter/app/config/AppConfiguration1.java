@@ -3,6 +3,7 @@ package com.uci.adapter.app.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uci.utils.BotService;
 import com.uci.utils.CampaignService;
+import io.fusionauth.client.FusionAuthClient;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -27,6 +28,7 @@ public class AppConfiguration1 {
 
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
+
 
     @Bean
     @Qualifier("rest")
@@ -60,12 +62,23 @@ public class AppConfiguration1 {
                 .build();
     }
 
+    @Value("${fusionauth.url}")
+    public String FUSIONAUTH_URL;
+
+    @Value("${fusionauth.key}")
+    public String FUSIONAUTH_KEY;
+
+    @Bean
+    public FusionAuthClient getFAClient() {
+        return new FusionAuthClient(FUSIONAUTH_KEY, FUSIONAUTH_URL);
+    }
+
     @Bean
     public BotService getBotService() {
 
         WebClient webClient = WebClient.builder()
                 .baseUrl(CAMPAIGN_URL)
                 .build();
-        return new BotService(webClient);
+        return new BotService(webClient, getFAClient());
     }
 }
