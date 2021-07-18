@@ -42,7 +42,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) {
         NetcoreWhatsAppMessage message = (NetcoreWhatsAppMessage) msg;
-        SenderReceiverInfo from = SenderReceiverInfo.builder().build();
+        SenderReceiverInfo from = SenderReceiverInfo.builder().deviceType(DeviceType.PHONE).build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
 
         XMessage.MessageState messageState;
@@ -151,11 +151,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         String phoneNo = "91" +xMsg.getTo().getUserID();
         String text = "";
 
-//        phoneNo = "91" + xMsg.getTo().getUserID();
-
-//        if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-//            //no implementation
-//        } else
         if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
             // OPT in user
             text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
@@ -165,9 +160,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
             text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
         }
-//            else {
-//            //no implementation
-//        }
 
         // SendMessage
         Text t = Text.builder().content(text).previewURL("false").build();

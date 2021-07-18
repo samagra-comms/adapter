@@ -5,7 +5,7 @@ import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.dao.models.XMessageDAO;
 import com.uci.dao.repository.XMessageRepository;
-import com.uci.dao.utils.XMessageDAOUtills;
+import com.uci.dao.utils.XMessageDAOUtils;
 import com.uci.utils.BotService;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
@@ -13,7 +13,6 @@ import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -65,7 +64,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     @Override
     public void processOutBoundMessage(XMessage nextMsg) throws Exception {
         XMessage xMsg = callOutBoundAPI(nextMsg, OUTBOUND, username, password);
-        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
+        XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
         xmsgRepo.insert(dao);
     }
 

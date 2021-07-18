@@ -7,7 +7,7 @@ import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.dao.models.XMessageDAO;
 import com.uci.dao.repository.XMessageRepository;
-import com.uci.dao.utils.XMessageDAOUtills;
+import com.uci.dao.utils.XMessageDAOUtils;
 import com.uci.utils.BotService;
 import lombok.Builder;
 import lombok.Getter;
@@ -289,7 +289,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
         xMsg.setMessageState(XMessage.MessageState.SENT);
 
-        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
+        XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
         xmsgRepo.insert(dao);
         return xMsg;
     }
