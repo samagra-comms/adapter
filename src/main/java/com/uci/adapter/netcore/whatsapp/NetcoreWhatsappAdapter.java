@@ -8,6 +8,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.Text;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.utils.BotService;
+import com.uci.utils.encryption.AESWrapper;
 import io.fusionauth.domain.Application;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,6 +18,7 @@ import messagerosa.core.model.*;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
@@ -24,6 +26,8 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.function.Function;
+
+import static com.uci.utils.encryption.AESWrapper.encodeKey;
 
 @Slf4j
 @Getter
@@ -36,6 +40,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     @Autowired
     @Qualifier("rest")
     private RestTemplate restTemplate;
+
+    @Value("${encryptionKeyString}")
+    private String secret;
 
     private BotService botservice;
 
@@ -148,7 +155,10 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) {
         String token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
-        String phoneNo = "91" +xMsg.getTo().getUserID();
+        String encodedBase64Key = encodeKey(secret);
+        String decryptedString = AESWrapper.decrypt(xMsg.getTo().getUserID(), encodedBase64Key);
+        log.info("Phone Number :: " + xMsg.getTo().getUserID() + " " + decryptedString);
+        String phoneNo = "91" +decryptedString.split(":")[0];
         String text = "";
 
         if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
