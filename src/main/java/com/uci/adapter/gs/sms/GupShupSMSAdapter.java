@@ -3,6 +3,8 @@ package com.uci.adapter.gs.sms;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.utils.GupShupUtills;
+
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -23,6 +25,7 @@ import java.util.*;
 @Slf4j
 @Service
 @Qualifier("gupshupSMSAdapter")
+@Builder
 public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
 
     private String gsApiKey = "test";
