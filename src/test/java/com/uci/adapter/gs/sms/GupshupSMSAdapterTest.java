@@ -23,13 +23,10 @@ import reactor.test.StepVerifier;
 
 public class GupshupSMSAdapterTest {
 	GupShupSMSAdapter adapter;
-    ObjectMapper objectMapper;
 
     @SneakyThrows
     @BeforeEach
     public void init() {
-
-        objectMapper = new ObjectMapper();
         adapter = GupShupSMSAdapter
                 .builder()
                 .restTemplate(new RestTemplate())
