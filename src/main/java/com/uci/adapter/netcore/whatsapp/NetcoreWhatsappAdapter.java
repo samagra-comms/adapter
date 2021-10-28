@@ -164,6 +164,13 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         // SendMessage
         Text t = Text.builder().content(text).previewURL("false").build();
         Text[] texts = {t};
+        
+        String content = t.getContent();
+        log.info("before replace content: "+content);
+        content = content.replace("\\n", System.getProperty("line.separator"));
+        log.info("after replace content: "+content);
+        t.setContent(content);
+        
         return NewNetcoreService.getInstance(new NWCredentials(token)).
                 sendOutboundMessage(OutboundMessage.builder().message(new SingleMessage[]{SingleMessage
                         .builder()
