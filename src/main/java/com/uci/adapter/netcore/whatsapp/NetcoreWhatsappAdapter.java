@@ -147,8 +147,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) {
-        String token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
-        String phoneNo = "91" +xMsg.getTo().getUserID();
+    	String token = getToken();
+    	String phoneNo = "91" +xMsg.getTo().getUserID();
         String text = "";
 
         if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
@@ -237,7 +237,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
                 .build();
         SingleMessage[] messages = {msg};
 
-        String token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
+        String token = getToken();
         NWCredentials nc = NWCredentials.builder().build();
         nc.setToken(token);
         NetcoreService ns = new NetcoreService(nc);
@@ -250,6 +250,15 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
 
         return xMsg;
+    }
+    
+    /**
+     * Get Netcore Whatsapp Token
+     * @return String
+     */
+    public String getToken() {
+    	String token = System.getenv("NETCORE_WHATSAPP_DEV_TOKEN");
+    	return token != null && !token.isEmpty() ? token : "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
     }
 
 }
