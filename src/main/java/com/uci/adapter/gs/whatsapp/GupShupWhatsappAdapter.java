@@ -77,8 +77,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         String appName = "";
         final String[] adapter = {""};
 
-        log.info("test");
-
         if (message.getResponse() != null) {
             String reportResponse = message.getResponse();
             List<GSWhatsappReport> participantJsonList = new ObjectMapper().readValue(reportResponse, new TypeReference<List<GSWhatsappReport>>() {
@@ -105,52 +103,24 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                         break;
                 }
             }
-            return getAppName(from, message.getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(String a) {
-                    if (a == null || a.isEmpty()) {
-                        return Mono.just(processedXMessage(message, xmsgPayload, a, to, from, "",
-                                messageState[0], messageIdentifier, messageType));
-                    } else {
-                        return botservice.getCurrentAdapter(a).map(new Function<String, XMessage>() {
-                            @Override
-                            public XMessage apply(String frc) {
-                                return processedXMessage(message, xmsgPayload, a, to, from, frc,
-                                        messageState[0], messageIdentifier, messageType);
-                            }
-                        });
-                    }
-                }
-            });
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
         }
 
         else if (message.getType().equals("text")) {
             //Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
-            return getAppName(from, message.getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(String appName) {
-                    return botservice.getCurrentAdapter(appName).map(new Function<String, XMessage>() {
-                        @Override
-                        public XMessage apply(String adapterName) {
-                            messageIdentifier.setReplyId(message.getReplyId());
-                            if (message.getType().equals("OPT_IN")) {
-                                messageState[0] = XMessage.MessageState.OPTED_IN;
-                            } else if (message.getType().equals("OPT_OUT")) {
-                                xmsgPayload.setText("stop-wa");
-                                messageState[0] = XMessage.MessageState.OPTED_OUT;
-                            } else {
-                                messageState[0] = XMessage.MessageState.REPLIED;
-                                xmsgPayload.setText(message.getText());
-                                messageIdentifier.setChannelMessageId(message.getMessageId());
-                            }
-
-                            return processedXMessage(message, xmsgPayload, appName, to, from, adapterName,
-                                    messageState[0], messageIdentifier, messageType);
-                        }
-                    });
-                }
-            });
+            messageIdentifier.setReplyId(message.getReplyId());
+            if (message.getType().equals("OPT_IN")) {
+                messageState[0] = XMessage.MessageState.OPTED_IN;
+            } else if (message.getType().equals("OPT_OUT")) {
+                xmsgPayload.setText("stop-wa");
+                messageState[0] = XMessage.MessageState.OPTED_OUT;
+            } else {
+                messageState[0] = XMessage.MessageState.REPLIED;
+                xmsgPayload.setText(message.getText());
+                messageIdentifier.setChannelMessageId(message.getMessageId());
+            }
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
@@ -163,21 +133,19 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 //            Application application = botservice.getButtonLinkedApp(appName);
 //            appName = application.name;
 //            xmsgPayload.setText((String) application.data.get("startingMessage"));
-            return Mono.just(processedXMessage(message,xmsgPayload,appName,to,from, adapter[0], messageState[0],messageIdentifier, messageType));
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
         return null;
 
     }
 
-    private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload,
-                                       String appName, SenderReceiverInfo to, SenderReceiverInfo from,
-                                       String adapter, XMessage.MessageState messageState, MessageId messageIdentifier, XMessage.MessageType messageType) {
+    private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
+                                       SenderReceiverInfo from, XMessage.MessageState messageState,
+                                       MessageId messageIdentifier, XMessage.MessageType messageType) {
         if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
-                .app(appName)
                 .to(to)
                 .from(from)
-                .adapterId(adapter)
                 .channelURI("WhatsApp")
                 .providerURI("gupshup")
                 .messageState(messageState)
@@ -187,42 +155,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .payload(xmsgPayload).build();
     }
 
-    /**
-     * @param from: User form the whom the message was received.
-     * @param text: User's text
-     * @return appName
-     */
-    private Mono<String> getAppName(SenderReceiverInfo from, String text) {
-        try {
-            return botservice.getCampaignFromStartingMessage(text).map(new Function<String, String>() {
-                @Override
-                public String apply(String appName) {
-                    if (appName == null) {
-                        appName = "";
-//                        try {
-//                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                            appName = xMessageLast.getApp();
-//                        } catch (Exception e2) {
-//                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                            appName = xMessageLast.getApp();
-//                        }
-                    }
-                    return appName;
-                }
-            });
-
-        } catch (Exception e) {
-            String appName="";
-//            try {
-//                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                appName = xMessageLast.getApp();
-//            } catch (Exception e2) {
-//                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                appName = xMessageLast.getApp();
-//            }
-            return Mono.justOrEmpty(appName);
-        }
-    }
 
     @Override
     public void processOutBoundMessage(XMessage nextMsg) throws Exception {
