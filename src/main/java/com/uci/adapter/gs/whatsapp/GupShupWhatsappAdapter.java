@@ -19,6 +19,7 @@ import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -74,8 +75,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         MessageId messageIdentifier = MessageId.builder().build();
         XMessage.MessageType messageType= XMessage.MessageType.TEXT;
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-        String appName = "";
-        final String[] adapter = {""};
 
         if (message.getResponse() != null) {
             String reportResponse = message.getResponse();
@@ -87,29 +86,14 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 xmsgPayload.setText("");
                 messageIdentifier.setChannelMessageId(reportMsg.getExternalId());
                 from.setUserID(reportMsg.getDestAddr().substring(2));
-                switch (eventType) {
-                    case "SENT":
-                        messageState[0] = XMessage.MessageState.SENT;
-                        break;
-                    case "DELIVERED":
-                        messageState[0] = XMessage.MessageState.DELIVERED;
-                        break;
-                    case "READ":
-                        messageState[0] = XMessage.MessageState.READ;
-                        break;
-                    default:
-                        messageState[0] = XMessage.MessageState.FAILED_TO_DELIVER;
-                        //TODO: Save the state of message and reason in this case.
-                        break;
-                }
+                messageState[0] = getMessageState(eventType);
             }
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
-        }
-
-        else if (message.getType().equals("text")) {
+        } else if (message.getType().equals("text")) {
             //Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
             messageIdentifier.setReplyId(message.getReplyId());
+            
             if (message.getType().equals("OPT_IN")) {
                 messageState[0] = XMessage.MessageState.OPTED_IN;
             } else if (message.getType().equals("OPT_OUT")) {
@@ -123,20 +107,31 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
-            // Get the last message sent to this user using the reply-messageID
-            // Get the app from that message
-            // Get the buttonLinkedApp
-            // Add the starting text as the first message.
-
-//            XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//             appName = lastMessage.getApp();
-//            Application application = botservice.getButtonLinkedApp(appName);
-//            appName = application.name;
-//            xmsgPayload.setText((String) application.data.get("startingMessage"));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
         return null;
 
+    }
+    
+    @NotNull
+    public static XMessage.MessageState getMessageState(String eventType) {
+        XMessage.MessageState messageState;
+        switch (eventType) {
+	        case "SENT":
+	            messageState = XMessage.MessageState.SENT;
+	            break;
+	        case "DELIVERED":
+	            messageState = XMessage.MessageState.DELIVERED;
+	            break;
+	        case "READ":
+	            messageState = XMessage.MessageState.READ;
+	            break;
+	        default:
+	            messageState = XMessage.MessageState.FAILED_TO_DELIVER;
+	            //TODO: Save the state of message and reason in this case.
+	            break;
+        }
+        return messageState;
     }
 
     private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
@@ -176,52 +171,41 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
                 String text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
                 
-            	UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
-                        queryParam("v", "1.1").
-                        queryParam("format", "json").
-                        queryParam("auth_scheme", "plain").
-                        queryParam("extra", "Samagra").
-                        queryParam("data_encoding", "text").
-                        queryParam("messageId", "123456789");
+                UriComponentsBuilder builder = getURIBuilder();
                 if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-                    builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
-                            queryParam("userid", credentials.get("username2Way")).
-                            queryParam("password", credentials.get("password2Way")).
-                            queryParam("phone_number", "91" + xMsg.getTo().getUserID()).
-                            queryParam("method", "OPT_IN");
+                	builder = setBuilderCredentialsAndMethod(builder, "OPT_IN", credentials.get("username2Way"), credentials.get("password2Way"));
+                	builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
+                    	queryParam("phone_number", "91" + xMsg.getTo().getUserID());
                 } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
                     optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
 
-                    builder.queryParam("method", "SendMessage").
-                            queryParam("userid", credentials.get("usernameHSM")).
-                            queryParam("password", credentials.get("passwordHSM")).
-                            queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-                            queryParam("msg", text).
-                            queryParam("isHSM", true).
-                            queryParam("msg_type", "HSM");
+                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+	                    queryParam("msg", text).
+	                    queryParam("isHSM", true).
+	                    queryParam("msg_type", "HSM");
                 } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
                     optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
 
-                    builder.queryParam("method", "SendMessage").
-                            queryParam("userid", credentials.get("usernameHSM")).
-                            queryParam("password", credentials.get("passwordHSM")).
-                            queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-                            queryParam("msg", text).
-                            queryParam("isTemplate", "true").
-                            queryParam("msg_type", "HSM");
+                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+	                    queryParam("msg", text).
+	                    queryParam("isTemplate", "true").
+	                    queryParam("msg_type", "HSM");
                 } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
                     System.out.println(text);
-                    builder.queryParam("method", "SendMessage").
-                            queryParam("userid", credentials.get("username2Way")).
-                            queryParam("password", credentials.get("password2Way")).
-                            queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-                            queryParam("msg", text).
-                            queryParam("msg_type", "TEXT");
+                    
+                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("username2Way"), credentials.get("password2Way"));
+                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+	                    queryParam("msg", text).
+	                    queryParam("msg_type", "TEXT");
                 } else {
                 }
+                
                 log.info(text);
                 URI expanded = URI.create(builder.toUriString());
                 log.info(expanded.toString());
+                
                 RestTemplate restTemplate = new RestTemplate();
                 GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
                 try {
@@ -239,6 +223,22 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 return xMsg;
             }
         });
+    }
+    
+    private UriComponentsBuilder getURIBuilder() {
+    	return UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
+                queryParam("v", "1.1").
+                queryParam("format", "json").
+                queryParam("auth_scheme", "plain").
+                queryParam("extra", "Samagra").
+                queryParam("data_encoding", "text").
+                queryParam("messageId", "123456789");
+    }
+    
+    private UriComponentsBuilder setBuilderCredentialsAndMethod(UriComponentsBuilder builder, String method, String username, String password) {
+    	return builder.queryParam("method", method).
+                queryParam("userid", username).
+                queryParam("password", password);
     }
     
     private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
