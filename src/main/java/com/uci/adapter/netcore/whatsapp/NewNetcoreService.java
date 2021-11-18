@@ -27,10 +27,12 @@ public class NewNetcoreService {
     public NewNetcoreService(NWCredentials credentials) {
         this.client = new OkHttpClient().newBuilder().build();
         this.mediaType = MediaType.parse("application/json");
-        this.baseURL = "https://waapi.pepipost.com/api/v2/";
+        String url = System.getenv("NETCORE_WHATSAPP_URI");
+        url = url != null && !url.isEmpty() ? url : "https://waapi.pepipost.com/api/v2/";
+        this.baseURL = url;
         this.credentials = credentials;
         webClient = WebClient.builder()
-                .baseUrl("https://waapi.pepipost.com/api/v2")
+                .baseUrl(url)
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("Authorization", "Bearer " + credentials.getToken())
                 .build();
