@@ -2,6 +2,7 @@ package com.uci.adapter.provider.factory;
 
 import com.uci.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
+import com.uci.adapter.sunbird.web.SunbirdWebPortalAdapter;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,11 +34,14 @@ public class ProviderFactory {
                     .xmsgRepo(xmsgRepo)
                     .build();
             return gupshupWhatsapp;
-        }else if (provider.equals("gupshup") && channel.equals("sms")) {
+        } else if (provider.equals("gupshup") && channel.equals("sms")) {
             return gupshupSMS;
         } else if(provider.equals("cdac") && channel.toLowerCase().equals("sms")){
             return cdacSMSBulk;
-        }else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
+        } else if(provider.equals("sunbird") && channel.toLowerCase().equals("web")){
+        	SunbirdWebPortalAdapter sunbirdAdapter = SunbirdWebPortalAdapter.builder().build();
+            return sunbirdAdapter;
+        } else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
                     .builder()
                     .botservice(botService)

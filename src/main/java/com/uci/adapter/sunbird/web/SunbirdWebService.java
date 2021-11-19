@@ -15,20 +15,19 @@ import java.util.function.Function;
 public class SunbirdWebService {
     private OkHttpClient client;
     private MediaType mediaType;
-    private SunbirdCredentials credentials;
     private final WebClient webClient;
 
     private static SunbirdWebService sunbirdWebService = null;
-    public SunbirdWebService(SunbirdCredentials credentials){
+    
+    public SunbirdWebService(){
         this.client = new OkHttpClient().newBuilder().build();
         this.mediaType = MediaType.parse("application/json");
-        this.credentials = credentials;
         this.webClient = WebClient.builder().build();
     }
 
-    public static SunbirdWebService getInstance(SunbirdCredentials credentials) {
+    public static SunbirdWebService getInstance() {
         if (sunbirdWebService == null) {
-            return new SunbirdWebService(credentials);
+            return new SunbirdWebService();
         } else {
             return sunbirdWebService;
         }
@@ -43,7 +42,6 @@ public class SunbirdWebService {
                     .url(url )
                     .method("POST", body)
                     .addHeader("Content-Type", "application/json")
-                    .addHeader("Authorization", "Bearer " + credentials.getToken())
                     .build();
             Response response = client.newCall(request).execute();
             String json = response.body().string();

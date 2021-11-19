@@ -47,6 +47,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
         log.info("XMessage Payload getting created >>>");
         xmsgPayload.setText(webMessage.getText());
+        XMessage.MessageType messageType= XMessage.MessageType.TEXT;
         //Todo: How to get Button choices from normal text
         from.setUserID(webMessage.getFrom());
         return Mono.just(XMessage.builder()
@@ -56,6 +57,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
                 .providerURI("sunbird")
                 .messageState(messageState)
                 .messageId(messageIdentifier)
+                .messageType(messageType)
                 .timestamp(Timestamp.valueOf(LocalDateTime.now()).getTime())
                 .payload(xmsgPayload).build());
     }
@@ -63,9 +65,8 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
-        SunbirdCredentials sc = getCredentials();
-        String url =PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
-        return SunbirdWebService.getInstance(sc).
+        String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
+        return SunbirdWebService.getInstance().
                 sendOutboundMessage(url, outboundMessage)
                 .map(new Function<SunbirdWebResponse, XMessage>() {
             @Override
@@ -88,10 +89,9 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception{
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
-        SunbirdCredentials sc = getCredentials();
         //Get the Sunbird Outbound Url for message push
         String url =PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
-        SunbirdWebService webService = new SunbirdWebService(sc);
+        SunbirdWebService webService = new SunbirdWebService();
         SunbirdWebResponse response = webService.sendText(url, outboundMessage);
         if(null != response){
             xMsg.setMessageId(MessageId.builder().channelMessageId(response.getId()).build());
@@ -100,13 +100,13 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         return xMsg;
     }
 
-    @NotNull
-    private SunbirdCredentials getCredentials() {
-        String token = PropertiesCache.getInstance().getProperty("SUNBIRD_TOKEN");
-        SunbirdCredentials sc = SunbirdCredentials.builder().build();
-        sc.setToken(token);
-        return sc;
-    }
+//    @NotNull
+//    private SunbirdCredentials getCredentials() {
+//        String token = PropertiesCache.getInstance().getProperty("SUNBIRD_TOKEN");
+//        SunbirdCredentials sc = SunbirdCredentials.builder().build();
+//        sc.setToken(token);
+//        return sc;
+//    }
 
     private OutboundMessage getOutboundMessage(XMessage xMsg) {
         SunbirdMessage sunbirdMessage = SunbirdMessage.builder().title(
