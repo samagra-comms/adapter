@@ -17,6 +17,7 @@ import messagerosa.core.model.*;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
@@ -42,7 +43,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) {
         NetcoreWhatsAppMessage message = (NetcoreWhatsAppMessage) msg;
-        SenderReceiverInfo from = SenderReceiverInfo.builder().build();
+        SenderReceiverInfo from = SenderReceiverInfo.builder().deviceType(DeviceType.PHONE).build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
 
         XMessage.MessageState messageState;
@@ -147,15 +148,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) {
-        String token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
-        String phoneNo = "91" +xMsg.getTo().getUserID();
+    	String phoneNo = "91" +xMsg.getTo().getUserID();
         String text = "";
 
-//        phoneNo = "91" + xMsg.getTo().getUserID();
-
-//        if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-//            //no implementation
-//        } else
         if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
             // OPT in user
             text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
@@ -165,17 +160,21 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
             text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
         }
-//            else {
-//            //no implementation
-//        }
 
         // SendMessage
         Text t = Text.builder().content(text).previewURL("false").build();
         Text[] texts = {t};
-        return NewNetcoreService.getInstance(new NWCredentials(token)).
+        
+        String content = t.getContent();
+        log.info("before replace content: "+content);
+        content = content.replace("\\n", System.getProperty("line.separator"));
+        log.info("after replace content: "+content);
+        t.setContent(content);
+        
+        return NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
                 sendOutboundMessage(OutboundMessage.builder().message(new SingleMessage[]{SingleMessage
                         .builder()
-                        .from("461089f9-1000-4211-b182-c7f0291f3d45")
+                        .from(System.getenv("NETCORE_WHATSAPP_SOURCE"))
                         .to(phoneNo)
                         .recipientType("individual")
                         .messageType("text")
@@ -236,7 +235,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
         SingleMessage msg = SingleMessage
                 .builder()
-                .from("461089f9-1000-4211-b182-c7f0291f3d45")
+                .from(System.getenv("NETCORE_WHATSAPP_SOURCE"))
                 .to(phoneNo)
                 .recipientType("individual")
                 .messageType("text")
@@ -245,9 +244,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
                 .build();
         SingleMessage[] messages = {msg};
 
-        String token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuZXRjb3Jlc2FsZXNleHAiLCJleHAiOjI0MjUxMDI1MjZ9.ljC4Tvgz031i6DsKr2ILgCJsc9C_hxdo2Kw8iZp9tsVcCaKbIOXaFoXmpU7Yo7ob4P6fBtNtdNBQv_NSMq_Q8w";
         NWCredentials nc = NWCredentials.builder().build();
-        nc.setToken(token);
+        nc.setToken(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"));
         NetcoreService ns = new NetcoreService(nc);
 
         OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();

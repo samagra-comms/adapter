@@ -5,7 +5,7 @@ import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.dao.models.XMessageDAO;
 import com.uci.dao.repository.XMessageRepository;
-import com.uci.dao.utils.XMessageDAOUtills;
+import com.uci.dao.utils.XMessageDAOUtils;
 import com.uci.utils.BotService;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
@@ -13,7 +13,6 @@ import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -27,17 +26,18 @@ import java.util.List;
 @Service
 public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
 
-    @Value("${provider.CDAC.SMS.username}")
-    private String username;
+    private String username = "test";
 
-    @Value("${provider.CDAC.SMS.password}")
-    private String password;
+    private String password = "test";
 
     private final static String OUTBOUND = "https://msdgweb.mgov.gov.in/esms/sendsmsrequest";
     private final static String TRACK_BASE_URL = "https://msdgweb.mgov.gov.in/XMLForReportG/reportXMLNew";
 
     @Autowired
     public XMessageRepository xmsgRepo;
+
+    @Autowired
+    public BotService botService;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -53,7 +53,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
      */
     private Mono<String> getAppName(SenderReceiverInfo from, String text) {
         try {
-            return new BotService().getCampaignFromStartingMessage(text).map(s -> s);
+            return botService.getCampaignFromStartingMessage(text).map(s -> s);
         } catch (Exception e) {
 //            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "REPLIED");
 //            return Mono.just(xMessageLast.getApp());
@@ -64,8 +64,8 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     @Override
     public void processOutBoundMessage(XMessage nextMsg) throws Exception {
         XMessage xMsg = callOutBoundAPI(nextMsg, OUTBOUND, username, password);
-        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-        xmsgRepo.save(dao);
+        XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
+        xmsgRepo.insert(dao);
     }
 
     @Override
@@ -96,7 +96,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         try {
             trackDetails = cdacClient.trackMultipleMessages(xMessageDAO.getMessageId());
             xMessageDAO.setAuxData(trackDetails.toString());
-            xmsgRepo.save(xMessageDAO);
+            xmsgRepo.insert(xMessageDAO);
         } catch (Exception e) {
             e.printStackTrace();
         }
