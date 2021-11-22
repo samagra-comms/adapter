@@ -45,7 +45,7 @@ public class SunbirdWebServiceTest {
         sc.setToken(token);
         String url ="https://waapi.pepipost.com/api/v2/";
 
-        SunbirdWebService sws = new SunbirdWebService(sc,url);
+        SunbirdWebService sws = new SunbirdWebService(sc);
         OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
         okhttp3.Call call = Mockito.mock(okhttp3.Call.class);
         okhttp3.ResponseBody body = Mockito.mock(okhttp3.ResponseBody.class);
@@ -56,7 +56,7 @@ public class SunbirdWebServiceTest {
         Mockito.when(client.newCall(Mockito.any())).thenReturn(call);
         ReflectionTestUtils.setField(sws,"client",client);
 
-        SunbirdWebResponse response = sws.sendText(outboundMessage);
+        SunbirdWebResponse response = sws.sendText(url, outboundMessage);
         assertNotNull(response);
         assertEquals(response.getStatus(), "success");
         assertEquals(response.getMessage(), "Request received successfully.");

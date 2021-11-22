@@ -12,10 +12,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import messagerosa.core.model.MessageId;
-import messagerosa.core.model.SenderReceiverInfo;
-import messagerosa.core.model.XMessage;
-import messagerosa.core.model.XMessagePayload;
+import messagerosa.core.model.*;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
@@ -24,6 +22,8 @@ import reactor.core.publisher.Mono;
 import javax.xml.bind.JAXBException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.function.Function;
 
 @Slf4j
 @Getter
@@ -37,11 +37,6 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
 
 
     @Override
-    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        return null;
-    }
-
-    @Override
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException {
         SunbirdWebMessage webMessage = (SunbirdWebMessage) message;
         SenderReceiverInfo from = SenderReceiverInfo.builder().build();
@@ -52,6 +47,8 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
         log.info("XMessage Payload getting created >>>");
         xmsgPayload.setText(webMessage.getText());
+        XMessage.MessageType messageType= XMessage.MessageType.TEXT;
+        //Todo: How to get Button choices from normal text
         from.setUserID(webMessage.getFrom());
         return Mono.just(XMessage.builder()
                 .to(to)
@@ -60,8 +57,27 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
                 .providerURI("sunbird")
                 .messageState(messageState)
                 .messageId(messageIdentifier)
+                .messageType(messageType)
                 .timestamp(Timestamp.valueOf(LocalDateTime.now()).getTime())
                 .payload(xmsgPayload).build());
+    }
+
+    @Override
+    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
+        OutboundMessage outboundMessage = getOutboundMessage(xMsg);
+        String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
+        return SunbirdWebService.getInstance().
+                sendOutboundMessage(url, outboundMessage)
+                .map(new Function<SunbirdWebResponse, XMessage>() {
+            @Override
+            public XMessage apply(SunbirdWebResponse sunbirdWebResponse) {
+                if(sunbirdWebResponse != null){
+                    xMsg.setMessageId(MessageId.builder().channelMessageId(sunbirdWebResponse.getId()).build());
+                    xMsg.setMessageState(XMessage.MessageState.SENT);
+                }
+                return xMsg;
+            }
+        });
     }
 
 
@@ -72,20 +88,43 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     }
 
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception{
-        //TODO - Add choices from xMessage
-        //TODO - Make service asynchronous
-        SunbirdMessage sunbirdMessage = SunbirdMessage.builder().title(xMsg.getPayload().getText()).choices(xMsg.getPayload().getButtonChoices()).build();
-        SunbirdMessage[] messages = {sunbirdMessage};
-        OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
-        String token = PropertiesCache.getInstance().getProperty("SUNBIRD_TOKEN");
-        SunbirdCredentials sc = SunbirdCredentials.builder().build();
-        sc.setToken(token);
+        OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         //Get the Sunbird Outbound Url for message push
         String url =PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
-        SunbirdWebService webService = new SunbirdWebService(sc,url);
-        SunbirdWebResponse response = webService.sendText(outboundMessage);
-        xMsg.setMessageId(MessageId.builder().channelMessageId(response.getId()).build());
+        SunbirdWebService webService = new SunbirdWebService();
+        SunbirdWebResponse response = webService.sendText(url, outboundMessage);
+        if(null != response){
+            xMsg.setMessageId(MessageId.builder().channelMessageId(response.getId()).build());
+        }
         xMsg.setMessageState(XMessage.MessageState.SENT);
         return xMsg;
+    }
+
+//    @NotNull
+//    private SunbirdCredentials getCredentials() {
+//        String token = PropertiesCache.getInstance().getProperty("SUNBIRD_TOKEN");
+//        SunbirdCredentials sc = SunbirdCredentials.builder().build();
+//        sc.setToken(token);
+//        return sc;
+//    }
+
+    private OutboundMessage getOutboundMessage(XMessage xMsg) {
+        SunbirdMessage sunbirdMessage = SunbirdMessage.builder().title(
+                xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices())).choices(xMsg.getPayload().getButtonChoices()).build();
+        SunbirdMessage[] messages = {sunbirdMessage};
+        OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
+        return outboundMessage;
+    }
+
+    private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
+        StringBuilder processedChoicesBuilder = new StringBuilder("");
+        if(buttonChoices != null){
+            for(ButtonChoice choice:buttonChoices){
+                processedChoicesBuilder.append(choice.getText()).append("\n");
+            }
+            String processedChoices = processedChoicesBuilder.toString();
+            return processedChoices.substring(0,processedChoices.length()-1);
+        }
+        return "";
     }
 }
