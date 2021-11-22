@@ -50,7 +50,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         XMessage.MessageType messageType= XMessage.MessageType.TEXT;
         //Todo: How to get Button choices from normal text
         from.setUserID(webMessage.getFrom());
-        return Mono.just(XMessage.builder()
+        XMessage x = XMessage.builder()
                 .to(to)
                 .from(from)
                 .channelURI("web")
@@ -59,13 +59,17 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
                 .messageId(messageIdentifier)
                 .messageType(messageType)
                 .timestamp(Timestamp.valueOf(LocalDateTime.now()).getTime())
-                .payload(xmsgPayload).build());
+                .payload(xmsgPayload).build();
+        log.info("Current message :: " +  x.toString());
+        return Mono.just(x);
     }
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
+        log.info("Sending message to transport socket :: " + xMsg.toXML());
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
-        String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
+        // String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
+        String url = "http://transport-socket.ngrok.samagra.io/botMsg/adapterOutbound";
         return SunbirdWebService.getInstance().
                 sendOutboundMessage(url, outboundMessage)
                 .map(new Function<SunbirdWebResponse, XMessage>() {
@@ -90,7 +94,8 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception{
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         //Get the Sunbird Outbound Url for message push
-        String url =PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
+        // String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
+        String url = "http://transport-socket.ngrok.samagra.io/adapterOutbound";
         SunbirdWebService webService = new SunbirdWebService();
         SunbirdWebResponse response = webService.sendText(url, outboundMessage);
         if(null != response){
@@ -111,9 +116,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     private OutboundMessage getOutboundMessage(XMessage xMsg) {
         SunbirdMessage sunbirdMessage = SunbirdMessage.builder().title(
                 xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices())).choices(xMsg.getPayload().getButtonChoices()).build();
-        SunbirdMessage[] messages = {sunbirdMessage};
-        OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
-        return outboundMessage;
+        return OutboundMessage.builder().message(sunbirdMessage).build();
     }
 
     private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {

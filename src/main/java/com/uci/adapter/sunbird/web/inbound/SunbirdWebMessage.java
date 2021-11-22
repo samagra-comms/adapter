@@ -15,7 +15,7 @@ public class SunbirdWebMessage extends CommonMessage {
 
     String messageId;
 
-    @JsonAlias({"Body"})
+    @JsonAlias({"body"})
     String text;
 
     @Nullable
@@ -27,6 +27,9 @@ public class SunbirdWebMessage extends CommonMessage {
 
     @JsonAlias({"From"})
     String from;
+
+    @JsonAlias({"to"})
+    String to;
 
     @Nullable
     Map<String,Object> context;
