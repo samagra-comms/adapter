@@ -217,9 +217,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 				}
                 xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
                 xMsg.setMessageState(XMessage.MessageState.SENT);
-
-                XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
-                xmsgRepo.insert(dao);
                 return xMsg;
             }
         });

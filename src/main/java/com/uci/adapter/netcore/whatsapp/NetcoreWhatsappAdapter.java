@@ -254,7 +254,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         xMsg.setMessageId(MessageId.builder().channelMessageId(response.getData().getIdentifier()).build());
         xMsg.setMessageState(XMessage.MessageState.SENT);
 
-
         return xMsg;
     }
 
