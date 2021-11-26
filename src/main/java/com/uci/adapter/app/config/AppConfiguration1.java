@@ -1,9 +1,14 @@
 package com.uci.adapter.app.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.uci.utils.BotService;
 import com.uci.utils.CampaignService;
 import io.fusionauth.client.FusionAuthClient;
+
+import java.time.Duration;
+
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -11,10 +16,13 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClients;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -67,6 +75,9 @@ public class AppConfiguration1 {
 
     @Value("${fusionauth.key}")
     public String FUSIONAUTH_KEY;
+    
+    @Autowired
+    public Cache<Object, Object> cache;
 
     @Bean
     public FusionAuthClient getFAClient() {
@@ -75,10 +86,10 @@ public class AppConfiguration1 {
 
     @Bean
     public BotService getBotService() {
-
-        WebClient webClient = WebClient.builder()
+    	WebClient webClient = WebClient.builder()
                 .baseUrl(CAMPAIGN_URL)
                 .build();
-        return new BotService(webClient, getFAClient());
+        
+    	return new BotService(webClient, getFAClient(), cache);
     }
 }
