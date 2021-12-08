@@ -210,8 +210,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 	                        if(response != null){
 	                        	xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
 	                            xMsg.setMessageState(XMessage.MessageState.SENT);
-	                            log.info("messageID 1: "+xMsg.getMessageId());
-	        	                log.info("messageState 1: "+xMsg.getMessageState());
 	                            return xMsg;
 	                        }
 	                        return xMsg;
