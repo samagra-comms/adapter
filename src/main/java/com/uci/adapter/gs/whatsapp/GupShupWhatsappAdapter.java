@@ -165,64 +165,60 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     public Mono<XMessage> callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
-        return botservice.getGupshupAdpaterCredentials(xMsg.getAdapterId()).map(new Function<Map<String, String>, XMessage>() {
-            @Override
-            public XMessage apply(Map<String, String> credentials) {
-
-                String text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
-                
-                UriComponentsBuilder builder = getURIBuilder();
-                if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-                	builder = setBuilderCredentialsAndMethod(builder, "OPT_IN", credentials.get("username2Way"), credentials.get("password2Way"));
-                	builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
-                    	queryParam("phone_number", "91" + xMsg.getTo().getUserID());
-                } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-                    optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
-
-                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
-                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-	                    queryParam("msg", text).
-	                    queryParam("isHSM", true).
-	                    queryParam("msg_type", "HSM");
-                } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-                    optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
-
-                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
-                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-	                    queryParam("msg", text).
-	                    queryParam("isTemplate", "true").
-	                    queryParam("msg_type", "HSM");
-                } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-                    System.out.println(text);
-                    
-                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("username2Way"), credentials.get("password2Way"));
-                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-	                    queryParam("msg", text).
-	                    queryParam("msg_type", "TEXT");
-                } else {
-                }
-                
-                log.info(text);
-                URI expanded = URI.create(builder.toUriString());
-                log.info(expanded.toString());
-                
-                RestTemplate restTemplate = new RestTemplate();
-                GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
-                try {
-					log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
-				} catch (JsonProcessingException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					log.error("Error in callOutBoundAPI for objectmapper: "+e.getMessage());
-				}
-                xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
-                xMsg.setMessageState(XMessage.MessageState.SENT);
-
-                XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
-                xmsgRepo.insert(dao);
-                return xMsg;
-            }
-        });
+        return botservice.getGupshupAdpaterCredentials(xMsg.getAdapterId())
+        	.map(new Function<Map<String, String>, Mono<XMessage>>() {
+	            @Override
+	            public Mono<XMessage> apply(Map<String, String> credentials) {
+	            	log.info("inside 1");
+	                String text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
+	                
+	                UriComponentsBuilder builder = getURIBuilder();
+	                if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
+	                	builder = setBuilderCredentialsAndMethod(builder, "OPT_IN", credentials.get("username2Way"), credentials.get("password2Way"));
+	                	builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
+	                    	queryParam("phone_number", "91" + xMsg.getTo().getUserID());
+	                } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
+	                    optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
+	
+	                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+	                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+		                    queryParam("msg", text).
+		                    queryParam("isHSM", true).
+		                    queryParam("msg_type", "HSM");
+	                } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
+	                    optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
+	
+	                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+	                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+		                    queryParam("msg", text).
+		                    queryParam("isTemplate", "true").
+		                    queryParam("msg_type", "HSM");
+	                } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+	                    System.out.println(text);
+	                    
+	                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("username2Way"), credentials.get("password2Way"));
+	                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+		                    queryParam("msg", text).
+		                    queryParam("msg_type", "TEXT");
+	                }
+	                
+	                URI expanded = URI.create(builder.toUriString());
+	                
+	                return GSWhatsappService.getInstance().sendOutboundMessage(expanded).map(new Function<GSWhatsappOutBoundResponse, XMessage>() {
+	                    @Override
+	                    public XMessage apply(GSWhatsappOutBoundResponse response) {
+	                        if(response != null){
+	                        	xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+	                            xMsg.setMessageState(XMessage.MessageState.SENT);
+	                            log.info("messageID 1: "+xMsg.getMessageId());
+	        	                log.info("messageState 1: "+xMsg.getMessageState());
+	                            return xMsg;
+	                        }
+	                        return xMsg;
+	                    }
+	                });
+	            }
+        }).block();
     }
     
     private UriComponentsBuilder getURIBuilder() {
