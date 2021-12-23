@@ -76,7 +76,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         log.info("Sending final xmessage to transport socket :: " + xMsg.toXML());
         // String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
-        String url = "http://sb-transport-socket.ngrok.samagra.io/botMsg/adapterOutbound";
+        String url = "http://transport-socket.ngrok.samagra.io/botMsg/adapterOutbound";
         return SunbirdWebService.getInstance().
                 sendOutboundMessage(url, outboundMessage)
                 .map(new Function<SunbirdWebResponse, XMessage>() {
@@ -102,7 +102,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         //Get the Sunbird Outbound Url for message push
         // String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
-        String url = "http://sb-transport-socket.ngrok.samagra.io/adapterOutbound";
+        String url = "http://transport-socket.ngrok.samagra.io/adapterOutbound";
         SunbirdWebService webService = new SunbirdWebService();
         SunbirdWebResponse response = webService.sendText(url, outboundMessage);
         if(null != response){
