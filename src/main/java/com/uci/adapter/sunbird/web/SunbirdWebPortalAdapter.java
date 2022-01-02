@@ -16,6 +16,7 @@ import messagerosa.core.model.*;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
@@ -36,7 +37,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     @Qualifier("rest")
     private RestTemplate restTemplate;
     
-    private final static String outboundUrl = "http://transport-socket-1.ngrok.samagra.io";
+//    private final static String outboundUrl = "http://transport-socket-4.ngrok.samagra.io";
 
 
     @Override
@@ -78,7 +79,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         log.info("Sending final xmessage to transport socket :: " + xMsg.toXML());
         // String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
-        String url = outboundUrl+"/botMsg/adapterOutbound";
+        String url = System.getenv("TRANSPORT_SOCKET_BASE_URL")+"/botMsg/adapterOutbound";
         return SunbirdWebService.getInstance().
                 sendOutboundMessage(url, outboundMessage)
                 .map(new Function<SunbirdWebResponse, XMessage>() {
@@ -104,7 +105,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         //Get the Sunbird Outbound Url for message push
         // String url = PropertiesCache.getInstance().getProperty("SUNBIRD_OUTBOUND");
-        String url = outboundUrl+"/adapterOutbound";
+        String url = System.getenv("TRANSPORT_SOCKET_BASE_URL")+"/adapterOutbound";
         SunbirdWebService webService = new SunbirdWebService();
         SunbirdWebResponse response = webService.sendText(url, outboundMessage);
         if(null != response){
@@ -166,7 +167,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         			c.setText(c.getText().replaceFirst(key, "").trim());
         		}
         	});
-    	}
+    	}	
     	return choices;
     }
 
