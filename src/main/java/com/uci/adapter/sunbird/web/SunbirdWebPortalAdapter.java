@@ -37,6 +37,9 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     @Qualifier("rest")
     private RestTemplate restTemplate;
     
+    private String assesOneLevelUpChar;
+    private String assesGoToStartChar;
+    
 //    private final static String outboundUrl = "http://transport-socket-4.ngrok.samagra.io";
 
 
@@ -156,18 +159,49 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
      * @return ArrayList of ButtonChoices
      */
     private ArrayList<ButtonChoice> getButtonChoices(XMessage xMsg) {
+    	String goBackText = "Go Back";
+        String goToMainMenuText = "Main Menu";
+        
     	ArrayList<ButtonChoice> choices = xMsg.getPayload().getButtonChoices();
-    	if(choices != null) {
-    		choices.forEach(c -> {
-        		String[] a = c.getText().split(" ");
-        		if(a[0] != null && !a[0].isEmpty()) {
-        			String key = a[0].toString();
-        			
-        			c.setKey(key);
-        			c.setText(c.getText().replaceFirst(key, "").trim());
-        		}
-        	});
-    	}	
+    	setAssesmentCharacters();
+    	if(choices == null) 
+    		choices = new ArrayList();
+    	
+    	if(xMsg.getConversationLevel() != null) {
+    		/* Go Back Button */
+    		if (xMsg.getConversationLevel().get(0) != null && xMsg.getConversationLevel().get(0) > 0) {
+    			ButtonChoice c1 = new ButtonChoice();
+    			c1.setKey(this.assesOneLevelUpChar);
+    			c1.setText(this.assesOneLevelUpChar + " " + goBackText);
+    			c1.setBackmenu(true);
+    			choices.add(c1);
+    		}
+
+    		/* Go To Main Menu Button*/
+    		if (xMsg.getConversationLevel().get(0) != null && xMsg.getConversationLevel().get(0) > 0
+    				&& xMsg.getConversationLevel().get(1) != null && xMsg.getConversationLevel().get(1) > 0) {
+    			ButtonChoice c2 = new ButtonChoice();
+    			c2.setKey(this.assesGoToStartChar);
+    			c2.setText(this.assesGoToStartChar + " " + goToMainMenuText);
+    			c2.setBackmenu(true);
+    			choices.add(c2);
+    		}
+    	}
+        
+    	choices.forEach(c -> {
+    		String[] a = c.getText().split(" ");
+    		if(a[0] != null && !a[0].isEmpty()) {
+    			String key = a[0].toString();
+    			a = Arrays.copyOfRange(a, 1, a.length);
+    			String text = String.join(" ", a);
+    			
+    			log.info("text: "+text);
+    			c.setKey(key);
+    			c.setText(text.trim());
+    		}
+    	});
+    	xMsg.getPayload().setButtonChoices(choices);
+    	
     	return choices;
     }
 
@@ -181,5 +215,14 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
             return processedChoices.substring(0,processedChoices.length()-1);
         }
         return "";
+    }
+
+    /* Set Assesment Characters in variables */
+    public void setAssesmentCharacters() {
+    	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
+        String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
+        
+        this.assesOneLevelUpChar = envAssesOneLevelUpChar == "0" || (envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty()) ? envAssesOneLevelUpChar : "#";
+        this.assesGoToStartChar = envAssesGoToStartChar == "0" || (envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty()) ? envAssesGoToStartChar : "*";
     }
 }
