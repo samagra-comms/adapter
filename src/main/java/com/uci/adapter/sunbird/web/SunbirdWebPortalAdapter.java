@@ -198,6 +198,9 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     			log.info("text: "+text);
     			c.setKey(key);
     			c.setText(text.trim());
+    			if(c.getBackmenu() == null || c.getBackmenu() != true) {
+    				c.setBackmenu(false);
+    			}
     		}
     	});
     	xMsg.getPayload().setButtonChoices(choices);
