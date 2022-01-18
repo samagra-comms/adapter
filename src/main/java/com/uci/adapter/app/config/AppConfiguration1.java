@@ -77,7 +77,7 @@ public class AppConfiguration1 {
     public String FUSIONAUTH_KEY;
     
     @Autowired
-    public Cache<Object, Object> cache;
+    public CacheManager cacheManager;
 
     @Bean
     public FusionAuthClient getFAClient() {
@@ -90,6 +90,6 @@ public class AppConfiguration1 {
                 .baseUrl(CAMPAIGN_URL)
                 .build();
         
-    	return new BotService(webClient, getFAClient(), cache);
+    	return new BotService(webClient, getFAClient(), cacheManager);
     }
 }
