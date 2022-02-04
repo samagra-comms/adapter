@@ -2,6 +2,7 @@ package com.uci.adapter.netcore.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserRequestMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserResponse;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
@@ -97,6 +98,16 @@ public class NewNetcoreService {
     }
 
     public Mono<SendMessageResponse> sendOutboundMessage(OutboundMessage outboundMessage) {
+    	ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+    	try {
+			String json = ow.writeValueAsString(outboundMessage);
+			System.out.println("json:"+json);
+		} catch (JsonProcessingException e) {
+			System.out.println("json not converted:"+e.getMessage());
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
         return webClient.post()
                 .uri("/message/")
                 .body(Mono.just(outboundMessage), OutboundMessage.class)
