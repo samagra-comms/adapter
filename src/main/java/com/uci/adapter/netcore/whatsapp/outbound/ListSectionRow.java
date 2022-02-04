@@ -14,5 +14,7 @@ import lombok.Setter;
 public class ListSectionRow {
 	private String id;
 	private String title;
-	private String description;
+	
+//	@Nullable
+//	private String description;
 }

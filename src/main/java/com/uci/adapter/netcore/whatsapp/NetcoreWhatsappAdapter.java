@@ -30,6 +30,7 @@ import reactor.core.publisher.Mono;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.function.Function;
 
 @Slf4j
@@ -222,16 +223,15 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     		xMsg.getPayload().getButtonChoices().forEach(choice -> {
     			ListSectionRow row = ListSectionRow.builder()
     								.id(choice.getKey())
-    								.title(choice.getText())
-    								.description(choice.getText())
+    								.title(choiceTextWithoutKey(choice.getText()))
     								.build();
     			rows.add(row);
     		});
     		
     		Action action = Action.builder()
-    				.button("Select List")
+    				.button("Options")
 	    			.sections(new ListSection[]{ListSection.builder()
-	    					.title("Select from list")
+	    					.title("Choose an option")
 	    					.rows(rows)
 	    					.build()
 	    			})
@@ -261,7 +261,10 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     		xMsg.getPayload().getButtonChoices().forEach(choice -> {
     			QuickReplyButton button = QuickReplyButton.builder()
 	    	         	.type("reply")
-	    	         	.reply(ReplyButton.builder().id(choice.getKey()).title(choice.getText()).build())
+	    	         	.reply(ReplyButton.builder()
+	    	         				.id(choice.getKey())
+	    	         				.title(choiceTextWithoutKey(choice.getText()))
+	    	         				.build())
 	    	         	.build();
     			buttons.add(button);
     		});
@@ -321,6 +324,38 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 			        .text(texts)
 			        .build();
     	} 
+    }
+    
+    /**
+     * Get Choice Text - remove key(Numeric value Eg 1 or 1.) from text
+     * @param choice_text
+     * @return
+     */
+    private String choiceTextWithoutKey(String choice_text) {
+    	String[] a = choice_text.split(" ");
+		try {
+			if(a[0] != null && !a[0].isEmpty()) {
+				Integer.parseInt(a[0]);
+				a = Arrays.copyOfRange(a, 1, a.length);
+    			choice_text = String.join(" ", a);
+    		}
+		} catch (NumberFormatException ex) {
+			String[] b = choice_text.split(".");
+    		try {
+    			if(b[0] != null && !b[0].isEmpty()) {
+	    		    Integer.parseInt(b[0]);
+	    		    b = Arrays.copyOfRange(b, 1, b.length);
+	    			choice_text = String.join(" ", b);
+    			}
+    		} catch (NumberFormatException exc) {
+    			// do nothing
+    		} catch (ArrayIndexOutOfBoundsException exc) {
+    		    // do nothing
+    		}
+		} catch (ArrayIndexOutOfBoundsException ex) {
+			// do nothing
+		}
+    	return choice_text.trim();
     }
 
     private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
