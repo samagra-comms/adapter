@@ -118,13 +118,13 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	String text  = "";
     	if(type.equalsIgnoreCase("list_reply")) {
     		if(message.getInterativeContent().getListReply() != null 
-    				|| message.getInterativeContent().getListReply().getId() != null) {
-    			text = message.getInterativeContent().getListReply().getId();
+    				|| message.getInterativeContent().getListReply().getTitle() != null) {
+    			text = message.getInterativeContent().getListReply().getTitle();
     		}
     	} else if(type.equalsIgnoreCase("button_reply")) {
     		if(message.getInterativeContent().getButtonReply() != null 
-    				|| message.getInterativeContent().getButtonReply().getId() != null) {
-    			text = message.getInterativeContent().getButtonReply().getId();
+    				|| message.getInterativeContent().getButtonReply().getTitle() != null) {
+    			text = message.getInterativeContent().getButtonReply().getTitle();
     		}
     	}
     	log.info("interactive text: "+text);
@@ -223,7 +223,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     		xMsg.getPayload().getButtonChoices().forEach(choice -> {
     			ListSectionRow row = ListSectionRow.builder()
     								.id(choice.getKey())
-    								.title(choiceTextWithoutKey(choice.getText()))
+//    								.title(choiceTextWithoutKey(choice.getText()))
+    								.title(choice.getText())
     								.build();
     			rows.add(row);
     		});
@@ -263,7 +264,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 	    	         	.type("reply")
 	    	         	.reply(ReplyButton.builder()
 	    	         				.id(choice.getKey())
-	    	         				.title(choiceTextWithoutKey(choice.getText()))
+//	    	         				.title(choiceTextWithoutKey(choice.getText()))
+	    	         				.title(choice.getText())
 	    	         				.build())
 	    	         	.build();
     			buttons.add(button);
