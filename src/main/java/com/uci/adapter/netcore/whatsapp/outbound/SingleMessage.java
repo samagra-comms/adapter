@@ -37,7 +37,11 @@ public  class SingleMessage {
     @JsonProperty("type_text")
     @JsonAlias({"type_text"})
     private Text[] text;
-
+    
+    @Nullable
+    @JsonProperty("type_interactive")
+    @JsonAlias({"type_interactive"})
+    private InterativeContent[] interativeContent;
 
     private String details;
     private String status;

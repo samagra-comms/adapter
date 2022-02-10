@@ -65,4 +65,8 @@ public class NetcoreWhatsAppMessage extends CommonMessage {
   private String response;
   private String extra;
   private String app;
+  
+  @Nullable
+  @JsonAlias({"interactive_type"})
+  private InteractiveContent interativeContent; 
 }

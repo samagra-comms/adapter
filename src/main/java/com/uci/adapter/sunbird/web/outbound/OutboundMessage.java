@@ -9,4 +9,6 @@ import lombok.*;
 @Builder
 public class OutboundMessage {
     private SunbirdMessage message;
+    private String to;
+    private String messageId;
 }
