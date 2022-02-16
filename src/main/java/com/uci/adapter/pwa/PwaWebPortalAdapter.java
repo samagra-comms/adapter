@@ -137,8 +137,8 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
     	XMessagePayload payload = xMsg.getPayload();
     	String text = payload.getText().replace("__", "");
     	text = text.replace("\n\n", "");
-    	text = text.replaceAll("\n", "<br>");
-    	text = text.replaceAll("\\\\n", "<br>");
+//    	text = text.replaceAll("\n", "<br>");
+    	text = text.replaceAll("\\\\n", "\n");
     	payload.setText(text);
     	return text;
     }
@@ -157,27 +157,6 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
     	if(choices == null) 
     		choices = new ArrayList();
     	
-    	if(xMsg.getConversationLevel() != null) {
-    		/* Go Back Button */
-    		if (xMsg.getConversationLevel().get(0) != null && xMsg.getConversationLevel().get(0) > 0) {
-    			ButtonChoice c1 = new ButtonChoice();
-    			c1.setKey(this.assesOneLevelUpChar);
-    			c1.setText(this.assesOneLevelUpChar + " " + goBackText);
-    			c1.setBackmenu(true);
-    			choices.add(c1);
-    		}
-
-    		/* Go To Main Menu Button*/
-    		if (xMsg.getConversationLevel().get(0) != null && xMsg.getConversationLevel().get(0) > 0
-    				&& xMsg.getConversationLevel().get(1) != null && xMsg.getConversationLevel().get(1) > 0) {
-    			ButtonChoice c2 = new ButtonChoice();
-    			c2.setKey(this.assesGoToStartChar);
-    			c2.setText(this.assesGoToStartChar + " " + goToMainMenuText);
-    			c2.setBackmenu(true);
-    			choices.add(c2);
-    		}
-    	}
-        
     	choices.forEach(c -> {
     		String[] a = c.getText().split(" ");
     		if(a[0] != null && !a[0].isEmpty()) {
