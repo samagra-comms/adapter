@@ -2,6 +2,7 @@ package com.uci.adapter.provider.factory;
 
 import com.uci.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
+import com.uci.adapter.pwa.PwaWebPortalAdapter;
 import com.uci.adapter.sunbird.web.SunbirdWebPortalAdapter;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
@@ -41,6 +42,9 @@ public class ProviderFactory {
         } else if(provider.equals("sunbird") && channel.toLowerCase().equals("web")){
         	SunbirdWebPortalAdapter sunbirdAdapter = SunbirdWebPortalAdapter.builder().build();
             return sunbirdAdapter;
+        } else if(provider.equals("pwa") && channel.toLowerCase().equals("web")){
+        	PwaWebPortalAdapter pwaAdapter = PwaWebPortalAdapter.builder().build();
+            return pwaAdapter;
         } else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
                     .builder()
