@@ -1,4 +1,4 @@
-package com.uci.adapter.netcore.whatsapp.outbound;
+package com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply;
 
 import java.util.ArrayList;
 
@@ -11,7 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class QuickReplyButton {
+public class Button {
 	private String type;
 	
 	private ReplyButton reply;
