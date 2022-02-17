@@ -2,6 +2,8 @@ package com.uci.adapter.gs.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
@@ -69,7 +71,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         GSWhatsAppMessage message = (GSWhatsAppMessage) msg;
         SenderReceiverInfo from = SenderReceiverInfo.builder().build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
-
+        
         final XMessage.MessageState[] messageState = new XMessage.MessageState[1];
         messageState[0] = XMessage.MessageState.REPLIED;
         MessageId messageIdentifier = MessageId.builder().build();
@@ -108,6 +110,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
+        } else if(message.getType().equals("location") && message.getLocation() != null) {
+        	xmsgPayload.setText(convertLocationToText(message.getLocation()));;
+        	return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
         return null;
 
@@ -137,8 +142,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
-        return XMessage.builder()
+    	return XMessage.builder()
                 .to(to)
                 .from(from)
                 .channelURI("WhatsApp")
@@ -148,6 +152,35 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .messageType(messageType)
                 .timestamp(message.getTimestamp() == null ? Timestamp.valueOf(LocalDateTime.now()).getTime() : message.getTimestamp())
                 .payload(xmsgPayload).build();
+    }
+    
+    /**
+     * Convert Location to Text
+     * @param location
+     * @return text
+     */
+    private String convertLocationToText(String location) {
+    	ObjectMapper mapper = new ObjectMapper();
+    	String text = "";
+    	try {
+			JsonNode node = mapper.readTree(location);			
+			if(node.get("latitude") != null) {
+				text = node.get("latitude").toString();
+			}
+			if(node.get("longitude") != null) {
+				text += " "+node.get("longitude").toString();
+			}
+			if(node.get("name") != null) {
+				text += " "+node.get("name").asText();
+			}
+			log.info("text:"+text);
+			return text.trim();
+		} catch (JsonMappingException e) {
+			log.error("Incoming message location json mapping error:"+e.getMessage());
+		} catch (JsonProcessingException e) {
+			log.error("Incoming message location json processing error:"+e.getMessage());
+		}
+    	return text;
     }
 
 
@@ -165,10 +198,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     public Mono<XMessage> callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
-        return botservice.getGupshupAdpaterCredentials(xMsg.getAdapterId()).map(new Function<Map<String, String>, XMessage>() {
+        String adapterIdFromXML = xMsg.getAdapterId();
+        String adapterId = "44a9df72-3d7a-4ece-94c5-98cf26307324";
+        return botservice.getGupshupAdpaterCredentials(adapterId).map(new Function<Map<String, String>, XMessage>() {
             @Override
             public XMessage apply(Map<String, String> credentials) {
-
                 String text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
                 
                 UriComponentsBuilder builder = getURIBuilder();
@@ -217,9 +251,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 				}
                 xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
                 xMsg.setMessageState(XMessage.MessageState.SENT);
-
-                XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
-                xmsgRepo.insert(dao);
                 return xMsg;
             }
         });
