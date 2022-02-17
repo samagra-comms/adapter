@@ -1,4 +1,4 @@
-package com.uci.adapter.netcore.whatsapp.outbound;
+package com.uci.adapter.netcore.whatsapp.outbound.interactive.list;
 
 import java.util.ArrayList;
 
@@ -9,8 +9,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class ListSection {
+public class Section {
 	private String title;
 	
-	private ArrayList<ListSectionRow> rows;
+	private ArrayList<SectionRow> rows;
 }

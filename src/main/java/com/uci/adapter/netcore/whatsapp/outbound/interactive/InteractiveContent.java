@@ -1,4 +1,4 @@
-package com.uci.adapter.netcore.whatsapp.outbound;
+package com.uci.adapter.netcore.whatsapp.outbound.interactive;
 
 import java.util.ArrayList;
 
@@ -17,7 +17,7 @@ import lombok.Setter;
 @Setter
 @XmlRootElement
 @Builder
-public class InterativeContent {
+public class InteractiveContent {
     private String type;
     
     private String body;

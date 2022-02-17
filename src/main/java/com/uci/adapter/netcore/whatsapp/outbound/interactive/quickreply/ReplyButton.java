@@ -1,4 +1,4 @@
-package com.uci.adapter.netcore.whatsapp.outbound;
+package com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply;
 
 import lombok.Builder;
 import lombok.Getter;

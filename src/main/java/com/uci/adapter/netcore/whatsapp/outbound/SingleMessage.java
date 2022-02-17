@@ -3,6 +3,9 @@ package com.uci.adapter.netcore.whatsapp.outbound;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.istack.Nullable;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.InteractiveContent;
+import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
+
 import lombok.*;
 
 import javax.xml.bind.annotation.XmlRootElement;
@@ -41,7 +44,12 @@ public  class SingleMessage {
     @Nullable
     @JsonProperty("type_interactive")
     @JsonAlias({"type_interactive"})
-    private InterativeContent[] interativeContent;
+    private InteractiveContent[] interactiveContent;
+    
+    @Nullable
+    @JsonProperty("type_media")
+    @JsonAlias({"type_media"})
+    private MediaContent[] mediaContent;
 
     private String details;
     private String status;
