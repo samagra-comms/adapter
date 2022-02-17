@@ -3,6 +3,8 @@ package com.uci.adapter.gs.whatsapp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uci.adapter.gs.whatsapp.outbound.MessageType;
+import com.uci.adapter.gs.whatsapp.outbound.MethodType;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.dao.models.XMessageDAO;
@@ -16,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.MessageId;
 import messagerosa.core.model.SenderReceiverInfo;
+import messagerosa.core.model.StylingTag;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 
@@ -33,6 +36,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import javax.ws.rs.QueryParam;
 
 @Getter
 @Setter
@@ -151,11 +156,14 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
 
-    @Override
-    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
-        log.info("nextXmsg {}", nextMsg.toXML());
-        callOutBoundAPI(nextMsg);
-    }
+    /**
+     * Not in use
+     */
+//    @Override
+//    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
+//        log.info("nextXmsg {}", nextMsg.toXML());
+//        callOutBoundAPI(nextMsg);
+//    }
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
@@ -173,17 +181,17 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 
                 UriComponentsBuilder builder = getURIBuilder();
                 if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-                	builder = setBuilderCredentialsAndMethod(builder, "OPT_IN", credentials.get("username2Way"), credentials.get("password2Way"));
+                	builder = setBuilderCredentialsAndMethod(builder, MethodType.OPTIN.toString(), credentials.get("username2Way"), credentials.get("password2Way"));
                 	builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
                     	queryParam("phone_number", "91" + xMsg.getTo().getUserID());
                 } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
                     optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
 
-                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+                    builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(), credentials.get("usernameHSM"), credentials.get("passwordHSM"));
                     builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
 	                    queryParam("msg", text).
 	                    queryParam("isHSM", true).
-	                    queryParam("msg_type", "HSM");
+	                    queryParam("msg_type", MessageType.HSM.toString());
                 } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
                     optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
 
@@ -191,14 +199,36 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
 	                    queryParam("msg", text).
 	                    queryParam("isTemplate", "true").
-	                    queryParam("msg_type", "HSM");
+	                    queryParam("msg_type", MessageType.HSM.toString());
                 } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
                     System.out.println(text);
                     
-                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("username2Way"), credentials.get("password2Way"));
+                    MessageType msgType = MessageType.TEXT;
+                    
+                    StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
+			    			? xMsg.getPayload().getStylingTag() : null;
+                    
+                    builder = setBuilderCredentialsAndMethod(builder, getMethodTypeByStylingTag(stylingTag).toString(), credentials.get("username2Way"), credentials.get("password2Way"));
                     builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-	                    queryParam("msg", text).
-	                    queryParam("msg_type", "TEXT");
+	                    queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
+                    
+                    if(stylingTag != null && stylingTag.equals(StylingTag.IMAGE) 
+                    		&& xMsg.getPayload().getMediaCaption() != null
+                    		&& !xMsg.getPayload().getMediaCaption().isEmpty()
+    	    		) {
+                    	text = text.replace("\n", "").replace("<br>", "").trim();
+                        builder.queryParam("media_url", text);
+                        builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
+                        builder.queryParam("isHSM", false);
+                    } else if(stylingTag != null && (stylingTag.equals(StylingTag.AUDIO) 
+	    	    			|| stylingTag.equals(StylingTag.VIDEO))
+    	    		) {
+                    	text = text.replace("\n", "").replace("<br>", "").trim();
+                        builder.queryParam("media_url", text);
+                        builder.queryParam("isHSM", false);
+                    } else {
+                    	builder.queryParam("msg", text);
+                    }
                 } else {
                 }
                 
@@ -223,6 +253,34 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 return xMsg;
             }
         });
+    }
+    
+    private MethodType getMethodTypeByStylingTag(StylingTag stylingTag) {
+    	MethodType methodType = MethodType.SIMPLEMESSAGE;
+    	
+    	if(stylingTag != null) {
+    		if(stylingTag.equals(StylingTag.IMAGE) 
+    				|| stylingTag.equals(StylingTag.AUDIO) 
+    				|| stylingTag.equals(StylingTag.VIDEO)) {
+    			methodType = MethodType.MEDIAMESSAGE;
+    		}
+    	}
+    	return methodType;
+    }
+    
+    private MessageType getMessageTypeByStylingTag(StylingTag stylingTag) {
+    	MessageType messageType = MessageType.TEXT;
+    	
+    	if(stylingTag != null) {
+    		if(stylingTag.equals(StylingTag.IMAGE)) {
+    			messageType = MessageType.IMAGE;
+    		} else if(stylingTag.equals(StylingTag.AUDIO) ) {
+    			messageType = MessageType.AUDIO;
+    		} else if(stylingTag.equals(StylingTag.VIDEO) ) {
+    			messageType = MessageType.VIDEO;
+    		}
+    	}
+    	return messageType;
     }
     
     private UriComponentsBuilder getURIBuilder() {
