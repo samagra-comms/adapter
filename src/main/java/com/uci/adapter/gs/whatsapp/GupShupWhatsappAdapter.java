@@ -2,15 +2,24 @@ package com.uci.adapter.gs.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.uci.adapter.gs.whatsapp.outbound.MessageType;
 import com.uci.adapter.gs.whatsapp.outbound.MethodType;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.Action;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.Section;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.SectionRow;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyButton;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.dao.models.XMessageDAO;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.dao.utils.XMessageDAOUtils;
 import com.uci.utils.BotService;
+import com.uci.utils.cdn.samagra.MinioClientService;
+
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,10 +43,6 @@ import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-import javax.ws.rs.QueryParam;
 
 @Getter
 @Setter
@@ -68,6 +73,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
+    
+    @Autowired
+    private MinioClientService minioClientService;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -110,12 +118,55 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 messageIdentifier.setChannelMessageId(message.getMessageId());
             }
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        }  else if (message.getType().equals("interactive")) {
+        	//Actual Message with payload (user response)
+            from.setUserID(message.getMobile().substring(2));
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            messageState[0] = XMessage.MessageState.REPLIED;
+            xmsgPayload.setText(getInboundInteractiveContentText(message));
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+            
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
         return null;
 
+    }
+    
+    /**
+     * Get Text from Interactive Context Reply
+     * @param message
+     * @return
+     */
+    private String getInboundInteractiveContentText(GSWhatsAppMessage message) {
+    	String text  = "";
+    	String interactiveContent = message.getInteractive();
+    	if(interactiveContent != null && !interactiveContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(interactiveContent);
+    			log.info("interactive content node: "+node);
+    	    	
+    			String type = node.path("type") != null ? node.path("type").asText() : "";
+    	    	
+    			if(type.equalsIgnoreCase("list_reply")) {
+    				if(node.path("list_reply").path("title") != null) {
+    					text = node.path("list_reply").path("title").asText();
+    				}
+    	    	} else if(type.equalsIgnoreCase("button_reply")) {
+    	    		if(node.path("button_reply").path("title") != null) {
+    	    			text = node.path("button_reply").path("title").asText();
+    	    		}
+    	    	}
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
+    		}
+    	}
+    	log.info("Inbound interactive text: "+text);
+    	return text;
     }
     
     @NotNull
@@ -177,16 +228,19 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             @Override
             public XMessage apply(Map<String, String> credentials) {
 
-                String text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
+                String text = xMsg.getPayload().getText();
                 
                 UriComponentsBuilder builder = getURIBuilder();
                 if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
+                	text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+                	
                 	builder = setBuilderCredentialsAndMethod(builder, MethodType.OPTIN.toString(), credentials.get("username2Way"), credentials.get("password2Way"));
                 	builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
-                    	queryParam("phone_number", "91" + xMsg.getTo().getUserID());
+                    	queryParam("phone_number", "91" + xMsg.getTo().getUserID()); 
                 } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
                     optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
-
+                    
+                    text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
                     builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(), credentials.get("usernameHSM"), credentials.get("passwordHSM"));
                     builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
 	                    queryParam("msg", text).
@@ -194,14 +248,15 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 	                    queryParam("msg_type", MessageType.HSM.toString());
                 } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
                     optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
-
+                    
+                    text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
                     builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
                     builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
 	                    queryParam("msg", text).
 	                    queryParam("isTemplate", "true").
 	                    queryParam("msg_type", MessageType.HSM.toString());
                 } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-                    System.out.println(text);
+                    Boolean plainText = true;
                     
                     MessageType msgType = MessageType.TEXT;
                     
@@ -212,21 +267,49 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
 	                    queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
                     
-                    if(stylingTag != null && stylingTag.equals(StylingTag.IMAGE) 
-                    		&& xMsg.getPayload().getMediaCaption() != null
-                    		&& !xMsg.getPayload().getMediaCaption().isEmpty()
-    	    		) {
-                    	text = text.replace("\n", "").replace("<br>", "").trim();
-                        builder.queryParam("media_url", text);
-                        builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
-                        builder.queryParam("isHSM", false);
-                    } else if(stylingTag != null && (stylingTag.equals(StylingTag.AUDIO) 
-	    	    			|| stylingTag.equals(StylingTag.VIDEO))
-    	    		) {
-                    	text = text.replace("\n", "").replace("<br>", "").trim();
-                        builder.queryParam("media_url", text);
-                        builder.queryParam("isHSM", false);
-                    } else {
+                    if(stylingTag != null) {
+                    	if(isStylingTagMediaType(stylingTag) && minioClientService != null) {
+                    		if(stylingTag.equals(StylingTag.IMAGE) 
+                            		&& xMsg.getPayload().getMediaCaption() != null
+                            		&& !xMsg.getPayload().getMediaCaption().isEmpty()
+                            ) {
+                            	String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
+                            	if(!signedUrl.isEmpty()) {
+                                	builder.queryParam("media_url", signedUrl);
+                                    builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
+                                    builder.queryParam("isHSM", false);
+                                    plainText = false;
+                            	}
+                            } else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
+                            	String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
+                            	if(!signedUrl.isEmpty()) {
+                                    builder.queryParam("media_url", signedUrl);
+                                    builder.queryParam("isHSM", false);
+                                    plainText = false;
+                            	}
+                            }
+                    	} else if(stylingTag.equals(StylingTag.LIST)) {
+                    		String content = getOutboundListActionContent(xMsg);
+               			 	log.info("list content:  "+content);
+                    		if(!content.isEmpty()) {
+                    			builder.queryParam("interactive_type", "list");
+                    			builder.queryParam("action", content);
+                    			builder.queryParam("msg", text);
+                    			plainText = false;
+                    		}
+                    	} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
+                    		String content = getOutboundQRBtnActionContent(xMsg);
+               			 	log.info("QR btn content:  "+content);
+                    		if(!content.isEmpty()) {
+                    			builder.queryParam("interactive_type", "dr_button");
+                    			builder.queryParam("action", content);
+                    			builder.queryParam("msg", text);
+                    			plainText = false;
+                    		}	
+                    	}
+                    }
+                    if(plainText) {
+                    	text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
                     	builder.queryParam("msg", text);
                     }
                 } else {
@@ -255,19 +338,130 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         });
     }
     
+    /**
+     * Get Content for a List Action for outbound message
+     * @param xMsg
+     * @return
+     */
+    private String getOutboundListActionContent(XMessage xMsg) {
+    	ArrayList rows = new ArrayList();
+		xMsg.getPayload().getButtonChoices().forEach(choice -> {
+			SectionRow row = SectionRow.builder()
+								.id(choice.getKey())
+								.title(choice.getText())
+								.build();
+			rows.add(row);
+		});
+		
+		Action action = Action.builder()
+				.button("Options")
+    			.sections(new Section[]{Section.builder()
+    					.title("Choose an option")
+    					.rows(rows)
+    					.build()
+    			})
+    			.build();
+		
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			 String content = mapper.writeValueAsString(action);
+			 JsonNode node = mapper.readTree(content);
+			 ObjectNode data = mapper.createObjectNode();
+			 
+			 data.put("button", node.path("button"));
+			 data.put("sections", node.path("sections"));
+			 return mapper.writeValueAsString(data);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			log.error("Exception in getInteractiveListContent: "+e.getMessage());
+		}
+		return "";
+    }
+    
+    
+    /**
+     * Get Content for a Quick reply btn Action for outbound message
+     * @param xMsg
+     * @return
+     */
+    private String getOutboundQRBtnActionContent(XMessage xMsg) {
+    	ArrayList buttons = new ArrayList();
+		xMsg.getPayload().getButtonChoices().forEach(choice -> {
+			Button button = Button.builder()
+    	         	.type("reply")
+    	         	.reply(ReplyButton.builder()
+    	         				.id(choice.getKey())
+    	         				.title(choice.getText())
+    	         				.build())
+    	         	.build();
+			buttons.add(button);
+		});
+	        
+	    Action action = Action.builder()
+    	    			.buttons(buttons)
+    	    			.build();
+	    
+	    ObjectMapper mapper = new ObjectMapper();
+		try {
+			 String content = mapper.writeValueAsString(action);
+			 JsonNode node = mapper.readTree(content);
+			 ObjectNode data = mapper.createObjectNode();
+			 
+			 data.put("buttons", node.path("buttons"));
+			 return mapper.writeValueAsString(data);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			log.error("Exception in getInteractiveQRBtnContent: "+e.getMessage());
+		}
+		return "";
+    }
+    
+    
+    /**
+     * Check if styling tag is image/audio/video type
+     * @return
+     */
+    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
+    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    /**
+     * Check if styling tag is list/quick reply button
+     * @return
+     */
+    private Boolean isStylingTagIntercativeType(StylingTag stylingTag) {
+    	if(stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    /**
+     * Get Message Method Type by given styling tag
+     * @param stylingTag
+     * @return
+     */
     private MethodType getMethodTypeByStylingTag(StylingTag stylingTag) {
     	MethodType methodType = MethodType.SIMPLEMESSAGE;
     	
     	if(stylingTag != null) {
-    		if(stylingTag.equals(StylingTag.IMAGE) 
-    				|| stylingTag.equals(StylingTag.AUDIO) 
-    				|| stylingTag.equals(StylingTag.VIDEO)) {
+    		if(isStylingTagMediaType(stylingTag)) {
     			methodType = MethodType.MEDIAMESSAGE;
+    		} else if(isStylingTagIntercativeType(stylingTag)) {
+    			methodType = MethodType.SIMPLEMESSAGE;
     		}
     	}
     	return methodType;
     }
     
+    /**
+     * Get Message Type by given styling tag
+     * @param stylingTag
+     * @return
+     */
     private MessageType getMessageTypeByStylingTag(StylingTag stylingTag) {
     	MessageType messageType = MessageType.TEXT;
     	
@@ -278,11 +472,17 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     			messageType = MessageType.AUDIO;
     		} else if(stylingTag.equals(StylingTag.VIDEO) ) {
     			messageType = MessageType.VIDEO;
+    		} else if(isStylingTagIntercativeType(stylingTag)) {
+    			messageType = MessageType.TEXT;
     		}
     	}
     	return messageType;
     }
     
+    /**
+     * Get Uri builder with default parameters
+     * @return
+     */
     private UriComponentsBuilder getURIBuilder() {
     	return UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
                 queryParam("v", "1.1").
