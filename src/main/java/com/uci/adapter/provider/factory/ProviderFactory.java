@@ -6,6 +6,8 @@ import com.uci.adapter.pwa.PwaWebPortalAdapter;
 import com.uci.adapter.sunbird.web.SunbirdWebPortalAdapter;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
+import com.uci.utils.cdn.samagra.MinioClientService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -27,12 +29,13 @@ public class ProviderFactory {
     @Autowired
     public BotService botService;
 
-    public IProvider getProvider(String provider,String channel) {
+    public IProvider getProvider(String provider,String channel, MinioClientService minioClientService) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
                     .builder()
                     .botservice(botService)
                     .xmsgRepo(xmsgRepo)
+                    .minioClientService(minioClientService)
                     .build();
             return gupshupWhatsapp;
         } else if (provider.equals("gupshup") && channel.equals("sms")) {
