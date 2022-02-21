@@ -44,6 +44,7 @@ import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 
 @Getter
 @Setter
@@ -256,7 +257,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     public Mono<XMessage> callOutBoundAPI(XMessage xMsg) throws Exception {
         log.info("next question to user is {}", xMsg.toXML());
-        return botservice.getGupshupAdpaterCredentials(xMsg.getAdapterId()).map(new Function<Map<String, String>, XMessage>() {
+        String adapterIdFromXML = xMsg.getAdapterId();
+        String adapterId = "44a9df72-3d7a-4ece-94c5-98cf26307324";
+        return botservice.getGupshupAdpaterCredentials(adapterId).map(new Function<Map<String, String>, XMessage>() {
             @Override
             public XMessage apply(Map<String, String> credentials) {
 
