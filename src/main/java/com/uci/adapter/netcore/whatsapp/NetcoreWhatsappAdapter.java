@@ -97,6 +97,19 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setChannelMessageId(message.getMessageId());
 
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
+        } else if (message.getType().equalsIgnoreCase("location") && message.getLocation() != null) {
+            //Actual Message with payload (user response)
+            messageState = XMessage.MessageState.REPLIED;
+            from.setUserID(message.getMobile().substring(2));
+
+            XMessage.MessageState finalMessageState = messageState;
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            xmsgPayload.setText(message.getLocation().getLatitude()+" "+message.getLocation().getLongitude());
+
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
@@ -164,7 +177,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(NetcoreWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
+//        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .to(to)
                 .from(from)

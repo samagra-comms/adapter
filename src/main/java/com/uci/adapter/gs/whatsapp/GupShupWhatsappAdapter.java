@@ -119,7 +119,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 messageIdentifier.setChannelMessageId(message.getMessageId());
             }
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
-        }  else if (message.getType().equals("interactive")) {
+        } else if (message.getType().equals("interactive")) {
         	//Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
             messageIdentifier.setReplyId(message.getReplyId());
@@ -129,7 +129,17 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setChannelMessageId(message.getMessageId());
             
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
-        } else if (message.getType().equals("button")) {
+        } else if (message.getType().equals("location")) {
+        	//Actual Message with payload (user response)
+            from.setUserID(message.getMobile().substring(2));
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            messageState[0] = XMessage.MessageState.REPLIED;
+            xmsgPayload.setText(getInboundLocationContentText(message));
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+            
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        }else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
@@ -170,6 +180,27 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	return text;
     }
     
+    private String getInboundLocationContentText(GSWhatsAppMessage message) {
+    	String text  = "";
+    	String locationContent = message.getLocation();
+    	if(locationContent != null && !locationContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(locationContent);
+    			log.info("locationcontent node: "+node);
+    	    	
+    			String longitude = node.path("longitude") != null ? node.path("longitude").asText() : "";
+    			String latitude = node.path("latitude") != null ? node.path("latitude").asText() : "";
+    	    	
+    			text = (latitude+" "+longitude).trim();
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundLocationContentText: "+e.getMessage());
+    		}
+    	}
+    	log.info("Inbound location text: "+text);
+    	return text;
+    }
+    
     @NotNull
     public static XMessage.MessageState getMessageState(String eventType) {
         XMessage.MessageState messageState;
@@ -194,7 +225,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
+//        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .to(to)
                 .from(from)
