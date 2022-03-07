@@ -180,6 +180,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	return text;
     }
     
+    /**
+     * Get text for location
+     * @param message
+     * @return
+     */
     private String getInboundLocationContentText(GSWhatsAppMessage message) {
     	String text  = "";
     	String locationContent = message.getLocation();
@@ -191,14 +196,18 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	    	
     			String longitude = node.path("longitude") != null ? node.path("longitude").asText() : "";
     			String latitude = node.path("latitude") != null ? node.path("latitude").asText() : "";
+    			String address = node.path("address") != null ? node.path("address").asText() : "";
     	    	
-    			text = (latitude+" "+longitude).trim();
+    			text = (latitude+" "+longitude);
+    			if(address != null && !address.isEmpty()) {
+    				text += address;
+    			}
     		} catch (JsonProcessingException e) {
     			log.error("Exception in getInboundLocationContentText: "+e.getMessage());
     		}
     	}
     	log.info("Inbound location text: "+text);
-    	return text;
+    	return text.trim();
     }
     
     @NotNull

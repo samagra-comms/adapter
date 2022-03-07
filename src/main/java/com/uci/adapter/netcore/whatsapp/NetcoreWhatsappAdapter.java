@@ -105,7 +105,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             XMessage.MessageState finalMessageState = messageState;
             messageIdentifier.setReplyId(message.getReplyId());
             
-            xmsgPayload.setText(message.getLocation().getLatitude()+" "+message.getLocation().getLongitude());
+            xmsgPayload.setText(getInboundLocationContentText(message));
 
             messageIdentifier.setChannelMessageId(message.getMessageId());
 
@@ -126,6 +126,20 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
         }
 
+    }
+    
+    /**
+     * Get text for Location 
+     * @param message
+     * @return
+     */
+    private String getInboundLocationContentText(NetcoreWhatsAppMessage message) {
+    	String text = "";
+    	text = message.getLocation().getLatitude()+" "+message.getLocation().getLongitude();
+    	if(message.getLocation().getAddress() != null && !message.getLocation().getAddress().isEmpty()) {
+    		text += message.getLocation().getAddress();
+    	}
+    	return text.trim();
     }
     
     /**
