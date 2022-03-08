@@ -139,6 +139,12 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	if(message.getLocation().getAddress() != null && !message.getLocation().getAddress().isEmpty()) {
     		text += message.getLocation().getAddress();
     	}
+    	if(message.getLocation().getName() != null && !message.getLocation().getName().isEmpty()) {
+    		text += message.getLocation().getName();
+    	}
+    	if(message.getLocation().getUrl() != null && !message.getLocation().getUrl().isEmpty()) {
+    		text += message.getLocation().getUrl();
+    	}
     	return text.trim();
     }
     
