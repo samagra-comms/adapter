@@ -97,6 +97,19 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setChannelMessageId(message.getMessageId());
 
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
+        } else if (message.getType().equalsIgnoreCase("location") && message.getLocation() != null) {
+            //Actual Message with payload (user response)
+            messageState = XMessage.MessageState.REPLIED;
+            from.setUserID(message.getMobile().substring(2));
+
+            XMessage.MessageState finalMessageState = messageState;
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            xmsgPayload.setText(getInboundLocationContentText(message));
+
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
@@ -113,6 +126,26 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
         }
 
+    }
+    
+    /**
+     * Get text for Location 
+     * @param message
+     * @return
+     */
+    private String getInboundLocationContentText(NetcoreWhatsAppMessage message) {
+    	String text = "";
+    	text = message.getLocation().getLatitude()+" "+message.getLocation().getLongitude();
+    	if(message.getLocation().getAddress() != null && !message.getLocation().getAddress().isEmpty()) {
+    		text += message.getLocation().getAddress();
+    	}
+    	if(message.getLocation().getName() != null && !message.getLocation().getName().isEmpty()) {
+    		text += message.getLocation().getName();
+    	}
+    	if(message.getLocation().getUrl() != null && !message.getLocation().getUrl().isEmpty()) {
+    		text += message.getLocation().getUrl();
+    	}
+    	return text.trim();
     }
     
     /**
@@ -164,7 +197,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(NetcoreWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
+//        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .to(to)
                 .from(from)

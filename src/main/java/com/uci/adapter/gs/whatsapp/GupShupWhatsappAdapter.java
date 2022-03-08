@@ -130,12 +130,19 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setChannelMessageId(message.getMessageId());
             
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
-        } else if (message.getType().equals("button")) {
+        } else if (message.getType().equals("location")) {
+        	//Actual Message with payload (user response)
+            from.setUserID(message.getMobile().substring(2));
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            messageState[0] = XMessage.MessageState.REPLIED;
+            xmsgPayload.setText(getInboundLocationContentText(message));
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+            
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        }else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
-        } else if(message.getType().equals("location") && message.getLocation() != null) {
-        	xmsgPayload.setText(convertLocationToText(message.getLocation()));;
-        	return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
         return null;
 
@@ -174,6 +181,44 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	return text;
     }
     
+    /**
+     * Get text for location
+     * @param message
+     * @return
+     */
+    private String getInboundLocationContentText(GSWhatsAppMessage message) {
+    	String text  = "";
+    	String locationContent = message.getLocation();
+    	if(locationContent != null && !locationContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(locationContent);
+    			log.info("locationcontent node: "+node);
+    	    	
+    			String longitude = node.path("longitude") != null ? node.path("longitude").asText() : "";
+    			String latitude = node.path("latitude") != null ? node.path("latitude").asText() : "";
+    			String address = node.path("address") != null ? node.path("address").asText() : "";
+    			String name = node.path("name") != null ? node.path("name").asText() : "";
+    			String url = node.path("url") != null ? node.path("url").asText() : "";
+    	    	
+    			text = (latitude+" "+longitude);
+    			if(address != null && !address.isEmpty()) {
+    				text += address;
+    			}
+    			if(name != null && !name.isEmpty()) {
+    				text += name;
+    			}
+    			if(url != null && !url.isEmpty()) {
+    				text += url;
+    			}
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundLocationContentText: "+e.getMessage());
+    		}
+    	}
+    	log.info("Inbound location text: "+text);
+    	return text.trim();
+    }
+    
     @NotNull
     public static XMessage.MessageState getMessageState(String eventType) {
         XMessage.MessageState messageState;
@@ -198,7 +243,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-    	return XMessage.builder()
+//        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
+        return XMessage.builder()
                 .to(to)
                 .from(from)
                 .channelURI("WhatsApp")
@@ -208,35 +254,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .messageType(messageType)
                 .timestamp(message.getTimestamp() == null ? Timestamp.valueOf(LocalDateTime.now()).getTime() : message.getTimestamp())
                 .payload(xmsgPayload).build();
-    }
-    
-    /**
-     * Convert Location to Text
-     * @param location
-     * @return text
-     */
-    private String convertLocationToText(String location) {
-    	ObjectMapper mapper = new ObjectMapper();
-    	String text = "";
-    	try {
-			JsonNode node = mapper.readTree(location);			
-			if(node.get("latitude") != null) {
-				text = node.get("latitude").toString();
-			}
-			if(node.get("longitude") != null) {
-				text += " "+node.get("longitude").toString();
-			}
-			if(node.get("name") != null) {
-				text += " "+node.get("name").asText();
-			}
-			log.info("text:"+text);
-			return text.trim();
-		} catch (JsonMappingException e) {
-			log.error("Incoming message location json mapping error:"+e.getMessage());
-		} catch (JsonProcessingException e) {
-			log.error("Incoming message location json processing error:"+e.getMessage());
-		}
-    	return text;
     }
 
 
