@@ -5,6 +5,7 @@ import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
 import com.uci.adapter.sunbird.web.SunbirdWebPortalAdapter;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
+import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.cdn.samagra.MinioClientService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,14 +28,17 @@ public class ProviderFactory {
 
     @Autowired
     public BotService botService;
+    
+    @Autowired
+    public AzureBlobService azureBlobService;
 
-    public IProvider getProvider(String provider,String channel, MinioClientService minioClientService) {
+    public IProvider getProvider(String provider,String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
                     .builder()
                     .botservice(botService)
                     .xmsgRepo(xmsgRepo)
-                    .minioClientService(minioClientService)
+                    .azureBlobService(azureBlobService)
                     .build();
             return gupshupWhatsapp;
         } else if (provider.equals("gupshup") && channel.equals("sms")) {
@@ -48,6 +52,7 @@ public class ProviderFactory {
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
                     .builder()
                     .botservice(botService)
+                    .azureBlobService(azureBlobService)
                     .build();
             return netcoreWhatsappAdapter;
         }

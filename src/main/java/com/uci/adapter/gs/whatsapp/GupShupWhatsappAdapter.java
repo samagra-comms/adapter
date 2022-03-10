@@ -18,6 +18,7 @@ import com.uci.dao.models.XMessageDAO;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.dao.utils.XMessageDAOUtils;
 import com.uci.utils.BotService;
+import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.cdn.samagra.MinioClientService;
 
 import lombok.Builder;
@@ -75,8 +76,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
     
+//    @Autowired
+//    private MinioClientService minioClientService;
+    
     @Autowired
-    private MinioClientService minioClientService;
+    private AzureBlobService azureBlobService;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -139,12 +143,54 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setChannelMessageId(message.getMessageId());
             
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
-        }else if (message.getType().equals("button")) {
+        } else if (message.getType().equals("image")) {
+        	//Actual Message with payload (user response)
+            from.setUserID(message.getMobile().substring(2));
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            messageState[0] = XMessage.MessageState.REPLIED;
+            xmsgPayload.setText(getInboundMediaContentText(message));
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+            
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
         return null;
 
+    }
+    
+    /**
+     * Get Inbound Media File URL (Blob URL)
+     * @param message
+     * @return
+     */
+    public String getInboundMediaContentText(GSWhatsAppMessage message) {
+    	String text  = "";
+    	String mediaContent = message.getImage(); 
+    	if(message.getType().equals("audio")) {
+    		mediaContent = message.getAudio(); 
+    	} else if(message.getType().equals("video")) {
+    		mediaContent = message.getVideo(); 
+    	}
+    	if(mediaContent != null && !mediaContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(mediaContent);
+    			log.info("media content node: "+node);
+    	    	
+    			String url = node.path("url") != null ? node.path("url").asText() : "";
+    			String signature = node.path("signature") != null ? node.path("signature").asText() : "";
+    			String mime_type = node.path("mime_type") != null ? node.path("mime_type").asText() : "";
+    	    	    	    	
+    			return azureBlobService.uploadFile(url+signature, mime_type);
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
+    		}
+    	}
+    	log.info("Inbound media text: "+text);
+    	return text;
     }
     
     /**
@@ -317,12 +363,12 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 	                    queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
                     
                     if(stylingTag != null) {
-                    	if(isStylingTagMediaType(stylingTag) && minioClientService != null) {
+                    	if(isStylingTagMediaType(stylingTag) && azureBlobService != null) {
                     		if(stylingTag.equals(StylingTag.IMAGE) 
                             		&& xMsg.getPayload().getMediaCaption() != null
                             		&& !xMsg.getPayload().getMediaCaption().isEmpty()
                             ) {
-                            	String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
+                            	String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
                             	if(!signedUrl.isEmpty()) {
                                 	builder.queryParam("media_url", signedUrl);
                                     builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
@@ -330,7 +376,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                                     plainText = false;
                             	}
                             } else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
-                            	String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
+                            	String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
                             	if(!signedUrl.isEmpty()) {
                                     builder.queryParam("media_url", signedUrl);
                                     builder.queryParam("isHSM", false);

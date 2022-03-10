@@ -18,6 +18,8 @@ import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.utils.BotService;
+import com.uci.utils.azure.AzureBlobService;
+
 import io.fusionauth.domain.Application;
 import lombok.Builder;
 import lombok.Getter;
@@ -50,6 +52,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private RestTemplate restTemplate;
 
     private BotService botservice;
+    
+    @Autowired
+    private AzureBlobService azureBlobService;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) {
@@ -332,8 +337,11 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		
 		String text = xMsg.getPayload().getText();
 		text = text.replace("\n", "").replace("<br>", "").trim();
+		
+		String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+    	
 	    Attachment attachment = Attachment.builder()
-    	    			.attachment_url(text)
+    	    			.attachment_url(signedUrl)
     	    			.attachment_type(attachmentType.toString())
     	    			.build();
 	    
@@ -358,70 +366,98 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	String source = System.getenv("NETCORE_WHATSAPP_SOURCE");
     	StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
 				    			? xMsg.getPayload().getStylingTag() : null;
-    	if(stylingTag != null 
-    			&& (stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN))
-    			) {
-    		//Menu List & Quick Reply Buttons
-    		return SingleMessage
-			        .builder()
-			        .from(source)
-			        .to(phoneNo)
-			        .recipientType("individual")
-			        .messageType(MessageType.INTERACTIVE.toString())
-			        .header("custom_data")
-			        .interactiveContent(new InteractiveContent[]{
-			        	getOutboundInteractiveContent(xMsg, stylingTag)
-			        })
-			        .build();
-    	} else if(stylingTag != null && (stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))) {
-    		//IMAGE/AUDIO/VIDEO
-    		return SingleMessage
-			        .builder()
-			        .from(source)
-			        .to(phoneNo)
-			        .recipientType("individual")
-			        .messageType(MessageType.MEDIA.toString())
-			        .header("custom_data")
-			        .mediaContent(new MediaContent[]{
-			        	getOutboundMediaContent(xMsg, stylingTag)
-			        })
-			        .build();
-    	} else {
-    		//Plain List with text 
-    		String text = "";
+    	
+    	if(stylingTag != null) {
+    		if(azureBlobService != null 
+    				&& (
+    					(stylingTag.equals(StylingTag.IMAGE) 
+                    		&& xMsg.getPayload().getMediaCaption() != null
+                    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) 
+    					|| (stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))
+            		)
+            ) {
+    			//IMAGE/AUDIO/VIDEO
+        		return SingleMessage
+    			        .builder()
+    			        .from(source)
+    			        .to(phoneNo)
+    			        .recipientType("individual")
+    			        .messageType(MessageType.MEDIA.toString())
+    			        .header("custom_data")
+    			        .mediaContent(new MediaContent[]{
+    			        	getOutboundMediaContent(xMsg, stylingTag)
+    			        })
+    			        .build();
+    		} else if(isStylingTagInterativeType(stylingTag)) {
+    			//Menu List & Quick Reply Buttons
+        		return SingleMessage
+    			        .builder()
+    			        .from(source)
+    			        .to(phoneNo)
+    			        .recipientType("individual")
+    			        .messageType(MessageType.INTERACTIVE.toString())
+    			        .header("custom_data")
+    			        .interactiveContent(new InteractiveContent[]{
+    			        	getOutboundInteractiveContent(xMsg, stylingTag)
+    			        })
+    			        .build();
+    		}
+    	}
+    	//Plain List with text 
+		String text = "";
 
-    	    if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-    	    	// OPT in user
-    	    	text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
-    	    } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-    	    	// OPT in user
-    	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
-    	    } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-    	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
-    	    }
+	    if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
+	    	// OPT in user
+	    	text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
+	    } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
+	    	// OPT in user
+	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
+	    } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
+	    }
 
-    	    // SendMessage
-    	    Text t = Text.builder().content(text).previewURL("false").build();
-    	    Text[] texts = {t};
-    	        
-    	    String content = t.getContent();
-//    	    log.info("before replace content: "+content);
-    	    content = content.replace("\\n", System.getProperty("line.separator"));
-//    	    log.info("after replace content: "+content);
-    	    t.setContent(content);
-    	    
-    	    return SingleMessage
-			        .builder()
-			        .from(source)
-			        .to(phoneNo)
-			        .recipientType("individual")
-			        .messageType(MessageType.TEXT.toString())
-			        .header("custom_data")
-			        .text(texts)
-			        .build();
-    	} 
+	    // SendMessage
+	    Text t = Text.builder().content(text).previewURL("false").build();
+	    Text[] texts = {t};
+	        
+	    String content = t.getContent();
+//	    log.info("before replace content: "+content);
+	    content = content.replace("\\n", System.getProperty("line.separator"));
+//	    log.info("after replace content: "+content);
+	    t.setContent(content);
+	    
+	    return SingleMessage
+		        .builder()
+		        .from(source)
+		        .to(phoneNo)
+		        .recipientType("individual")
+		        .messageType(MessageType.TEXT.toString())
+		        .header("custom_data")
+		        .text(texts)
+		        .build();
     }
     
+    /**
+     * Check if styling tag is image/audio/video type
+     * @return
+     */
+    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
+    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    /**
+     * Check if styling tag is list/quick reply button
+     * @return
+     */
+    private Boolean isStylingTagInterativeType(StylingTag stylingTag) {
+    	if(stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
+    		return true;
+    	}
+    	return false;
+    }
     /**
      * Get Choice Text - remove key(Numeric value Eg 1 or 1.) from text
      * @param choice_text
