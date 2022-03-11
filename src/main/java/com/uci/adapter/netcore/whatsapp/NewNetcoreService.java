@@ -1,6 +1,8 @@
 package com.uci.adapter.netcore.whatsapp;
 
+import com.azure.core.util.BinaryData;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserRequestMessage;
@@ -12,6 +14,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -131,5 +134,40 @@ public class NewNetcoreService {
                         System.out.println("ERROR IS " + throwable.getLocalizedMessage());
                     }
                 });
+    }
+    
+    /**
+     * Get Media File
+     * @param id
+     * @return
+     */
+    public InputStream getMediaFile(String id) {
+    	ObjectMapper mapper = new ObjectMapper();
+        RequestBody body = null;
+        try {
+            Request request = new Request.Builder()
+                    .url(baseURL + "media/"+id)
+                    .get()
+                    .addHeader("Authorization", "Bearer " + credentials.getToken())
+                    .build();
+            
+            Response response = client.newCall(request).execute();
+
+            InputStream in = response.body().byteStream();
+            
+            return in;
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            System.out.println("json error");
+            return null;
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("io error");
+            return null;
+        } catch (Exception e) {
+        	System.out.println("error");
+            e.printStackTrace();
+            return null;
+        }
     }
 }

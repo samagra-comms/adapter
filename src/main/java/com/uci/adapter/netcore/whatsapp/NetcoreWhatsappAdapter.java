@@ -1,5 +1,8 @@
 package com.uci.adapter.netcore.whatsapp;
 
+import com.azure.core.util.BinaryData;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.MessageType;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
@@ -33,10 +36,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Slf4j
@@ -115,6 +126,19 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setChannelMessageId(message.getMessageId());
 
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
+        } else if (isInboundMediaMessage(message.getType())) {
+            //Actual Message with payload (user response)
+            messageState = XMessage.MessageState.REPLIED;
+            from.setUserID(message.getMobile().substring(2));
+
+            XMessage.MessageState finalMessageState = messageState;
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            xmsgPayload.setText(getInboundMediaContentText(message));
+
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
             // Get the last message sent to this user using the reply-messageID
@@ -131,6 +155,103 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
         }
 
+    }
+    
+    /**
+     * Check if inbound message is media type
+     * @param type
+     * @return
+     */
+    private Boolean isInboundMediaMessage(String type) {
+    	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO")) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    private String getInboundMediaContentText(NetcoreWhatsAppMessage message) {
+    	String id;
+    	String mime_type;
+    	if(message.getImageType() != null) {
+    		id = message.getImageType().getId();
+    		mime_type = message.getImageType().getMimeType();
+    	} else if(message.getAudioType() != null) {
+    		id = message.getAudioType().getId();
+    		mime_type = message.getAudioType().getMimeType();
+    	} else if(message.getVideoType() != null) {
+    		id = message.getVideoType().getId();
+    		mime_type = message.getVideoType().getMimeType();
+    	} else if(message.getVoiceType() != null) {
+    		id = message.getVoiceType().getId();
+    		mime_type = message.getVoiceType().getMimeType();
+    	} else if(message.getDocumentType() != null) {
+    		id = message.getDocumentType().getId();
+    		mime_type = message.getDocumentType().getMimeType();
+    	} else {
+    		id = "";
+    		mime_type = "";
+    	}
+    	
+    	if(!id.isEmpty() && !mime_type.isEmpty()) {
+    		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+                    getMediaFile(id);
+    		if(response != null) {
+        		String file = azureBlobService.uploadFileFromBinary(response, mime_type);
+        		log.info("file: "+file);
+    		} else {
+        		log.info("response is empty");
+        	}
+    	}
+    	return "";
+    }
+    
+    private String getNetcoreMediaFileUrl(String id, String media_type) {
+//    	String response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+//                getMediaFile(id);
+//    	
+//    	log.info("response: "+response);
+//    	
+//    	if(response != null && !response.isEmpty()) {
+//	    	BinaryData data = BinaryData.fromString(response);
+//	    	
+//	//    	azureBlobService.uploadFileFromBinary(getByteByString(response), media_type);
+//	    	
+//	    	return azureBlobService.uploadFileFromBinary(data, media_type);
+//	    }
+    	
+//    	BinaryData response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+//                getMediaFile(id);
+//    	
+//    	if(response != null) {
+//    		return azureBlobService.uploadFileFromBinary(response, media_type);
+//        	
+//    	} else {
+//    		log.info("respons is null");
+//    	}
+    	
+    	
+//    	log.info("response: "+response);
+    	
+    	
+    	return "";
+    }
+    
+    /**
+     * Get an byte array by binary string
+     * @param binaryString the string representing a byte
+     * @return an byte array
+     */
+    public static byte[] getByteByString(String binaryString){
+        Iterable iterable = Splitter.fixedLength(8).split(binaryString);
+        byte[] ret = new byte[Iterables.size(iterable) ];
+        Iterator iterator = iterable.iterator();
+        int i = 0;
+        while (iterator.hasNext()) {
+            Integer byteAsInt = Integer.parseInt(iterator.next().toString(), 2);
+            ret[i] = byteAsInt.byteValue();
+            i++;
+        }
+        return ret;
     }
     
     /**
