@@ -155,6 +155,7 @@ public class NewNetcoreService {
 
             InputStream in = response.body().byteStream();
             
+            System.out.println("response length: "+response.body().contentLength());
             System.out.println("input stream length: "+in.available());
             
             return in;
