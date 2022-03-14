@@ -169,6 +169,11 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	return false;
     }
     
+    /**
+     * Upload Inbound Media & get its file name/url
+     * @param message
+     * @return
+     */
     private String getInboundMediaContentText(NetcoreWhatsAppMessage message) {
     	String id;
     	String mime_type;
@@ -193,12 +198,12 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	}
     	
     	if(!id.isEmpty() && !mime_type.isEmpty()) {
-    		log.info("get netcore media by id:"+id);
+    		log.info("Get netcore media by id:"+id);
     		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
                     getMediaFile(id);
-    		log.info("netcore media response: "+response);
+    		String name = message.getMessageId();
     		if(response != null) {
-        		String file = azureBlobService.uploadFileFromBinary(response, mime_type);
+        		String file = azureBlobService.uploadFileFromInputStream(response, mime_type, name);
         		log.info("azure file name: "+file);
         		log.info("azure file signed url: "+azureBlobService.getFileSignedUrl(file));
     		} else {
@@ -206,29 +211,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         	}
     	}
     	return "";
-    }
-    
-    private String getNetcoreMediaFileUrl(String id, String media_type) {
-    	
-    	return "";
-    }
-    
-    /**
-     * Get an byte array by binary string
-     * @param binaryString the string representing a byte
-     * @return an byte array
-     */
-    public static byte[] getByteByString(String binaryString){
-        Iterable iterable = Splitter.fixedLength(8).split(binaryString);
-        byte[] ret = new byte[Iterables.size(iterable) ];
-        Iterator iterator = iterable.iterator();
-        int i = 0;
-        while (iterator.hasNext()) {
-            Integer byteAsInt = Integer.parseInt(iterator.next().toString(), 2);
-            ret[i] = byteAsInt.byteValue();
-            i++;
-        }
-        return ret;
     }
     
     /**

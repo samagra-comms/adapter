@@ -184,7 +184,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     			String signature = node.path("signature") != null ? node.path("signature").asText() : "";
     			String mime_type = node.path("mime_type") != null ? node.path("mime_type").asText() : "";
     	    	    	    	
-    			return azureBlobService.uploadFile(url+signature, mime_type);
+    			return azureBlobService.uploadFile(url+signature, mime_type, message.getMessageId());
     		} catch (JsonProcessingException e) {
     			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
     		}

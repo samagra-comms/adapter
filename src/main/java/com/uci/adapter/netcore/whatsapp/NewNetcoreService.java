@@ -137,13 +137,12 @@ public class NewNetcoreService {
     }
     
     /**
-     * Get Media File
+     * Get Media File from netcore by id
      * @param id
      * @return
      */
     public InputStream getMediaFile(String id) {
     	ObjectMapper mapper = new ObjectMapper();
-        RequestBody body = null;
         try {
             Request request = new Request.Builder()
                     .url(baseURL + "media/"+id)
@@ -153,24 +152,18 @@ public class NewNetcoreService {
             
             Response response = client.newCall(request).execute();
 
-            ResponseBody body2 = response.body();
+            ResponseBody body = response.body();
             
-            InputStream in = body2.byteStream();
-                     
-            System.out.println("response length: "+body2.contentLength());
-            System.out.println("input stream length: "+in.available());
+            InputStream in = body.byteStream();
+            
+            if(body.contentLength() <= 0) {
+            	System.out.println("Media file content length is 0");
+            	return null;
+            }
             
             return in;
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            System.out.println("json error");
-            return null;
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("io error");
-            return null;
-        } catch (Exception e) {
-        	System.out.println("error");
+        } catch (Exception e ) {
+        	System.out.println("Exception in netcore getMediaFile: "+e.getMessage());
             e.printStackTrace();
             return null;
         }
