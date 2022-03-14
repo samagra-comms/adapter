@@ -206,6 +206,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         		String file = azureBlobService.uploadFileFromInputStream(response, mime_type, name);
         		log.info("azure file name: "+file);
         		log.info("azure file signed url: "+azureBlobService.getFileSignedUrl(file));
+        		return azureBlobService.getFileSignedUrl(file);
     		} else {
         		log.info("response is empty");
         	}
