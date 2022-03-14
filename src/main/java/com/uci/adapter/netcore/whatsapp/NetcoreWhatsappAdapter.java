@@ -193,7 +193,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	}
     	
     	if(!id.isEmpty() && !mime_type.isEmpty()) {
-    		log.info("get netcore media by id:+id");
+    		log.info("get netcore media by id:"+id);
     		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
                     getMediaFile(id);
     		log.info("netcore media response: "+response);

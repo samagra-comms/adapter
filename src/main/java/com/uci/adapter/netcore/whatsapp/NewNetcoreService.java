@@ -155,6 +155,8 @@ public class NewNetcoreService {
 
             InputStream in = response.body().byteStream();
             
+            System.out.println("input stream length: "+in.available());
+            
             return in;
         } catch (JsonProcessingException e) {
             e.printStackTrace();
