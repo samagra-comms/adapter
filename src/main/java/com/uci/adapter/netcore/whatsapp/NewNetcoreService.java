@@ -153,9 +153,11 @@ public class NewNetcoreService {
             
             Response response = client.newCall(request).execute();
 
-            InputStream in = response.body().byteStream();
+            ResponseBody body2 = response.body();
             
-            System.out.println("response length: "+response.body().contentLength());
+            InputStream in = body2.byteStream();
+                     
+            System.out.println("response length: "+body2.contentLength());
             System.out.println("input stream length: "+in.available());
             
             return in;
