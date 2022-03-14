@@ -193,11 +193,14 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	}
     	
     	if(!id.isEmpty() && !mime_type.isEmpty()) {
+    		log.info("get netcore media by id:+id");
     		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
                     getMediaFile(id);
+    		log.info("netcore media response: "+response);
     		if(response != null) {
         		String file = azureBlobService.uploadFileFromBinary(response, mime_type);
-        		log.info("file: "+file);
+        		log.info("azure file name: "+file);
+        		log.info("azure file signed url: "+azureBlobService.getFileSignedUrl(file));
     		} else {
         		log.info("response is empty");
         	}
@@ -206,32 +209,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
     
     private String getNetcoreMediaFileUrl(String id, String media_type) {
-//    	String response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
-//                getMediaFile(id);
-//    	
-//    	log.info("response: "+response);
-//    	
-//    	if(response != null && !response.isEmpty()) {
-//	    	BinaryData data = BinaryData.fromString(response);
-//	    	
-//	//    	azureBlobService.uploadFileFromBinary(getByteByString(response), media_type);
-//	    	
-//	    	return azureBlobService.uploadFileFromBinary(data, media_type);
-//	    }
-    	
-//    	BinaryData response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
-//                getMediaFile(id);
-//    	
-//    	if(response != null) {
-//    		return azureBlobService.uploadFileFromBinary(response, media_type);
-//        	
-//    	} else {
-//    		log.info("respons is null");
-//    	}
-    	
-    	
-//    	log.info("response: "+response);
-    	
     	
     	return "";
     }
