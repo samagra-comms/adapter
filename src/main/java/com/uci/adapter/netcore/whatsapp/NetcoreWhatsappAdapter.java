@@ -3,6 +3,7 @@ package com.uci.adapter.netcore.whatsapp;
 import com.azure.core.util.BinaryData;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
+import com.uci.adapter.netcore.whatsapp.inbound.NetcoreLocation;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.MessageType;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
@@ -29,6 +30,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
+
+import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,7 +49,9 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -120,8 +125,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
             XMessage.MessageState finalMessageState = messageState;
             messageIdentifier.setReplyId(message.getReplyId());
-            
-            xmsgPayload.setText(getInboundLocationContentText(message));
+
+            xmsgPayload.setLocation(getPayloadLocationParams(message.getLocation()));
+            xmsgPayload.setText("");
 
             messageIdentifier.setChannelMessageId(message.getMessageId());
 
@@ -134,8 +140,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             XMessage.MessageState finalMessageState = messageState;
             messageIdentifier.setReplyId(message.getReplyId());
             
-            xmsgPayload.setText(getInboundMediaContentText(message));
-
+            xmsgPayload.setMedia(getInboundMediaMessage(message));
+            xmsgPayload.setText("");
+            
             messageIdentifier.setChannelMessageId(message.getMessageId());
 
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
@@ -163,55 +170,114 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @return
      */
     private Boolean isInboundMediaMessage(String type) {
-    	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO")) {
+    	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO") 
+    			|| type.equals("VOICE") || type.equals("DOCUMENT")) {
     		return true;
     	}
     	return false;
     }
     
     /**
-     * Upload Inbound Media & get its file name/url
+     * Get Inbound Media name/url
      * @param message
      * @return
      */
-    private String getInboundMediaContentText(NetcoreWhatsAppMessage message) {
+//    private String getInboundMediaContentText(NetcoreWhatsAppMessage message) {
+//    	Map<String, Object> mediaInfo = getMediaInfo(message);
+//    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
+//    	
+//    	return mediaData.get("url").toString();
+//    }
+    
+    /**
+     * Get Inbound Media name/url
+     * @param message
+     * @return
+     */
+    private MessageMedia getInboundMediaMessage(NetcoreWhatsAppMessage message) {
+    	Map<String, Object> mediaInfo = getMediaInfo(message);
+    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
+    	MessageMedia media = new MessageMedia();
+    	media.setText(mediaData.get("name").toString());
+    	media.setUrl(mediaData.get("url").toString());
+    	media.setCategory((MediaCategory) mediaInfo.get("category"));
+    	
+    	return media;
+    }
+    
+    /**
+     * Get Media Id & mime type
+     * @param message
+     * @return
+     */
+    private Map<String, Object> getMediaInfo(NetcoreWhatsAppMessage message) {
+    	Map<String, Object> result = new HashMap();
+    	
     	String id;
     	String mime_type;
+    	Object category;
     	if(message.getImageType() != null) {
     		id = message.getImageType().getId();
     		mime_type = message.getImageType().getMimeType();
+    		category = MediaCategory.IMAGE;
     	} else if(message.getAudioType() != null) {
     		id = message.getAudioType().getId();
     		mime_type = message.getAudioType().getMimeType();
+    		category = MediaCategory.AUDIO;
     	} else if(message.getVideoType() != null) {
     		id = message.getVideoType().getId();
     		mime_type = message.getVideoType().getMimeType();
+    		category = MediaCategory.VIDEO;
     	} else if(message.getVoiceType() != null) {
     		id = message.getVoiceType().getId();
     		mime_type = message.getVoiceType().getMimeType();
+    		category = MediaCategory.VOICE;
     	} else if(message.getDocumentType() != null) {
     		id = message.getDocumentType().getId();
     		mime_type = message.getDocumentType().getMimeType();
+    		category = MediaCategory.DOCUMENT;
     	} else {
     		id = "";
     		mime_type = "";
+    		category = null;
     	}
     	
+    	result.put("id", id);
+    	result.put("mime_type", mime_type);
+    	result.put("category", category);
+    	
+    	return result;
+    }
+    
+    /**
+     * Upload media & get its url/name
+     * @param messageId
+     * @param id
+     * @param mime_type
+     * @return
+     */
+    private Map<String, String> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+    	Map<String, String> result = new HashMap();
+    	
+    	String name = "";
+    	String url = "";
     	if(!id.isEmpty() && !mime_type.isEmpty()) {
     		log.info("Get netcore media by id:"+id);
     		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
                     getMediaFile(id);
-    		String name = message.getMessageId();
     		if(response != null) {
-        		String file = azureBlobService.uploadFileFromInputStream(response, mime_type, name);
-        		log.info("azure file name: "+file);
-        		log.info("azure file signed url: "+azureBlobService.getFileSignedUrl(file));
-        		return azureBlobService.getFileSignedUrl(file);
+        		String file = azureBlobService.uploadFileFromInputStream(response, mime_type, messageId);
+        		name = file;
+        		url = azureBlobService.getFileSignedUrl(file);
+        		log.info("azure file name: "+name+", url: "+url);
     		} else {
         		log.info("response is empty");
         	}
     	}
-    	return "";
+    	result.put("name", name);
+    	result.put("url", url);
+    	
+    	return result;
     }
     
     /**
@@ -219,19 +285,35 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param message
      * @return
      */
-    private String getInboundLocationContentText(NetcoreWhatsAppMessage message) {
-    	String text = "";
-    	text = message.getLocation().getLatitude()+" "+message.getLocation().getLongitude();
-    	if(message.getLocation().getAddress() != null && !message.getLocation().getAddress().isEmpty()) {
-    		text += message.getLocation().getAddress();
-    	}
-    	if(message.getLocation().getName() != null && !message.getLocation().getName().isEmpty()) {
-    		text += message.getLocation().getName();
-    	}
-    	if(message.getLocation().getUrl() != null && !message.getLocation().getUrl().isEmpty()) {
-    		text += message.getLocation().getUrl();
-    	}
-    	return text.trim();
+//    private String getInboundLocationContentText(NetcoreWhatsAppMessage message) {
+//    	String text = "";
+//    	text = message.getLocation().getLatitude()+" "+message.getLocation().getLongitude();
+//    	if(message.getLocation().getAddress() != null && !message.getLocation().getAddress().isEmpty()) {
+//    		text += message.getLocation().getAddress();
+//    	}
+//    	if(message.getLocation().getName() != null && !message.getLocation().getName().isEmpty()) {
+//    		text += message.getLocation().getName();
+//    	}
+//    	if(message.getLocation().getUrl() != null && !message.getLocation().getUrl().isEmpty()) {
+//    		text += message.getLocation().getUrl();
+//    	}
+//    	return text.trim();
+//    }
+    
+    /**
+     * Get XMessage Payload Location params for inbound Location 
+     * @param message
+     * @return
+     */
+    private LocationParams getPayloadLocationParams(NetcoreLocation message) {
+        LocationParams location = new LocationParams();
+        location.setLatitude(message.getLatitude());
+        location.setLongitude(message.getLongitude());
+        location.setAddress(message.getAddress());
+        location.setUrl(message.getUrl());
+        location.setName(message.getName());
+    	
+    	return location;
     }
     
     /**
