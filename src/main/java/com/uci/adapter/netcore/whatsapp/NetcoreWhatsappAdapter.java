@@ -23,6 +23,7 @@ import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.utils.BotService;
 import com.uci.utils.azure.AzureBlobService;
+import com.uci.utils.bot.util.FileUtil;
 
 import io.fusionauth.domain.Application;
 import lombok.Builder;
@@ -213,33 +214,34 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private Map<String, Object> getMediaInfo(NetcoreWhatsAppMessage message) {
     	Map<String, Object> result = new HashMap();
     	
-    	String id;
-    	String mime_type;
-    	Object category;
+    	String id = "";
+    	String mime_type = "";
+    	Object category = null;
     	if(message.getImageType() != null) {
     		id = message.getImageType().getId();
     		mime_type = message.getImageType().getMimeType();
-    		category = MediaCategory.IMAGE;
     	} else if(message.getAudioType() != null) {
     		id = message.getAudioType().getId();
     		mime_type = message.getAudioType().getMimeType();
-    		category = MediaCategory.AUDIO;
     	} else if(message.getVideoType() != null) {
     		id = message.getVideoType().getId();
     		mime_type = message.getVideoType().getMimeType();
-    		category = MediaCategory.VIDEO;
     	} else if(message.getVoiceType() != null) {
     		id = message.getVoiceType().getId();
     		mime_type = message.getVoiceType().getMimeType();
-    		category = MediaCategory.VOICE;
     	} else if(message.getDocumentType() != null) {
     		id = message.getDocumentType().getId();
     		mime_type = message.getDocumentType().getMimeType();
+    	}
+    	
+    	if(FileUtil.isFileTypeImage(mime_type)) {
+    		category = MediaCategory.IMAGE;
+    	} else if(FileUtil.isFileTypeAudio(mime_type)) {
+    		category = MediaCategory.AUDIO;
+    	} else if(FileUtil.isFileTypeVideo(mime_type)) {
+    		category = MediaCategory.VIDEO;
+    	} else if(FileUtil.isFileTypeDocument(mime_type)) {
     		category = MediaCategory.DOCUMENT;
-    	} else {
-    		id = "";
-    		mime_type = "";
-    		category = null;
     	}
     	
     	result.put("id", id);
