@@ -142,6 +142,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setReplyId(message.getReplyId());
             
             xmsgPayload.setMedia(getInboundMediaMessage(message));
+        	
             xmsgPayload.setText("");
             
             messageIdentifier.setChannelMessageId(message.getMessageId());
@@ -234,14 +235,17 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     		mime_type = message.getDocumentType().getMimeType();
     	}
     	
+//    	if(mime_type.contains("image")) {
     	if(FileUtil.isFileTypeImage(mime_type)) {
     		category = MediaCategory.IMAGE;
+//    	} else if(mime_type.contains("audio")) {
     	} else if(FileUtil.isFileTypeAudio(mime_type)) {
     		category = MediaCategory.AUDIO;
+//    	} else if(mime_type.contains("video")) {
     	} else if(FileUtil.isFileTypeVideo(mime_type)) {
     		category = MediaCategory.VIDEO;
     	} else if(FileUtil.isFileTypeDocument(mime_type)) {
-    		category = MediaCategory.DOCUMENT;
+    		category = MediaCategory.FILE;
     	}
     	
     	result.put("id", id);
