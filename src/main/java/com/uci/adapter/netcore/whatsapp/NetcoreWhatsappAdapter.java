@@ -465,6 +465,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 			attachmentType = AttachmentType.AUDIO;
 		} else if(stylingTag.equals(StylingTag.VIDEO)) {
 			attachmentType = AttachmentType.VIDEO;	
+		} else if(stylingTag.equals(StylingTag.DOCUMENT)) {
+			attachmentType = AttachmentType.DOCUMENT;	
 		}
 		
 		String text = xMsg.getPayload().getText();
@@ -472,12 +474,14 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		
 		String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
     	
+		log.info("signedUrl: "+signedUrl);
+		
 	    Attachment attachment = Attachment.builder()
     	    			.attachment_url(signedUrl)
     	    			.attachment_type(attachmentType.toString())
     	    			.build();
 	    
-	    if(stylingTag.equals(StylingTag.IMAGE) 
+	    if((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
 	    		&& xMsg.getPayload().getMediaCaption() != null 
 	    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) {
 	    	attachment.setCaption(xMsg.getPayload().getMediaCaption());
@@ -502,7 +506,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	if(stylingTag != null) {
     		if(azureBlobService != null 
     				&& (
-    					(stylingTag.equals(StylingTag.IMAGE) 
+    					((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
                     		&& xMsg.getPayload().getMediaCaption() != null
                     		&& !xMsg.getPayload().getMediaCaption().isEmpty()) 
     					|| (stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))
@@ -591,7 +595,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @return
      */
     private Boolean isStylingTagMediaType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
+    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
     		return true;
     	}
     	return false;

@@ -439,7 +439,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     
                     if(stylingTag != null) {
                     	if(isStylingTagMediaType(stylingTag) && azureBlobService != null) {
-                    		if(stylingTag.equals(StylingTag.IMAGE) 
+                    		if((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) 
                             		&& xMsg.getPayload().getMediaCaption() != null
                             		&& !xMsg.getPayload().getMediaCaption().isEmpty()
                             ) {
@@ -592,7 +592,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      * @return
      */
     private Boolean isStylingTagMediaType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
+    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
     		return true;
     	}
     	return false;
@@ -642,6 +642,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     			messageType = MessageType.AUDIO;
     		} else if(stylingTag.equals(StylingTag.VIDEO) ) {
     			messageType = MessageType.VIDEO;
+    		} else if(stylingTag.equals(StylingTag.DOCUMENT) ) {
+    			messageType = MessageType.DOCUMENT;
     		} else if(isStylingTagIntercativeType(stylingTag)) {
     			messageType = MessageType.TEXT;
     		}
