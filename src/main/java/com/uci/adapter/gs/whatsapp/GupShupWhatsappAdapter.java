@@ -7,6 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.uci.adapter.gs.whatsapp.outbound.MessageType;
 import com.uci.adapter.gs.whatsapp.outbound.MethodType;
+import com.uci.adapter.netcore.whatsapp.NewNetcoreService;
+import com.uci.adapter.netcore.whatsapp.inbound.NetcoreLocation;
+import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.Action;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.Section;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.SectionRow;
@@ -19,6 +22,7 @@ import com.uci.dao.repository.XMessageRepository;
 import com.uci.dao.utils.XMessageDAOUtils;
 import com.uci.utils.BotService;
 import com.uci.utils.azure.AzureBlobService;
+import com.uci.utils.bot.util.FileUtil;
 import com.uci.utils.cdn.samagra.MinioClientService;
 
 import lombok.Builder;
@@ -26,7 +30,10 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.ButtonChoice;
+import messagerosa.core.model.LocationParams;
+import messagerosa.core.model.MediaCategory;
 import messagerosa.core.model.MessageId;
+import messagerosa.core.model.MessageMedia;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.StylingTag;
 import messagerosa.core.model.XMessage;
@@ -40,6 +47,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -76,12 +84,12 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
     
-//    @Autowired
-//    private MinioClientService minioClientService;
-    
     @Autowired
     private AzureBlobService azureBlobService;
 
+    /**
+     * Convert Inbound Gupshup Message To XMessage
+     */
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
         GSWhatsAppMessage message = (GSWhatsAppMessage) msg;
@@ -139,17 +147,19 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             messageIdentifier.setReplyId(message.getReplyId());
             
             messageState[0] = XMessage.MessageState.REPLIED;
-            xmsgPayload.setText(getInboundLocationContentText(message));
+            xmsgPayload.setLocation(getInboundLocationParams(message));
+            xmsgPayload.setText("");
             messageIdentifier.setChannelMessageId(message.getMessageId());
             
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
-        } else if (message.getType().equals("image")) {
+        } else if (isInboundMediaMessage(message.getType())) {
         	//Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
             messageIdentifier.setReplyId(message.getReplyId());
             
             messageState[0] = XMessage.MessageState.REPLIED;
-            xmsgPayload.setText(getInboundMediaContentText(message));
+            xmsgPayload.setText("");
+            xmsgPayload.setMedia(getInboundMediaMessage(message));
             messageIdentifier.setChannelMessageId(message.getMessageId());
             
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
@@ -162,18 +172,58 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     }
     
     /**
-     * Get Inbound Media File URL (Blob URL)
+     * Check if inbound message is media type
+     * @param type
+     * @return
+     */
+    private Boolean isInboundMediaMessage(String type) {
+    	if(type.equals("image") || type.equals("video") || type.equals("audio") 
+    			|| type.equals("voice") || type.equals("document")) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    /**
+     * Get Inbound Media name/url
      * @param message
      * @return
      */
-    public String getInboundMediaContentText(GSWhatsAppMessage message) {
-    	String text  = "";
-    	String mediaContent = message.getImage(); 
-    	if(message.getType().equals("audio")) {
-    		mediaContent = message.getAudio(); 
+    private MessageMedia getInboundMediaMessage(GSWhatsAppMessage message) {
+    	Map<String, Object> mediaInfo = getMediaInfo(message);
+    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("mediaUrl").toString(), mediaInfo.get("mime_type").toString());
+    	MessageMedia media = new MessageMedia();
+    	media.setText(mediaData.get("name").toString());
+    	media.setUrl(mediaData.get("url").toString());
+    	media.setCategory((MediaCategory) mediaInfo.get("category"));
+    	
+    	return media;
+    }
+    
+    /**
+     * Get Media Id & mime type
+     * @param message
+     * @return
+     */
+    private Map<String, Object> getMediaInfo(GSWhatsAppMessage message) {
+    	Map<String, Object> result = new HashMap();
+    	
+    	String mediaUrl = "";
+    	String mime_type = "";
+    	Object category = null;
+    	String mediaContent = "";
+    	if(message.getType().equals("image")) {
+    		mediaContent = message.getImage();
+    	} else if(message.getType().equals("audio")) {
+    		mediaContent = message.getAudio();
+    	} else if(message.getType().equals("voice")) {
+    		mediaContent = message.getVoice();
     	} else if(message.getType().equals("video")) {
-    		mediaContent = message.getVideo(); 
+    		mediaContent = message.getVideo();
+    	} else if(message.getType().equals("document")) {
+    		mediaContent = message.getDocument();
     	}
+    	
     	if(mediaContent != null && !mediaContent.isEmpty()) {
     		ObjectMapper mapper = new ObjectMapper();
         	try {
@@ -182,17 +232,93 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	    	
     			String url = node.path("url") != null ? node.path("url").asText() : "";
     			String signature = node.path("signature") != null ? node.path("signature").asText() : "";
-    			String mime_type = node.path("mime_type") != null ? node.path("mime_type").asText() : "";
-    	    	    	    	
-    			return azureBlobService.uploadFile(url+signature, mime_type, message.getMessageId());
+    			mime_type = node.path("mime_type") != null ? node.path("mime_type").asText() : "";
+    	
+    			mediaUrl = url+signature;
+    			
+    			if(FileUtil.isFileTypeImage(mime_type)) {
+    	    		category = MediaCategory.IMAGE;
+    	    	} else if(FileUtil.isFileTypeAudio(mime_type)) {
+    	    		category = MediaCategory.AUDIO;
+    	    	} else if(FileUtil.isFileTypeVideo(mime_type)) {
+    	    		category = MediaCategory.VIDEO;
+    	    	} else if(FileUtil.isFileTypeDocument(mime_type)) {
+    	    		category = MediaCategory.FILE;
+    	    	}
     		} catch (JsonProcessingException e) {
     			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
     		}
     	}
-    	log.info("Inbound media text: "+text);
-    	return text;
+    	
+    	result.put("mediaUrl", mediaUrl);
+    	result.put("mime_type", mime_type);
+    	result.put("category", category);
+    	
+    	return result;
     }
     
+    /**
+     * Upload media & get its url/name
+     * @param messageId
+     * @param id
+     * @param mime_type
+     * @return
+     */
+    private Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
+    	Map<String, String> result = new HashMap();
+    	
+    	String name = "";
+    	String url = "";
+    	if(!mediaUrl.isEmpty()) {
+    		name = azureBlobService.uploadFile(mediaUrl, mime_type, messageId);
+    		url = azureBlobService.getFileSignedUrl(name);
+    	}
+    	
+    	result.put("name", name);
+    	result.put("url", url);
+    	
+    	return result;
+    }
+    
+    /**
+     * Get XMessage Payload Location params for inbound Location 
+     * @param message
+     * @return
+     */
+    private LocationParams getInboundLocationParams(GSWhatsAppMessage message) {
+    	Double longitude = null;
+    	Double latitude = null;
+    	String address = "";
+    	String name = "";
+    	String url = "";
+    	String locationContent = message.getLocation();
+    	if(locationContent != null && !locationContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(locationContent);
+    			log.info("locationcontent node: "+node);
+    	    	
+    			longitude = node.path("longitude") != null ? Double.parseDouble(node.path("longitude").asText()) : null;
+    			latitude = node.path("latitude") != null ? Double.parseDouble(node.path("latitude").asText()) : null;
+    			address = node.path("address") != null ? node.path("address").asText() : "";
+    			name = node.path("name") != null ? node.path("name").asText() : "";
+    			url = node.path("url") != null ? node.path("url").asText() : "";
+    	    	
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundLocationParams: "+e.getMessage());
+    		}
+    	}
+    	
+        LocationParams location = new LocationParams();
+        location.setLatitude(latitude);
+        location.setLongitude(longitude);
+        location.setAddress(address);
+        location.setUrl(url);
+        location.setName(name);
+    	
+    	return location;
+    }
+
     /**
      * Get Text from Interactive Context Reply
      * @param message
@@ -226,44 +352,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	return text;
     }
     
-    /**
-     * Get text for location
-     * @param message
-     * @return
-     */
-    private String getInboundLocationContentText(GSWhatsAppMessage message) {
-    	String text  = "";
-    	String locationContent = message.getLocation();
-    	if(locationContent != null && !locationContent.isEmpty()) {
-    		ObjectMapper mapper = new ObjectMapper();
-        	try {
-        		JsonNode node = mapper.readTree(locationContent);
-    			log.info("locationcontent node: "+node);
-    	    	
-    			String longitude = node.path("longitude") != null ? node.path("longitude").asText() : "";
-    			String latitude = node.path("latitude") != null ? node.path("latitude").asText() : "";
-    			String address = node.path("address") != null ? node.path("address").asText() : "";
-    			String name = node.path("name") != null ? node.path("name").asText() : "";
-    			String url = node.path("url") != null ? node.path("url").asText() : "";
-    	    	
-    			text = (latitude+" "+longitude);
-    			if(address != null && !address.isEmpty()) {
-    				text += address;
-    			}
-    			if(name != null && !name.isEmpty()) {
-    				text += name;
-    			}
-    			if(url != null && !url.isEmpty()) {
-    				text += url;
-    			}
-    		} catch (JsonProcessingException e) {
-    			log.error("Exception in getInboundLocationContentText: "+e.getMessage());
-    		}
-    	}
-    	log.info("Inbound location text: "+text);
-    	return text.trim();
-    }
-    
     @NotNull
     public static XMessage.MessageState getMessageState(String eventType) {
         XMessage.MessageState messageState;
@@ -288,7 +376,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-//        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
         return XMessage.builder()
                 .to(to)
                 .from(from)
@@ -301,25 +388,13 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 .payload(xmsgPayload).build();
     }
 
-
     /**
-     * Not in use
+     * Process outbound messages - convert XMessage to Gupshup Message Format and send to gupshup api
      */
-//    @Override
-//    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
-//        log.info("nextXmsg {}", nextMsg.toXML());
-//        callOutBoundAPI(nextMsg);
-//    }
-
     @Override
-    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-    	log.info("processOutBoundMessageF nextXmsg {}", nextMsg.toXML());
-        return callOutBoundAPI(nextMsg);
-    }
-
-    public Mono<XMessage> callOutBoundAPI(XMessage xMsg) throws Exception {
-        log.info("next question to user is {}", xMsg.toXML());
-        return botservice.getGupshupAdpaterCredentials(xMsg.getAdapterId()).map(new Function<Map<String, String>, XMessage>() {
+    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
+    	log.info("processOutBoundMessageF nextXmsg {}", xMsg.toXML());
+    	return botservice.getGupshupAdpaterCredentials(xMsg.getAdapterId()).map(new Function<Map<String, String>, XMessage>() {
             @Override
             public XMessage apply(Map<String, String> credentials) {
 
@@ -594,6 +669,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 queryParam("password", password);
     }
     
+    /**
+     * Convert Message Choices to Text
+     * @param buttonChoices
+     * @return
+     */
     private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
         StringBuilder processedChoicesBuilder = new StringBuilder("");
         if(buttonChoices != null){

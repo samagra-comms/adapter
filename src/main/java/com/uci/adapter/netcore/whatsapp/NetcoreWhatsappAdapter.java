@@ -73,6 +73,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     @Autowired
     private AzureBlobService azureBlobService;
 
+    /**
+     * Convert Inbound Netcore Message To XMessage
+     */
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) {
         NetcoreWhatsAppMessage message = (NetcoreWhatsAppMessage) msg;
@@ -127,7 +130,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             XMessage.MessageState finalMessageState = messageState;
             messageIdentifier.setReplyId(message.getReplyId());
 
-            xmsgPayload.setLocation(getPayloadLocationParams(message.getLocation()));
+            xmsgPayload.setLocation(getInboundLocationParams(message.getLocation()));
             xmsgPayload.setText("");
 
             messageIdentifier.setChannelMessageId(message.getMessageId());
@@ -178,18 +181,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	}
     	return false;
     }
-    
-    /**
-     * Get Inbound Media name/url
-     * @param message
-     * @return
-     */
-//    private String getInboundMediaContentText(NetcoreWhatsAppMessage message) {
-//    	Map<String, Object> mediaInfo = getMediaInfo(message);
-//    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
-//    	
-//    	return mediaData.get("url").toString();
-//    }
     
     /**
      * Get Inbound Media name/url
@@ -286,31 +277,11 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
     
     /**
-     * Get text for Location 
-     * @param message
-     * @return
-     */
-//    private String getInboundLocationContentText(NetcoreWhatsAppMessage message) {
-//    	String text = "";
-//    	text = message.getLocation().getLatitude()+" "+message.getLocation().getLongitude();
-//    	if(message.getLocation().getAddress() != null && !message.getLocation().getAddress().isEmpty()) {
-//    		text += message.getLocation().getAddress();
-//    	}
-//    	if(message.getLocation().getName() != null && !message.getLocation().getName().isEmpty()) {
-//    		text += message.getLocation().getName();
-//    	}
-//    	if(message.getLocation().getUrl() != null && !message.getLocation().getUrl().isEmpty()) {
-//    		text += message.getLocation().getUrl();
-//    	}
-//    	return text.trim();
-//    }
-    
-    /**
      * Get XMessage Payload Location params for inbound Location 
      * @param message
      * @return
      */
-    private LocationParams getPayloadLocationParams(NetcoreLocation message) {
+    private LocationParams getInboundLocationParams(NetcoreLocation message) {
         LocationParams location = new LocationParams();
         location.setLatitude(message.getLatitude());
         location.setLongitude(message.getLongitude());
@@ -370,8 +341,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(NetcoreWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-//        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
-        return XMessage.builder()
+    	return XMessage.builder()
                 .to(to)
                 .from(from)
                 .channelURI("WhatsApp")
@@ -395,14 +365,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     /**
-     * Not in use
+     * Process outbound messages - convert XMessage to Netcore Message Format and send to netcore api
      */
-//    @Override
-//    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
-//        log.info("nextXmsg {}", nextMsg.toXML());
-//        callOutBoundAPI(nextMsg);
-//    }
-
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) {
     	String phoneNo = "91" +xMsg.getTo().getUserID();
@@ -604,6 +568,23 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		        .text(texts)
 		        .build();
     }
+
+    /**
+     * Convert Message Choices to Text
+     * @param buttonChoices
+     * @return
+     */
+    private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
+        StringBuilder processedChoicesBuilder = new StringBuilder("");
+        if(buttonChoices != null){
+            for(ButtonChoice choice:buttonChoices){
+                processedChoicesBuilder.append(choice.getText()).append("\n");
+            }
+            String processedChoices = processedChoicesBuilder.toString();
+            return processedChoices.substring(0,processedChoices.length()-1);
+        }
+        return "";
+    }
     
     /**
      * Check if styling tag is image/audio/video type
@@ -626,104 +607,4 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	}
     	return false;
     }
-    /**
-     * Get Choice Text - remove key(Numeric value Eg 1 or 1.) from text
-     * @param choice_text
-     * @return
-     */
-    /* Not in use - was in use for ReplyButton/SectionRow title choice text */
-//    private String choiceTextWithoutKey(String choice_text) {
-//    	String[] a = choice_text.split(" ");
-//		try {
-//			if(a[0] != null && !a[0].isEmpty()) {
-//				Integer.parseInt(a[0]);
-//				a = Arrays.copyOfRange(a, 1, a.length);
-//    			choice_text = String.join(" ", a);
-//    		}
-//		} catch (NumberFormatException ex) {
-//			String[] b = choice_text.split(".");
-//    		try {
-//    			if(b[0] != null && !b[0].isEmpty()) {
-//	    		    Integer.parseInt(b[0]);
-//	    		    b = Arrays.copyOfRange(b, 1, b.length);
-//	    			choice_text = String.join(" ", b);
-//    			}
-//    		} catch (NumberFormatException exc) {
-//    			// do nothing
-//    		} catch (ArrayIndexOutOfBoundsException exc) {
-//    		    // do nothing
-//    		}
-//		} catch (ArrayIndexOutOfBoundsException ex) {
-//			// do nothing
-//		}
-//    	return choice_text.trim();
-//    }
-
-    private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
-        StringBuilder processedChoicesBuilder = new StringBuilder("");
-        if(buttonChoices != null){
-            for(ButtonChoice choice:buttonChoices){
-                processedChoicesBuilder.append(choice.getText()).append("\n");
-            }
-            String processedChoices = processedChoicesBuilder.toString();
-            return processedChoices.substring(0,processedChoices.length()-1);
-        }
-        return "";
-    }
-
-    /**
-     * Not in use
-     */
-//    public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
-//        log.info("next question to user is {}", xMsg.toXML());
-//        // String url = "http://federation-service:9999/admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
-//        // NWCredentials credentials = restTemplate.getForObject(url, NWCredentials.class);
-//
-//        String phoneNo = "";
-//        String text = "";
-//
-//        phoneNo = "91" + xMsg.getTo().getUserID();
-//
-//        if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-//
-//        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-//            // OPT in user
-//            text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());;
-//        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-//            // OPT in user
-//            text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());;
-//        } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-//            text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());;
-//        } else {
-//        }
-//
-//        // SendMessage
-//        Text t = Text.builder().content(text).previewURL("false").build();
-//        Text[] texts = {t};
-//
-//        SingleMessage msg = SingleMessage
-//                .builder()
-//                .from(System.getenv("NETCORE_WHATSAPP_SOURCE"))
-//                .to(phoneNo)
-//                .recipientType("individual")
-//                .messageType("text")
-//                .header("custom_data")
-//                .text(texts)
-//                .build();
-//        SingleMessage[] messages = {msg};
-//
-//        NWCredentials nc = NWCredentials.builder().build();
-//        nc.setToken(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"));
-//        NetcoreService ns = new NetcoreService(nc);
-//
-//        OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
-//        SendMessageResponse response = ns.sendText(outboundMessage);
-//
-//        xMsg.setMessageId(MessageId.builder().channelMessageId(response.getData().getIdentifier()).build());
-//        xMsg.setMessageState(XMessage.MessageState.SENT);
-//
-//
-//        return xMsg;
-//    }
-
 }
