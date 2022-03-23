@@ -512,7 +512,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     					|| (stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))
             		)
             ) {
-    			//IMAGE/AUDIO/VIDEO
+    			//IMAGE/AUDIO/VIDEO/DOCUMENT
         		return SingleMessage
     			        .builder()
     			        .from(source)
