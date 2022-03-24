@@ -1,6 +1,8 @@
 package com.uci.adapter.netcore.whatsapp;
 
+import com.azure.core.util.BinaryData;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserRequestMessage;
@@ -12,6 +14,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -131,5 +134,38 @@ public class NewNetcoreService {
                         System.out.println("ERROR IS " + throwable.getLocalizedMessage());
                     }
                 });
+    }
+    
+    /**
+     * Get Media File from netcore by id
+     * @param id
+     * @return
+     */
+    public InputStream getMediaFile(String id) {
+    	ObjectMapper mapper = new ObjectMapper();
+        try {
+            Request request = new Request.Builder()
+                    .url(baseURL + "media/"+id)
+                    .get()
+                    .addHeader("Authorization", "Bearer " + credentials.getToken())
+                    .build();
+            
+            Response response = client.newCall(request).execute();
+
+            ResponseBody body = response.body();
+            
+            InputStream in = body.byteStream();
+            
+            if(body.contentLength() <= 0) {
+            	System.out.println("Media file content length is 0");
+            	return null;
+            }
+            
+            return in;
+        } catch (Exception e ) {
+        	System.out.println("Exception in netcore getMediaFile: "+e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 }

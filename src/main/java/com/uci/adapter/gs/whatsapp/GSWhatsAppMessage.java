@@ -26,11 +26,11 @@ public class GSWhatsAppMessage extends CommonMessage {
   @JsonProperty
   private String type;
   private String text;
-  private WAInboundFile image;
-  private WAInboundFile document;
-  private WAInboundFile voice;
-  private WAInboundFile audio;
-  private WAInboundFile video;
+  private String image;
+  private String document;
+  private String voice;
+  private String audio;
+  private String video;
   private String location;
   private String response;
   private String extra;

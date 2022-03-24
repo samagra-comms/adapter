@@ -5,7 +5,8 @@ public enum MessageType {
 	HSM("HSM"),
 	IMAGE("IMAGE"),
 	AUDIO("AUDIO"),
-	VIDEO("VIDEO");
+	VIDEO("VIDEO"),
+	DOCUMENT("DOCUMENT");
 	
 	private String name;
 

@@ -1,5 +1,9 @@
 package com.uci.adapter.netcore.whatsapp;
 
+import com.azure.core.util.BinaryData;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
+import com.uci.adapter.netcore.whatsapp.inbound.NetcoreLocation;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.MessageType;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
@@ -18,12 +22,17 @@ import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.utils.BotService;
+import com.uci.utils.azure.AzureBlobService;
+import com.uci.utils.bot.util.FileUtil;
+
 import io.fusionauth.domain.Application;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
+
+import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -31,10 +40,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Slf4j
@@ -50,7 +69,13 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private RestTemplate restTemplate;
 
     private BotService botservice;
+    
+    @Autowired
+    private AzureBlobService azureBlobService;
 
+    /**
+     * Convert Inbound Netcore Message To XMessage
+     */
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) {
         NetcoreWhatsAppMessage message = (NetcoreWhatsAppMessage) msg;
@@ -104,9 +129,25 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
             XMessage.MessageState finalMessageState = messageState;
             messageIdentifier.setReplyId(message.getReplyId());
-            
-            xmsgPayload.setText(getInboundLocationContentText(message));
 
+            xmsgPayload.setLocation(getInboundLocationParams(message.getLocation()));
+            xmsgPayload.setText("");
+
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
+        } else if (isInboundMediaMessage(message.getType())) {
+            //Actual Message with payload (user response)
+            messageState = XMessage.MessageState.REPLIED;
+            from.setUserID(message.getMobile().substring(2));
+
+            XMessage.MessageState finalMessageState = messageState;
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            xmsgPayload.setMedia(getInboundMediaMessage(message));
+        	
+            xmsgPayload.setText("");
+            
             messageIdentifier.setChannelMessageId(message.getMessageId());
 
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, finalMessageState, messageIdentifier,messageType));
@@ -129,23 +170,126 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
     
     /**
-     * Get text for Location 
+     * Check if inbound message is media type
+     * @param type
+     * @return
+     */
+    private Boolean isInboundMediaMessage(String type) {
+    	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO") 
+    			|| type.equals("VOICE") || type.equals("DOCUMENT")) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    /**
+     * Get Inbound Media name/url
      * @param message
      * @return
      */
-    private String getInboundLocationContentText(NetcoreWhatsAppMessage message) {
-    	String text = "";
-    	text = message.getLocation().getLatitude()+" "+message.getLocation().getLongitude();
-    	if(message.getLocation().getAddress() != null && !message.getLocation().getAddress().isEmpty()) {
-    		text += message.getLocation().getAddress();
+    private MessageMedia getInboundMediaMessage(NetcoreWhatsAppMessage message) {
+    	Map<String, Object> mediaInfo = getMediaInfo(message);
+    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
+    	MessageMedia media = new MessageMedia();
+    	media.setText(mediaData.get("name").toString());
+    	media.setUrl(mediaData.get("url").toString());
+    	media.setCategory((MediaCategory) mediaInfo.get("category"));
+    	
+    	return media;
+    }
+    
+    /**
+     * Get Media Id & mime type
+     * @param message
+     * @return
+     */
+    private Map<String, Object> getMediaInfo(NetcoreWhatsAppMessage message) {
+    	Map<String, Object> result = new HashMap();
+    	
+    	String id = "";
+    	String mime_type = "";
+    	Object category = null;
+    	if(message.getImageType() != null) {
+    		id = message.getImageType().getId();
+    		mime_type = message.getImageType().getMimeType();
+    	} else if(message.getAudioType() != null) {
+    		id = message.getAudioType().getId();
+    		mime_type = message.getAudioType().getMimeType();
+    	} else if(message.getVideoType() != null) {
+    		id = message.getVideoType().getId();
+    		mime_type = message.getVideoType().getMimeType();
+    	} else if(message.getVoiceType() != null) {
+    		id = message.getVoiceType().getId();
+    		mime_type = message.getVoiceType().getMimeType();
+    	} else if(message.getDocumentType() != null) {
+    		id = message.getDocumentType().getId();
+    		mime_type = message.getDocumentType().getMimeType();
     	}
-    	if(message.getLocation().getName() != null && !message.getLocation().getName().isEmpty()) {
-    		text += message.getLocation().getName();
+    	
+    	if(FileUtil.isFileTypeImage(mime_type)) {
+    		category = MediaCategory.IMAGE;
+    	} else if(FileUtil.isFileTypeAudio(mime_type)) {
+    		category = MediaCategory.AUDIO;
+    	} else if(FileUtil.isFileTypeVideo(mime_type)) {
+    		category = MediaCategory.VIDEO;
+    	} else if(FileUtil.isFileTypeDocument(mime_type)) {
+    		category = MediaCategory.FILE;
     	}
-    	if(message.getLocation().getUrl() != null && !message.getLocation().getUrl().isEmpty()) {
-    		text += message.getLocation().getUrl();
+    	
+    	log.info("File Id: "+id+", mime: "+mime_type+", category: "+category);
+    	
+    	result.put("id", id);
+    	result.put("mime_type", mime_type);
+    	result.put("category", category);
+    	
+    	return result;
+    }
+    
+    /**
+     * Upload media & get its url/name
+     * @param messageId
+     * @param id
+     * @param mime_type
+     * @return
+     */
+    private Map<String, String> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+    	Map<String, String> result = new HashMap();
+    	
+    	String name = "";
+    	String url = "";
+    	if(!id.isEmpty() && !mime_type.isEmpty()) {
+    		log.info("Get netcore media by id:"+id);
+    		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+                    getMediaFile(id);
+    		if(response != null) {
+        		String file = azureBlobService.uploadFileFromInputStream(response, mime_type, messageId);
+        		name = file;
+        		url = azureBlobService.getFileSignedUrl(file);
+        		log.info("azure file name: "+name+", url: "+url);
+    		} else {
+        		log.info("response is empty");
+        	}
     	}
-    	return text.trim();
+    	result.put("name", name);
+    	result.put("url", url);
+    	
+    	return result;
+    }
+    
+    /**
+     * Get XMessage Payload Location params for inbound Location 
+     * @param message
+     * @return
+     */
+    private LocationParams getInboundLocationParams(NetcoreLocation message) {
+        LocationParams location = new LocationParams();
+        location.setLatitude(message.getLatitude());
+        location.setLongitude(message.getLongitude());
+        location.setAddress(message.getAddress());
+        location.setUrl(message.getUrl());
+        location.setName(message.getName());
+    	
+    	return location;
     }
     
     /**
@@ -197,8 +341,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private XMessage processedXMessage(NetcoreWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
                                        SenderReceiverInfo from, XMessage.MessageState messageState,
                                        MessageId messageIdentifier, XMessage.MessageType messageType) {
-//        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
-        return XMessage.builder()
+    	return XMessage.builder()
                 .to(to)
                 .from(from)
                 .channelURI("WhatsApp")
@@ -222,14 +365,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
     /**
-     * Not in use
+     * Process outbound messages - convert XMessage to Netcore Message Format and send to netcore api
      */
-//    @Override
-//    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
-//        log.info("nextXmsg {}", nextMsg.toXML());
-//        callOutBoundAPI(nextMsg);
-//    }
-
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) {
     	String phoneNo = "91" +xMsg.getTo().getUserID();
@@ -328,16 +465,23 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 			attachmentType = AttachmentType.AUDIO;
 		} else if(stylingTag.equals(StylingTag.VIDEO)) {
 			attachmentType = AttachmentType.VIDEO;	
+		} else if(stylingTag.equals(StylingTag.DOCUMENT)) {
+			attachmentType = AttachmentType.DOCUMENT;	
 		}
 		
 		String text = xMsg.getPayload().getText();
 		text = text.replace("\n", "").replace("<br>", "").trim();
+		
+		String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+    	
+		log.info("signedUrl: "+signedUrl);
+		
 	    Attachment attachment = Attachment.builder()
-    	    			.attachment_url(text)
+    	    			.attachment_url(signedUrl)
     	    			.attachment_type(attachmentType.toString())
     	    			.build();
 	    
-	    if(stylingTag.equals(StylingTag.IMAGE) 
+	    if((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
 	    		&& xMsg.getPayload().getMediaCaption() != null 
 	    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) {
 	    	attachment.setCaption(xMsg.getPayload().getMediaCaption());
@@ -358,103 +502,82 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	String source = System.getenv("NETCORE_WHATSAPP_SOURCE");
     	StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
 				    			? xMsg.getPayload().getStylingTag() : null;
-    	if(stylingTag != null 
-    			&& (stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN))
-    			) {
-    		//Menu List & Quick Reply Buttons
-    		return SingleMessage
-			        .builder()
-			        .from(source)
-			        .to(phoneNo)
-			        .recipientType("individual")
-			        .messageType(MessageType.INTERACTIVE.toString())
-			        .header("custom_data")
-			        .interactiveContent(new InteractiveContent[]{
-			        	getOutboundInteractiveContent(xMsg, stylingTag)
-			        })
-			        .build();
-    	} else if(stylingTag != null && (stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))) {
-    		//IMAGE/AUDIO/VIDEO
-    		return SingleMessage
-			        .builder()
-			        .from(source)
-			        .to(phoneNo)
-			        .recipientType("individual")
-			        .messageType(MessageType.MEDIA.toString())
-			        .header("custom_data")
-			        .mediaContent(new MediaContent[]{
-			        	getOutboundMediaContent(xMsg, stylingTag)
-			        })
-			        .build();
-    	} else {
-    		//Plain List with text 
-    		String text = "";
+    	
+    	if(stylingTag != null) {
+    		if(azureBlobService != null 
+    				&& (
+    					((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
+                    		&& xMsg.getPayload().getMediaCaption() != null
+                    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) 
+    					|| (stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))
+            		)
+            ) {
+    			//IMAGE/AUDIO/VIDEO/DOCUMENT
+        		return SingleMessage
+    			        .builder()
+    			        .from(source)
+    			        .to(phoneNo)
+    			        .recipientType("individual")
+    			        .messageType(MessageType.MEDIA.toString())
+    			        .header("custom_data")
+    			        .mediaContent(new MediaContent[]{
+    			        	getOutboundMediaContent(xMsg, stylingTag)
+    			        })
+    			        .build();
+    		} else if(isStylingTagInterativeType(stylingTag)) {
+    			//Menu List & Quick Reply Buttons
+        		return SingleMessage
+    			        .builder()
+    			        .from(source)
+    			        .to(phoneNo)
+    			        .recipientType("individual")
+    			        .messageType(MessageType.INTERACTIVE.toString())
+    			        .header("custom_data")
+    			        .interactiveContent(new InteractiveContent[]{
+    			        	getOutboundInteractiveContent(xMsg, stylingTag)
+    			        })
+    			        .build();
+    		}
+    	}
+    	//Plain List with text 
+		String text = "";
 
-    	    if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-    	    	// OPT in user
-    	    	text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
-    	    } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-    	    	// OPT in user
-    	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
-    	    } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-    	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
-    	    }
+	    if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
+	    	// OPT in user
+	    	text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
+	    } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
+	    	// OPT in user
+	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
+	    } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
+	    }
 
-    	    // SendMessage
-    	    Text t = Text.builder().content(text).previewURL("false").build();
-    	    Text[] texts = {t};
-    	        
-    	    String content = t.getContent();
-//    	    log.info("before replace content: "+content);
-    	    content = content.replace("\\n", System.getProperty("line.separator"));
-//    	    log.info("after replace content: "+content);
-    	    t.setContent(content);
-    	    
-    	    return SingleMessage
-			        .builder()
-			        .from(source)
-			        .to(phoneNo)
-			        .recipientType("individual")
-			        .messageType(MessageType.TEXT.toString())
-			        .header("custom_data")
-			        .text(texts)
-			        .build();
-    	} 
+	    // SendMessage
+	    Text t = Text.builder().content(text).previewURL("false").build();
+	    Text[] texts = {t};
+	        
+	    String content = t.getContent();
+//	    log.info("before replace content: "+content);
+	    content = content.replace("\\n", System.getProperty("line.separator"));
+//	    log.info("after replace content: "+content);
+	    t.setContent(content);
+	    
+	    return SingleMessage
+		        .builder()
+		        .from(source)
+		        .to(phoneNo)
+		        .recipientType("individual")
+		        .messageType(MessageType.TEXT.toString())
+		        .header("custom_data")
+		        .text(texts)
+		        .build();
     }
-    
+
     /**
-     * Get Choice Text - remove key(Numeric value Eg 1 or 1.) from text
-     * @param choice_text
+     * Convert Message Choices to Text
+     * @param buttonChoices
      * @return
      */
-    /* Not in use - was in use for ReplyButton/SectionRow title choice text */
-//    private String choiceTextWithoutKey(String choice_text) {
-//    	String[] a = choice_text.split(" ");
-//		try {
-//			if(a[0] != null && !a[0].isEmpty()) {
-//				Integer.parseInt(a[0]);
-//				a = Arrays.copyOfRange(a, 1, a.length);
-//    			choice_text = String.join(" ", a);
-//    		}
-//		} catch (NumberFormatException ex) {
-//			String[] b = choice_text.split(".");
-//    		try {
-//    			if(b[0] != null && !b[0].isEmpty()) {
-//	    		    Integer.parseInt(b[0]);
-//	    		    b = Arrays.copyOfRange(b, 1, b.length);
-//	    			choice_text = String.join(" ", b);
-//    			}
-//    		} catch (NumberFormatException exc) {
-//    			// do nothing
-//    		} catch (ArrayIndexOutOfBoundsException exc) {
-//    		    // do nothing
-//    		}
-//		} catch (ArrayIndexOutOfBoundsException ex) {
-//			// do nothing
-//		}
-//    	return choice_text.trim();
-//    }
-
     private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
         StringBuilder processedChoicesBuilder = new StringBuilder("");
         if(buttonChoices != null){
@@ -466,60 +589,26 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         }
         return "";
     }
-
+    
     /**
-     * Not in use
+     * Check if styling tag is image/audio/video type
+     * @return
      */
-//    public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
-//        log.info("next question to user is {}", xMsg.toXML());
-//        // String url = "http://federation-service:9999/admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
-//        // NWCredentials credentials = restTemplate.getForObject(url, NWCredentials.class);
-//
-//        String phoneNo = "";
-//        String text = "";
-//
-//        phoneNo = "91" + xMsg.getTo().getUserID();
-//
-//        if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-//
-//        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-//            // OPT in user
-//            text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());;
-//        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-//            // OPT in user
-//            text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());;
-//        } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-//            text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());;
-//        } else {
-//        }
-//
-//        // SendMessage
-//        Text t = Text.builder().content(text).previewURL("false").build();
-//        Text[] texts = {t};
-//
-//        SingleMessage msg = SingleMessage
-//                .builder()
-//                .from(System.getenv("NETCORE_WHATSAPP_SOURCE"))
-//                .to(phoneNo)
-//                .recipientType("individual")
-//                .messageType("text")
-//                .header("custom_data")
-//                .text(texts)
-//                .build();
-//        SingleMessage[] messages = {msg};
-//
-//        NWCredentials nc = NWCredentials.builder().build();
-//        nc.setToken(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"));
-//        NetcoreService ns = new NetcoreService(nc);
-//
-//        OutboundMessage outboundMessage = OutboundMessage.builder().message(messages).build();
-//        SendMessageResponse response = ns.sendText(outboundMessage);
-//
-//        xMsg.setMessageId(MessageId.builder().channelMessageId(response.getData().getIdentifier()).build());
-//        xMsg.setMessageState(XMessage.MessageState.SENT);
-//
-//
-//        return xMsg;
-//    }
-
+    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
+    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    /**
+     * Check if styling tag is list/quick reply button
+     * @return
+     */
+    private Boolean isStylingTagInterativeType(StylingTag stylingTag) {
+    	if(stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
+    		return true;
+    	}
+    	return false;
+    }
 }
