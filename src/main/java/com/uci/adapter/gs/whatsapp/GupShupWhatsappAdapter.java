@@ -458,8 +458,10 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                                     plainText = false;
                             	}
                             }
-                    	} else if(stylingTag.equals(StylingTag.LIST)) {
-                    		String content = getOutboundListActionContent(xMsg);
+                    	} else if(stylingTag.equals(StylingTag.LIST)
+								&& xMsg.getPayload().getButtonChoices() != null
+								&& xMsg.getPayload().getButtonChoices().size() <= 10) {
+							String content = getOutboundListActionContent(xMsg);
                			 	log.info("list content:  "+content);
                     		if(!content.isEmpty()) {
                     			builder.queryParam("interactive_type", "list");
@@ -467,7 +469,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     			builder.queryParam("msg", text);
                     			plainText = false;
                     		}
-                    	} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
+                    	} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN)
+								&& xMsg.getPayload().getButtonChoices() != null
+								&& xMsg.getPayload().getButtonChoices().size() <= 3) {
                     		String content = getOutboundQRBtnActionContent(xMsg);
                			 	log.info("QR btn content:  "+content);
                     		if(!content.isEmpty()) {

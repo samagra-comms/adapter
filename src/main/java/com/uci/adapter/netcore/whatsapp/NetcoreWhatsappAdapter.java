@@ -480,11 +480,12 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	    			.attachment_url(signedUrl)
     	    			.attachment_type(attachmentType.toString())
     	    			.build();
-	    
-	    if((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
-	    		&& xMsg.getPayload().getMediaCaption() != null 
-	    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) {
-	    	attachment.setCaption(xMsg.getPayload().getMediaCaption());
+
+	    if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
+	    	if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty()){
+				xMsg.getPayload().setMediaCaption(stylingTag.toString());
+			}
+			attachment.setCaption(xMsg.getPayload().getMediaCaption());
 	    }
 	    
 	    return MediaContent.builder()
@@ -500,8 +501,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private SingleMessage getOutboundSingleMessage(XMessage xMsg, String phoneNo) {
     	String source = System.getenv("NETCORE_WHATSAPP_SOURCE");
-    	StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
-				    			? xMsg.getPayload().getStylingTag() : null;
+    	StylingTag stylingTag = (xMsg.getPayload().getStylingTag() != null && validateStyleTag(xMsg.getPayload()))
+								? xMsg.getPayload().getStylingTag() : null;
     	
     	if(stylingTag != null) {
     		if(azureBlobService != null 
@@ -573,7 +574,26 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		        .build();
     }
 
-    /**
+	private boolean validateStyleTag(XMessagePayload payload) {
+		if(payload.getButtonChoices() != null){
+			if(payload.getStylingTag().equals(StylingTag.LIST) &&
+				payload.getButtonChoices().size() > 10){
+				return false;
+			}
+			else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN) &&
+					payload.getButtonChoices().size() > 3){
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+		else {
+			return true;
+		}
+	}
+
+	/**
      * Convert Message Choices to Text
      * @param buttonChoices
      * @return
