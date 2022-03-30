@@ -262,7 +262,18 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
                     getMediaFile(id);
     		if(response != null) {
-        		String file = azureBlobService.uploadFileFromInputStream(response, mime_type, messageId);
+				// if file size is greater than 5MB than discard the file
+				try {
+					if(response.readAllBytes().length > 5 * 1024 * 1024){
+						log.info("file size is greater than 5mb : " + response.readAllBytes().length);
+						result.put("name","");
+						result.put("url","");
+						return result;
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				String file = azureBlobService.uploadFileFromInputStream(response, mime_type, messageId);
         		name = file;
         		url = azureBlobService.getFileSignedUrl(file);
         		log.info("azure file name: "+name+", url: "+url);
@@ -481,7 +492,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	    			.attachment_type(attachmentType.toString())
     	    			.build();
 
-	    if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
+		if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
 	    	if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty()){
 				xMsg.getPayload().setMediaCaption(stylingTag.toString());
 			}
@@ -507,10 +518,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	if(stylingTag != null) {
     		if(azureBlobService != null 
     				&& (
-    					((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
-                    		&& xMsg.getPayload().getMediaCaption() != null
-                    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) 
-    					|| (stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))
+						stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)
+    					|| stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)
             		)
             ) {
     			//IMAGE/AUDIO/VIDEO/DOCUMENT
