@@ -1,8 +1,5 @@
 package com.uci.adapter.netcore.whatsapp;
 
-import com.azure.core.util.BinaryData;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Iterables;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreLocation;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.MessageType;
@@ -32,29 +29,21 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Getter
@@ -189,13 +178,14 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private MessageMedia getInboundMediaMessage(NetcoreWhatsAppMessage message) {
     	Map<String, Object> mediaInfo = getMediaInfo(message);
-    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
+    	Map<String, Object> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
     	MessageMedia media = new MessageMedia();
     	media.setText(mediaData.get("name").toString());
     	media.setUrl(mediaData.get("url").toString());
     	media.setCategory((MediaCategory) mediaInfo.get("category"));
-    	
-    	return media;
+		media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
+		media.setSize((Double) mediaData.get("size"));
+		return media;
     }
     
     /**
@@ -252,8 +242,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    private Map<String, String> uploadInboundMediaFile(String messageId, String id, String mime_type) {
-    	Map<String, String> result = new HashMap();
+    private Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+    	Map<String, Object> result = new HashMap();
     	
     	String name = "";
     	String url = "";
@@ -261,24 +251,31 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     		log.info("Get netcore media by id:"+id);
     		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
                     getMediaFile(id);
-    		if(response != null) {
+
+			if(response != null) {
 				// if file size is greater than 5MB than discard the file
 				try {
-					if(response.readAllBytes().length > 5 * 1024 * 1024){
-						log.info("file size is greater than 5mb : " + response.readAllBytes().length);
+					Integer maxSizeForMedia = Integer.parseInt(System.getenv("MAX_SIZE_FOR_MEDIA"));
+					result.put("size", Double.valueOf(response.readAllBytes().length));
+					if(response.readAllBytes().length > maxSizeForMedia){
+						log.info("file size is greater than " + maxSizeForMedia + " : " + response.readAllBytes().length);
 						result.put("name","");
 						result.put("url","");
+						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
 						return result;
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
+
 				String file = azureBlobService.uploadFileFromInputStream(response, mime_type, messageId);
         		name = file;
         		url = azureBlobService.getFileSignedUrl(file);
         		log.info("azure file name: "+name+", url: "+url);
     		} else {
         		log.info("response is empty");
+				result.put("size", 0d);
+				result.put("error", MessageMediaError.EMPTY_RESPONSE);
         	}
     	}
     	result.put("name", name);
@@ -512,7 +509,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private SingleMessage getOutboundSingleMessage(XMessage xMsg, String phoneNo) {
     	String source = System.getenv("NETCORE_WHATSAPP_SOURCE");
-    	StylingTag stylingTag = (xMsg.getPayload().getStylingTag() != null && validateStyleTag(xMsg.getPayload()))
+    	StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
 								? xMsg.getPayload().getStylingTag() : null;
     	
     	if(stylingTag != null) {
@@ -534,7 +531,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     			        	getOutboundMediaContent(xMsg, stylingTag)
     			        })
     			        .build();
-    		} else if(isStylingTagInterativeType(stylingTag)) {
+    		} else if(isStylingTagInterativeType(stylingTag) && validateInteractiveStylingTag(xMsg.getPayload())) {
     			//Menu List & Quick Reply Buttons
         		return SingleMessage
     			        .builder()
@@ -583,22 +580,38 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		        .build();
     }
 
-	private boolean validateStyleTag(XMessagePayload payload) {
-		if(payload.getButtonChoices() != null){
-			if(payload.getStylingTag().equals(StylingTag.LIST) &&
-				payload.getButtonChoices().size() > 10){
-				return false;
+	/**
+	 * validation for Interactive Styling Tag
+	 * @Param XMessagePayload
+	 * @return Boolean
+	 */
+	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
+
+		String regx = "^[A-Za-z0-9 _]+$";
+		if(payload.getStylingTag().equals(StylingTag.LIST)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 10
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 24 || !Pattern.matches(regx, buttonChoice.getText()))
+					return false;
 			}
-			else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN) &&
-					payload.getButtonChoices().size() > 3){
-				return false;
-			}
-			else {
-				return true;
-			}
-		}
-		else {
 			return true;
+		}
+
+		else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 3
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 20 || buttonChoice.getKey().length() > 256 || !Pattern.matches(regx, buttonChoice.getText()))
+					return false;
+			}
+			return true;
+		}
+
+		else{
+			return false;
 		}
 	}
 

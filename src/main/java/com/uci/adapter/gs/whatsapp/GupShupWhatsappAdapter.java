@@ -29,15 +29,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import messagerosa.core.model.ButtonChoice;
-import messagerosa.core.model.LocationParams;
-import messagerosa.core.model.MediaCategory;
-import messagerosa.core.model.MessageId;
-import messagerosa.core.model.MessageMedia;
-import messagerosa.core.model.SenderReceiverInfo;
-import messagerosa.core.model.StylingTag;
-import messagerosa.core.model.XMessage;
-import messagerosa.core.model.XMessagePayload;
+import messagerosa.core.model.*;
 
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +45,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 @Getter
 @Setter
@@ -196,7 +189,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	media.setText(mediaData.get("name").toString());
     	media.setUrl(mediaData.get("url").toString());
     	media.setCategory((MediaCategory) mediaInfo.get("category"));
-    	
+
     	return media;
     }
     
@@ -458,9 +451,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                                     plainText = false;
                             	}
                             }
-                    	} else if(stylingTag.equals(StylingTag.LIST)
-								&& xMsg.getPayload().getButtonChoices() != null
-								&& xMsg.getPayload().getButtonChoices().size() <= 10) {
+                    	} else if(stylingTag.equals(StylingTag.LIST) && validateInteractiveStylingTag(xMsg.getPayload())) {
 							String content = getOutboundListActionContent(xMsg);
                			 	log.info("list content:  "+content);
                     		if(!content.isEmpty()) {
@@ -469,9 +460,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     			builder.queryParam("msg", text);
                     			plainText = false;
                     		}
-                    	} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN)
-								&& xMsg.getPayload().getButtonChoices() != null
-								&& xMsg.getPayload().getButtonChoices().size() <= 3) {
+                    	} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN) && validateInteractiveStylingTag(xMsg.getPayload())) {
                     		String content = getOutboundQRBtnActionContent(xMsg);
                			 	log.info("QR btn content:  "+content);
                     		if(!content.isEmpty()) {
@@ -511,8 +500,37 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
             }
         });
     }
-    
-    /**
+
+	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
+		String regx = "^[A-Za-z0-9 _]+$";
+		if(payload.getStylingTag().equals(StylingTag.LIST)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 10
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 24 || !Pattern.matches(regx, buttonChoice.getText()))
+					return false;
+			}
+			return true;
+		}
+
+		else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 3
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 20 || buttonChoice.getKey().length() > 256 || !Pattern.matches(regx, buttonChoice.getText()))
+					return false;
+			}
+			return true;
+		}
+
+		else{
+			return false;
+		}
+	}
+
+	/**
      * Get Content for a List Action for outbound message
      * @param xMsg
      * @return
