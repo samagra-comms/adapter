@@ -39,8 +39,10 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
+import javax.imageio.ImageIO;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URL;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -188,8 +190,10 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	MessageMedia media = new MessageMedia();
     	media.setText(mediaData.get("name").toString());
     	media.setUrl(mediaData.get("url").toString());
-    	media.setCategory((MediaCategory) mediaInfo.get("category"));
-
+		media.setCategory((MediaCategory) mediaInfo.get("category"));
+		if(mediaData.get("url").isEmpty())
+			media.setMessageMediaError(MessageMediaError.EMPTY_RESPONSE);
+		//TODO: store media file size in media
     	return media;
     }
     
@@ -264,7 +268,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	String url = "";
     	if(!mediaUrl.isEmpty()) {
     		name = azureBlobService.uploadFile(mediaUrl, mime_type, messageId);
-    		url = azureBlobService.getFileSignedUrl(name);
+    		if(name != null && !name.isEmpty())
+				url = azureBlobService.getFileSignedUrl(name);
     	}
     	
     	result.put("name", name);
@@ -432,11 +437,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                     
                     if(stylingTag != null) {
                     	if(isStylingTagMediaType(stylingTag) && azureBlobService != null) {
-                    		if((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) 
-                            		&& xMsg.getPayload().getMediaCaption() != null
-                            		&& !xMsg.getPayload().getMediaCaption().isEmpty()
-                            ) {
-                            	String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+                    		if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
+								if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
+									xMsg.getPayload().setMediaCaption(stylingTag.toString());
+
+								String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
                             	if(!signedUrl.isEmpty()) {
                                 	builder.queryParam("media_url", signedUrl);
                                     builder.queryParam("caption", xMsg.getPayload().getMediaCaption());

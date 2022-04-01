@@ -35,6 +35,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Timestamp;
@@ -247,37 +248,37 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	
     	String name = "";
     	String url = "";
-    	if(!id.isEmpty() && !mime_type.isEmpty()) {
-    		log.info("Get netcore media by id:"+id);
-    		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
-                    getMediaFile(id);
 
-			if(response != null) {
-				// if file size is greater than 5MB than discard the file
-				try {
-					Integer maxSizeForMedia = Integer.parseInt(System.getenv("MAX_SIZE_FOR_MEDIA"));
-					result.put("size", Double.valueOf(response.readAllBytes().length));
-					if(response.readAllBytes().length > maxSizeForMedia){
-						log.info("file size is greater than " + maxSizeForMedia + " : " + response.readAllBytes().length);
-						result.put("name","");
-						result.put("url","");
+		if(!id.isEmpty() && !mime_type.isEmpty()) {
+			try {
+				log.info("Get netcore media by id:" + id);
+				byte[] responseBytes = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+						getMediaFile(id).readAllBytes();
+
+				if (responseBytes != null) {
+					// if file size is greater than MAX_SIZE_FOR_MEDIA than discard the file
+					int maxSizeForMedia = Integer.parseInt(System.getenv("MAX_SIZE_FOR_MEDIA"));
+					result.put("size", (double) responseBytes.length);
+
+					if (responseBytes.length <= maxSizeForMedia) {
+						String file = azureBlobService.uploadFileFromInputStream(new ByteArrayInputStream(responseBytes), mime_type, messageId);
+						name = file;
+						url = azureBlobService.getFileSignedUrl(file);
+						log.info("azure file name: " + name + ", url: " + url);
+					} else{
+						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
 						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
-						return result;
 					}
-				} catch (IOException e) {
+
+				} else {
+					log.info("response is empty");
+					result.put("size", 0d);
+					result.put("error", MessageMediaError.EMPTY_RESPONSE);
+				}
+			} catch (IOException e) {
 					e.printStackTrace();
 				}
-
-				String file = azureBlobService.uploadFileFromInputStream(response, mime_type, messageId);
-        		name = file;
-        		url = azureBlobService.getFileSignedUrl(file);
-        		log.info("azure file name: "+name+", url: "+url);
-    		} else {
-        		log.info("response is empty");
-				result.put("size", 0d);
-				result.put("error", MessageMediaError.EMPTY_RESPONSE);
-        	}
-    	}
+			}
     	result.put("name", name);
     	result.put("url", url);
     	
