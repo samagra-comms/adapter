@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserRequestMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserResponse;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
+import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.SendMessageResponse;
 import okhttp3.*;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -125,6 +126,43 @@ public class NewNetcoreService {
                             System.out.println("DATA RESPONSE " + sendMessageResponse.getData());
                             return sendMessageResponse;
                         } else {
+                            return null;
+                        }
+                    }
+                }).doOnError(new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) {
+                        System.out.println("ERROR IS " + throwable.getLocalizedMessage());
+                    }
+                });
+    }
+    
+    public Mono<SendMessageResponse> sendOutboundOptInOutMessage(OutboundOptInOutMessage outboundMessage) {
+    	ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+    	try {
+			String json = ow.writeValueAsString(outboundMessage);
+			System.out.println("json:"+json);
+		} catch (JsonProcessingException e) {
+			System.out.println("json not converted:"+e.getMessage());
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+        return webClient.post()
+                .uri("/consent/manage")
+                .body(Mono.just(outboundMessage), OutboundOptInOutMessage.class)
+                .retrieve()
+                .bodyToMono(SendMessageResponse.class)
+                .map(new Function<SendMessageResponse, SendMessageResponse>() {
+                    @Override
+                    public SendMessageResponse apply(SendMessageResponse sendMessageResponse) {
+                        if (sendMessageResponse != null) {
+                            System.out.println("sendOutboundOptInOutMessage MESSAGE RESPONSE " + sendMessageResponse.getMessage());
+                            System.out.println("sendOutboundOptInOutMessage STATUS RESPONSE " + sendMessageResponse.getStatus());
+                            System.out.println("sendOutboundOptInOutMessage DATA RESPONSE " + sendMessageResponse.getData());
+                            return sendMessageResponse;
+                        } else {
+                        	System.out.println("sendOutboundOptInOutMessage response is null.");
                             return null;
                         }
                     }

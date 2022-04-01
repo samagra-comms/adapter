@@ -6,6 +6,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.MessageType;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.SendMessageResponse;
 import com.uci.adapter.netcore.whatsapp.outbound.SingleMessage;
+import com.uci.adapter.netcore.whatsapp.outbound.SingleOptInOutMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.Text;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.Action;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.InteractiveContent;
@@ -16,6 +17,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyBut
 import com.uci.adapter.netcore.whatsapp.outbound.media.Attachment;
 import com.uci.adapter.netcore.whatsapp.outbound.media.AttachmentType;
 import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
+import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.utils.BotService;
@@ -552,9 +554,11 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
 	    if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
 	    	// OPT in user
+	    	optInUser(phoneNo);
 	    	text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
 	    } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
 	    	// OPT in user
+	    	optInUser(phoneNo);
 	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
 	    } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
 	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
@@ -579,6 +583,56 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		        .header("custom_data")
 		        .text(texts)
 		        .build();
+    }
+    
+    /**
+     * Opt in a user
+     * @param phoneNo
+     */
+    private void optInUser(String phoneNo) {
+    	SingleOptInOutMessage message = SingleOptInOutMessage
+									        .builder()
+									        .from("WEB")
+									        .to(phoneNo)
+									        .build();
+    	
+    	optInOutUser("optin", message);
+    }
+    
+    /**
+     * Opt out a user
+     * @param phoneNo
+     */
+    private void optOutUser(String phoneNo) {
+    	SingleOptInOutMessage message = SingleOptInOutMessage
+									        .builder()
+									        .from("WEB")
+									        .to(phoneNo)
+									        .build();
+    	optInOutUser("optout", message);
+    }
+    
+    /**
+     * Opt in/out a user
+     * @param type
+     * @param message
+     */
+    private void optInOutUser(String type, SingleOptInOutMessage message) {
+        NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+                sendOutboundOptInOutMessage(OutboundOptInOutMessage.builder().type(type).recipients(new SingleOptInOutMessage[]{message}).build()).map(new Function<SendMessageResponse, Boolean>() {
+            @Override
+            public Boolean apply(SendMessageResponse sendMessageResponse) {
+                if(sendMessageResponse != null){
+                	if(sendMessageResponse.getStatus().equals("success")) {
+                		log.info("Netcore Outbound Api - Opt IN/OUT Success Response.");
+                		return true;
+                	} else {
+                		log.error("Netcore Outbound Api - Opt IN/OUT Error Response: "+sendMessageResponse.getError().getMessage());
+                	}
+                }
+                return false;
+            }
+        }).subscribe();
     }
 
 	/**
