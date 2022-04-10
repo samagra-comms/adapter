@@ -17,6 +17,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyButton;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.dao.models.XMessageDAO;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.dao.utils.XMessageDAOUtils;
@@ -81,6 +82,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     
     @Autowired
     private AzureBlobService azureBlobService;
+
+	@Autowired
+	private MediaSizeLimit mediaSizeLimit;
 
     /**
      * Convert Inbound Gupshup Message To XMessage
@@ -263,11 +267,12 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
     	Map<String, String> result = new HashMap();
-    	
+
+		Double maxSizeFOrMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type);
     	String name = "";
     	String url = "";
     	if(!mediaUrl.isEmpty()) {
-    		name = azureBlobService.uploadFile(mediaUrl, mime_type, messageId);
+    		name = azureBlobService.uploadFile(mediaUrl, mime_type, messageId, maxSizeFOrMedia);
     		if(name != null && !name.isEmpty())
 				url = azureBlobService.getFileSignedUrl(name);
     	}
