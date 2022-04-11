@@ -25,7 +25,6 @@ import java.util.*;
 @Slf4j
 @Service
 @Qualifier("gupshupSMSAdapter")
-@Builder
 public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
 
     private String gsApiKey = "test";
