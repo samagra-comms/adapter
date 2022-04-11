@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.notNull;
 
-@Slf4j
+//@Slf4j
 @ExtendWith(MockitoExtension.class)
 class NetcoreServiceTest {
 
