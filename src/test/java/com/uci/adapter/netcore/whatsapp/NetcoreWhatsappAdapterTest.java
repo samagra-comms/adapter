@@ -75,8 +75,6 @@ class NetcoreWhatsappAdapterTest {
 		xmsg.log().subscribe(System.out::println,
 				(e) -> System.err.println("---------------Exception occured in converting Message to XMessage-------------: " + e),
 				() -> System.out.println("------------Convert Message to XMessage completed-----------"));
-
-//    	StepVerifier.create(xmsg.log()).verifyComplete();
     }
     
     @Test
@@ -97,10 +95,6 @@ class NetcoreWhatsappAdapterTest {
                  * as we need this to send messaes to netcore, and recieve its response
                  */
 				Mono<XMessage> response = adapter.processOutBoundMessageF(xmsg);
-
-//                response.log().subscribe(System.out::println,
-//                        (e) -> System.err.println("---------------Exception occured in Processing Outbound Message -------------: " + e),
-//                        () -> System.out.println("------------Process Outbound Message completed-----------"));
 
                 StepVerifier.create(response.log()).expectNext(xmsg).verifyComplete();
 			} catch (Exception e) {
