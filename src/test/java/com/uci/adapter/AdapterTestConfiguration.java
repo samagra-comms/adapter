@@ -3,7 +3,10 @@ package com.uci.adapter;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.mockito.Mock;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -18,34 +21,28 @@ import com.uci.utils.kafka.SimpleProducer;
 import io.fusionauth.client.FusionAuthClient;
 
 public class AdapterTestConfiguration {
-	@Value("${campaign.url}")
-    public String CAMPAIGN_URL;
-    
-	@Value("${campaign.admin.token}")
-	private String CAMPAIGN_ADMIN_TOKEN;
-	
-	@Value("${fusionauth.url}")
-	private String fusionAuthUrl;
-
-	@Value("${fusionauth.key}")
-	private String fusionAuthKey;
-
-	@Value("${spring.kafka.bootstrap-servers}")
-    private String BOOTSTRAP_SERVERS;    
-	
 	@Bean
 	public WebClient getWebClient() {
-		return WebClient.builder().baseUrl(CAMPAIGN_URL).defaultHeader("admin-token", CAMPAIGN_ADMIN_TOKEN).build();
+		return WebClient.builder().baseUrl("CAMPAIGN_URL").defaultHeader("admin-token", "admin-token").build();
 	}
 	
 	@Bean
 	public FusionAuthClient getFusionAuthClient() {
-		return new FusionAuthClient(fusionAuthKey, fusionAuthUrl);
+		return new FusionAuthClient("fa-auth-key", "fa-auth-url");
 	}
-	
+
+	@Autowired
+	private WebClient webClient;
+
+	@Autowired
+	private FusionAuthClient fusionAuthClient;
+
+	@Mock
+	private Cache cache;
+
 	@Bean
     public BotService botService() {
-        return new BotService(getWebClient(), getFusionAuthClient());
+        return new BotService(webClient, fusionAuthClient, cache);
     }
 	
 //	@Bean
