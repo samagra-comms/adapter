@@ -125,3 +125,4 @@ jobs:
         run: |
           cat $GITHUB_WORKSPACE/settings.xml
           mvn clean -DskipTests -s $GITHUB_WORKSPACE/settings.xml -Pgithub deploy
+          
