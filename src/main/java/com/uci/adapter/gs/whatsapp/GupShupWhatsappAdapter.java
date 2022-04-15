@@ -261,7 +261,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    private Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
+    public Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
     	Map<String, String> result = new HashMap();
     	
     	String name = "";
@@ -392,7 +392,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
     	log.info("processOutBoundMessageF nextXmsg {}", xMsg.toXML());
-    	return botservice.getGupshupAdpaterCredentials(xMsg.getAdapterId()).map(new Function<Map<String, String>, XMessage>() {
+    	return botservice
+				.getGupshupAdpaterCredentials(xMsg.getAdapterId())
+				.map(new Function<Map<String, String>, XMessage>() {
             @Override
             public XMessage apply(Map<String, String> credentials) {
 

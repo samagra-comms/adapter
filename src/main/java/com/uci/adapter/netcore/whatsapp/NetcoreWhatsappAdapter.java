@@ -20,6 +20,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.utils.BotService;
 import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.bot.util.FileUtil;
@@ -39,7 +40,6 @@ import reactor.core.publisher.Mono;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -64,6 +64,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     
     @Autowired
     private AzureBlobService azureBlobService;
+
+	@Autowired
+	private MediaSizeLimit mediaSizeLimit;
 
     /**
      * Convert Inbound Netcore Message To XMessage
@@ -166,7 +169,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param type
      * @return
      */
-    private Boolean isInboundMediaMessage(String type) {
+	Boolean isInboundMediaMessage(String type) {
     	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO") 
     			|| type.equals("VOICE") || type.equals("DOCUMENT")) {
     		return true;
@@ -245,7 +248,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    private Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+    public Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
     	Map<String, Object> result = new HashMap();
     	
     	String name = "";
@@ -259,17 +262,18 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
 				if (responseBytes != null) {
 					// if file size is greater than MAX_SIZE_FOR_MEDIA than discard the file
-					int maxSizeForMedia = Integer.parseInt(System.getenv("MAX_SIZE_FOR_MEDIA"));
+					Double maxSizeForMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type) ;
 					result.put("size", (double) responseBytes.length);
 
-					if (responseBytes.length <= maxSizeForMedia) {
+					log.info("yash : maxSizeForMedia, " + maxSizeForMedia + " actualSizeOfMedia, " + responseBytes.length);
+					if (maxSizeForMedia != null && responseBytes.length > maxSizeForMedia) {
+						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
+						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
+					} else{
 						String file = azureBlobService.uploadFileFromInputStream(new ByteArrayInputStream(responseBytes), mime_type, messageId);
 						name = file;
 						url = azureBlobService.getFileSignedUrl(file);
 						log.info("azure file name: " + name + ", url: " + url);
-					} else{
-						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
-						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
 					}
 
 				} else {
@@ -382,28 +386,37 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) {
     	String phoneNo = "91" +xMsg.getTo().getUserID();
         SingleMessage message = getOutboundSingleMessage(xMsg, phoneNo);
-        
-        return NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
-                sendOutboundMessage(OutboundMessage.builder().message(new SingleMessage[]{message}).build()).map(new Function<SendMessageResponse, XMessage>() {
-            @Override
-            public XMessage apply(SendMessageResponse sendMessageResponse) {
-                if(sendMessageResponse != null){
-                	if(sendMessageResponse.getStatus().equals("success")) {
-                		xMsg.setMessageId(MessageId.builder().channelMessageId(sendMessageResponse.getData().getIdentifier()).build());
-                        xMsg.setMessageState(XMessage.MessageState.SENT);
-                	} else {
-                		log.error("Netcore Outbound Api Error Response: "+sendMessageResponse.getError().getMessage());
-                		return null;
-                	}
-                }
-                return xMsg;
-            }
-        });
 
+		NWCredentials credentials = new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"));
+        NewNetcoreService netcoreService = NewNetcoreService.getInstance(credentials);
+		OutboundMessage outboundMessage = OutboundMessage
+												.builder()
+												.message(new SingleMessage[]{message})
+												.build();
+		return sendOutboundMessage(outboundMessage, netcoreService, xMsg);
 
     }
-    
-    /**
+
+	public Mono<XMessage> sendOutboundMessage(OutboundMessage outboundMessage, NewNetcoreService netcoreService, XMessage xMsg) {
+		Mono<SendMessageResponse> sendMessageResponse = netcoreService.sendOutboundMessage(outboundMessage);
+		return sendMessageResponse.map(new Function<SendMessageResponse, XMessage>() {
+			@Override
+			public XMessage apply(SendMessageResponse sendMessageResponse) {
+				if(sendMessageResponse != null){
+					if(sendMessageResponse.getStatus().equals("success")) {
+						xMsg.setMessageId(MessageId.builder().channelMessageId(sendMessageResponse.getData().getIdentifier()).build());
+						xMsg.setMessageState(XMessage.MessageState.SENT);
+					} else {
+						log.error("Netcore Outbound Api Error Response: "+sendMessageResponse.getError().getMessage());
+						return null;
+					}
+				}
+				return xMsg;
+			}
+		});
+	}
+
+	/**
      * Get Interactive Content object for Outbound Single Message object
      * @param xMsg
      * @param stylingTag
