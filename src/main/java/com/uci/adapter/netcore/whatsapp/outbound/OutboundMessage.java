@@ -1,6 +1,7 @@
 package com.uci.adapter.netcore.whatsapp.outbound;
 
 import lombok.*;
+import org.json.JSONObject;
 
 @Getter
 @Setter
