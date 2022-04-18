@@ -40,12 +40,12 @@ jobs:
                 "id": "github-utils",
                 "username": "${env.GITHUB_USERNAME}",
                 "password": "${env.GITHUB_TOKEN}"
-              }
+              },
               {
                 "id": "github-dao",
                 "username": "${env.GITHUB_USERNAME}",
                 "password": "${env.GITHUB_TOKEN}"
-              },
+              }
             ]
           output_file: $GITHUB_WORKSPACE/settings.xml
         env:
