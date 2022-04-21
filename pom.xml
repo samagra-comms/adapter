@@ -12,6 +12,7 @@
 	<groupId>com.uci</groupId>
 	<artifactId>adapter</artifactId>
 	<version>0.0.1</version>
+	<!-- On changing, Set version in deploy.xml to delete the previous packages if exists and deploy new package for the specified version -->
 	<name>adapter</name>
 	<packaging>jar</packaging>
 	<description>adapter</description>

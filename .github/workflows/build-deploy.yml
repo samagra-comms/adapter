@@ -110,12 +110,14 @@ jobs:
           GITHUB_USERNAME: ${{ secrets.USERNAME }}
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
-      # - name: Delete previous build if present
-      #   uses: actions/delete-package-versions@v3
-      #   with: 
-      #     min-versions-to-keep: 0
-      #     package-name: 'com.uci.adapter'
-      #     token: ${{ secrets.TOKEN }}
+      - name: Delete package specific version
+        uses: smartsquaregmbh/delete-old-packages@v0.4.0
+        with:
+          version: 0.0.1 # This should be same as in the pom.xml file, 
+                          # to delete only the pom specified version, not the other older versions
+          names: |
+            com.uci.adapter
+          token: ${{ secrets.TOKEN }}
 
       - name: Deploy
         env:
