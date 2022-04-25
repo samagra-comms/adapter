@@ -40,6 +40,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -169,7 +170,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param type
      * @return
      */
-	Boolean isInboundMediaMessage(String type) {
+    private Boolean isInboundMediaMessage(String type) {
     	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO") 
     			|| type.equals("VOICE") || type.equals("DOCUMENT")) {
     		return true;
@@ -248,7 +249,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    public Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+    private Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
     	Map<String, Object> result = new HashMap();
     	
     	String name = "";
@@ -265,7 +266,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 					Double maxSizeForMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type) ;
 					result.put("size", (double) responseBytes.length);
 
-					log.info("yash : maxSizeForMedia, " + maxSizeForMedia + " actualSizeOfMedia, " + responseBytes.length);
 					if (maxSizeForMedia != null && responseBytes.length > maxSizeForMedia) {
 						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
 						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
@@ -290,7 +290,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	
     	return result;
     }
-    
+
     /**
      * Get XMessage Payload Location params for inbound Location 
      * @param message
