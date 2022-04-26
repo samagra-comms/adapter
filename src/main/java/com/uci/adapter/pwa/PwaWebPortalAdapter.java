@@ -41,8 +41,6 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
     private String assesOneLevelUpChar;
     private String assesGoToStartChar;
     
-//    private final static String outboundUrl = "http://transport-socket-4.ngrok.samagra.io";
-
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException {
