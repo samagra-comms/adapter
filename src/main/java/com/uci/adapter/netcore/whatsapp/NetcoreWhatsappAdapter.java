@@ -170,7 +170,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param type
      * @return
      */
-    private Boolean isInboundMediaMessage(String type) {
+	protected Boolean isInboundMediaMessage(String type) {
     	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO") 
     			|| type.equals("VOICE") || type.equals("DOCUMENT")) {
     		return true;
@@ -249,7 +249,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    private Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+	protected Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
     	Map<String, Object> result = new HashMap();
     	
     	String name = "";
