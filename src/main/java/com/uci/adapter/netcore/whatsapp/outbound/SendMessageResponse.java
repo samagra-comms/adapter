@@ -24,4 +24,17 @@ public class SendMessageResponse {
     private String message;
 
     private Data data;
+    
+    @Getter
+    @Setter
+    public class Error {
+
+        @JsonAlias({"code"})
+        private String code;
+        
+        @JsonAlias({"message"})
+        private String message;
+    }
+    
+    private Error error;
 }

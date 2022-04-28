@@ -56,13 +56,31 @@ public class NetcoreWhatsAppMessage extends CommonMessage {
   private String source;
 
   @Nullable
-  private NetcoreInboundFile image;
-  private NetcoreInboundFile document;
-  private NetcoreInboundFile voice;
-  private NetcoreInboundFile audio;
-  private NetcoreInboundFile video;
-  private String location;
+  @JsonAlias({"image_type"})
+  private NetcoreInboundFile imageType;
+ 
+  @JsonAlias({"document_type"})
+  private NetcoreInboundFile documentType;
+  
+  @JsonAlias({"voice_type"})
+  private NetcoreInboundFile voiceType;
+  
+  @JsonAlias({"audio_type"})
+  private NetcoreInboundFile audioType;
+  
+  @JsonAlias({"video_type"})
+  private NetcoreInboundFile videoType;
+  
+//  private String location;
   private String response;
   private String extra;
   private String app;
+  
+  @Nullable
+  @JsonAlias({"location_type"})
+  private NetcoreLocation location;
+  
+  @Nullable
+  @JsonAlias({"interactive_type"})
+  private InteractiveContent interativeContent; 
 }
