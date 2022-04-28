@@ -2,6 +2,7 @@ package com.uci.adapter;
 
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -28,7 +29,7 @@ public class AdapterTestConfiguration {
 	private FusionAuthClient fusionAuthClient;
 
 	@Mock
-	private CaffeineCacheManager cacheManager;
+	private CacheManager cacheManager;
 
 	@Bean
     public BotService botService() {
