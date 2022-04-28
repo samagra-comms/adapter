@@ -1,22 +1,12 @@
 package com.uci.adapter;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import com.github.benmanes.caffeine.cache.Cache;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import com.uci.utils.BotService;
-import com.uci.utils.CampaignService;
-import com.uci.utils.kafka.SimpleProducer;
 
 import io.fusionauth.client.FusionAuthClient;
 
@@ -38,11 +28,11 @@ public class AdapterTestConfiguration {
 	private FusionAuthClient fusionAuthClient;
 
 	@Mock
-	private Cache cache;
+	private CaffeineCacheManager cacheManager;
 
 	@Bean
     public BotService botService() {
-        return new BotService(webClient, fusionAuthClient, cache);
+        return new BotService(webClient, fusionAuthClient, cacheManager);
     }
 	
 //	@Bean
