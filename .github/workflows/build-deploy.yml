@@ -3,8 +3,11 @@ on:
   push:
     tags:
       - 'v*.*.*'
-    branches: 
-      - '*'
+    branches:
+      ["release-4.9.0"]
+  pull_request:
+    branches:
+      ["release-4.9.0"]
       
 jobs:
   build-deploy-github:
