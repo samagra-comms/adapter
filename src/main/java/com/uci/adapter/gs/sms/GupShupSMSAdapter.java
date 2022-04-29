@@ -34,14 +34,18 @@ import java.util.*;
 @Qualifier("gupshupSMSAdapter")
 public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
 
-    private String gsApiKey = "test";
-
     @Autowired
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
     private final static String GUPSHUP_SMS_OUTBOUND = "http://enterprise.smsgupshup.com/GatewayAPI/rest";
 
+    /**
+     * Convert Gupshsup Message Format to XMessage Format for inbound
+     * @param message
+     * @return
+     * @throws JAXBException
+     */
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException{
         return null;
@@ -53,11 +57,23 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
 //        callOutBoundAPI(xMsg);
 //    }
 
+    /**
+     * Process outbound message - send outbound message & Mono xmsg
+     * @param xMsg
+     * @return
+     * @throws Exception
+     */
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
         return Mono.just(callOutBoundAPI(xMsg));
     }
 
+    /**
+     * Call gupshup sms outbound sms to send sms message to user & return xmsg
+     * @param xMsg
+     * @return
+     * @throws Exception
+     */
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_SMS_OUTBOUND);
 
@@ -90,13 +106,5 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
         xMsg.setMessageState(XMessage.MessageState.SENT);
 
         return xMsg;
-    }
-
-    private HttpHeaders getVerifyHttpHeader() throws Exception {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.add("Cache-Control", "no-cache");
-        headers.add("apikey", "8e455564878b4ca2ccb7b37f13ef9bfa");
-        return headers;
     }
 }
