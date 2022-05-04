@@ -50,7 +50,7 @@ public class ProviderFactory {
         	SunbirdWebPortalAdapter sunbirdAdapter = SunbirdWebPortalAdapter.builder().build();
             return sunbirdAdapter;
         } else if(provider.equals("pwa") && channel.toLowerCase().equals("web")){
-        	PwaWebPortalAdapter pwaAdapter = PwaWebPortalAdapter.builder().build();
+            PwaWebPortalAdapter pwaAdapter = PwaWebPortalAdapter.builder().build();
             return pwaAdapter;
         } else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter

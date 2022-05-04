@@ -1,9 +1,16 @@
 package com.uci.adapter.gs.sms;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uci.adapter.gs.sms.outbound.GupshupSMSResponse;
+import com.uci.adapter.gs.whatsapp.GSWhatsappOutBoundResponse;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.utils.GupShupUtills;
+
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import messagerosa.core.model.MessageId;
 import messagerosa.core.model.XMessage;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +21,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.*;
 
@@ -25,58 +34,77 @@ import java.util.*;
 @Qualifier("gupshupSMSAdapter")
 public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
 
-    private String gsApiKey = "test";
-
     @Autowired
     @Qualifier("rest")
     private RestTemplate restTemplate;
 
     private final static String GUPSHUP_SMS_OUTBOUND = "http://enterprise.smsgupshup.com/GatewayAPI/rest";
 
+    /**
+     * Convert Gupshsup Message Format to XMessage Format for inbound
+     * @param message
+     * @return
+     * @throws JAXBException
+     */
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException{
         return null;
     }
 
+    /* Not in use */
+//    @Override
+//    public void processOutBoundMessage(XMessage xMsg) throws Exception {
+//        callOutBoundAPI(xMsg);
+//    }
+
+    /**
+     * Process outbound message - send outbound message & Mono xmsg
+     * @param xMsg
+     * @return
+     * @throws Exception
+     */
     @Override
-    public void processOutBoundMessage(XMessage xMsg) throws Exception {
-        callOutBoundAPI(xMsg);
+    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
+        return Mono.just(callOutBoundAPI(xMsg));
     }
 
-    @Override
-    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        return null;
-    }
-
+    /**
+     * Call gupshup sms outbound sms to send sms message to user & return xmsg
+     * @param xMsg
+     * @return
+     * @throws Exception
+     */
     public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
-        HashMap<String, String> params = new HashMap<String, String>();
-        params.put("method", "SendMessage");
-        params.put("send_to", xMsg.getTo().getUserID());
-        params.put("msg",  xMsg.getPayload().getText());
-        params.put("msg_type", "Text");
-        params.put("userid", "2000164521");
-        params.put("auth_scheme", "plain");
-        params.put("password", "samagra_15");
-        params.put("v", "1.1");
-        params.put("format", "text");
-//        params.put("messageTemplate","%code% is your OTP for password reset.");
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_SMS_OUTBOUND);
 
-        String str2 =
-                URLEncodedUtils.format(GupShupUtills.hashMapToNameValuePairList(params), '&', Charset.defaultCharset());
+        builder.queryParam("method", "SendMessage");
+        builder.queryParam("send_to", xMsg.getTo().getUserID());
+        builder.queryParam("msg",  xMsg.getPayload().getText());
+        builder.queryParam("msg_type", "Text");
+        builder.queryParam("messageId", "123456781");
+        builder.queryParam("userid", "2000164521");
+        builder.queryParam("auth_scheme", "plain");
+        builder.queryParam("password", "samagra_15");
+        builder.queryParam("v", "1.1");
+        builder.queryParam("format", "json");
+        builder.queryParam("data_encoding", "text");
+        builder.queryParam("extra", "Samagra");
 
-        log.info("Question for user: {}", xMsg.getPayload().getText());
+        URI expanded = URI.create(builder.toUriString());
+        log.info(expanded.toString());
 
-        HttpEntity<String> request = new HttpEntity<String>(str2, getVerifyHttpHeader());
-        restTemplate.getMessageConverters().add(GupShupUtills.getMappingJackson2HttpMessageConverter());
-        log.info(" {}",restTemplate.postForObject(GUPSHUP_SMS_OUTBOUND, request, String.class));
-        return null;
-    }
+        RestTemplate restTemplate = new RestTemplate();
+        GupshupSMSResponse response = restTemplate.getForObject(expanded, GupshupSMSResponse.class);
+        try {
+            log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
+        } catch (JsonProcessingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            log.error("Error in callOutBoundAPI for objectmapper: "+e.getMessage());
+        }
+        xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+        xMsg.setMessageState(XMessage.MessageState.SENT);
 
-    private HttpHeaders getVerifyHttpHeader() throws Exception {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.add("Cache-Control", "no-cache");
-        headers.add("apikey", "8e455564878b4ca2ccb7b37f13ef9bfa");
-        return headers;
+        return xMsg;
     }
 }

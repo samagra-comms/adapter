@@ -1,14 +1,12 @@
 package com.uci.adapter.netcore.whatsapp;
 
-import com.azure.core.util.BinaryData;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Iterables;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreLocation;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.MessageType;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.SendMessageResponse;
 import com.uci.adapter.netcore.whatsapp.outbound.SingleMessage;
+import com.uci.adapter.netcore.whatsapp.outbound.SingleOptInOutMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.Text;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.Action;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.InteractiveContent;
@@ -19,8 +17,10 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyBut
 import com.uci.adapter.netcore.whatsapp.outbound.media.Attachment;
 import com.uci.adapter.netcore.whatsapp.outbound.media.AttachmentType;
 import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
+import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.utils.BotService;
 import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.bot.util.FileUtil;
@@ -32,29 +32,21 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Getter
@@ -73,7 +65,10 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     @Autowired
     private AzureBlobService azureBlobService;
 
-    /**
+	@Autowired
+	private MediaSizeLimit mediaSizeLimit;
+
+	/**
      * Convert Inbound Netcore Message To XMessage
      */
     @Override
@@ -189,13 +184,14 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private MessageMedia getInboundMediaMessage(NetcoreWhatsAppMessage message) {
     	Map<String, Object> mediaInfo = getMediaInfo(message);
-    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
+    	Map<String, Object> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("id").toString(), mediaInfo.get("mime_type").toString());
     	MessageMedia media = new MessageMedia();
     	media.setText(mediaData.get("name").toString());
     	media.setUrl(mediaData.get("url").toString());
     	media.setCategory((MediaCategory) mediaInfo.get("category"));
-    	
-    	return media;
+		media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
+		media.setSize((Double) mediaData.get("size"));
+		return media;
     }
     
     /**
@@ -252,30 +248,49 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    private Map<String, String> uploadInboundMediaFile(String messageId, String id, String mime_type) {
-    	Map<String, String> result = new HashMap();
+    private Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+    	Map<String, Object> result = new HashMap();
     	
     	String name = "";
     	String url = "";
-    	if(!id.isEmpty() && !mime_type.isEmpty()) {
-    		log.info("Get netcore media by id:"+id);
-    		InputStream response = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
-                    getMediaFile(id);
-    		if(response != null) {
-        		String file = azureBlobService.uploadFileFromInputStream(response, mime_type, messageId);
-        		name = file;
-        		url = azureBlobService.getFileSignedUrl(file);
-        		log.info("azure file name: "+name+", url: "+url);
-    		} else {
-        		log.info("response is empty");
-        	}
-    	}
+
+		if(!id.isEmpty() && !mime_type.isEmpty()) {
+			try {
+				log.info("Get netcore media by id:" + id);
+				byte[] responseBytes = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+						getMediaFile(id).readAllBytes();
+
+				if (responseBytes != null) {
+					// if file size is greater than MAX_SIZE_FOR_MEDIA than discard the file
+					Double maxSizeForMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type) ;
+					result.put("size", (double) responseBytes.length);
+
+					log.info("yash : maxSizeForMedia, " + maxSizeForMedia + " actualSizeOfMedia, " + responseBytes.length);
+					if (maxSizeForMedia != null && responseBytes.length > maxSizeForMedia) {
+						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
+						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
+					} else{
+						String file = azureBlobService.uploadFileFromInputStream(new ByteArrayInputStream(responseBytes), mime_type, messageId);
+						name = file;
+						url = azureBlobService.getFileSignedUrl(file);
+						log.info("azure file name: " + name + ", url: " + url);
+					}
+
+				} else {
+					log.info("response is empty");
+					result.put("size", 0d);
+					result.put("error", MessageMediaError.EMPTY_RESPONSE);
+				}
+			} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
     	result.put("name", name);
     	result.put("url", url);
     	
     	return result;
     }
-    
+
     /**
      * Get XMessage Payload Location params for inbound Location 
      * @param message
@@ -480,11 +495,12 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	    			.attachment_url(signedUrl)
     	    			.attachment_type(attachmentType.toString())
     	    			.build();
-	    
-	    if((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
-	    		&& xMsg.getPayload().getMediaCaption() != null 
-	    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) {
-	    	attachment.setCaption(xMsg.getPayload().getMediaCaption());
+
+		if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
+	    	if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty()){
+				xMsg.getPayload().setMediaCaption(stylingTag.toString());
+			}
+			attachment.setCaption(xMsg.getPayload().getMediaCaption());
 	    }
 	    
 	    return MediaContent.builder()
@@ -501,15 +517,13 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private SingleMessage getOutboundSingleMessage(XMessage xMsg, String phoneNo) {
     	String source = System.getenv("NETCORE_WHATSAPP_SOURCE");
     	StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
-				    			? xMsg.getPayload().getStylingTag() : null;
+								? xMsg.getPayload().getStylingTag() : null;
     	
     	if(stylingTag != null) {
     		if(azureBlobService != null 
     				&& (
-    					((stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT))
-                    		&& xMsg.getPayload().getMediaCaption() != null
-                    		&& !xMsg.getPayload().getMediaCaption().isEmpty()) 
-    					|| (stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO))
+						stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)
+    					|| stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)
             		)
             ) {
     			//IMAGE/AUDIO/VIDEO/DOCUMENT
@@ -524,7 +538,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     			        	getOutboundMediaContent(xMsg, stylingTag)
     			        })
     			        .build();
-    		} else if(isStylingTagInterativeType(stylingTag)) {
+    		} else if(isStylingTagInterativeType(stylingTag) && validateInteractiveStylingTag(xMsg.getPayload())) {
     			//Menu List & Quick Reply Buttons
         		return SingleMessage
     			        .builder()
@@ -544,9 +558,11 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
 	    if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
 	    	// OPT in user
+	    	optInUser(phoneNo);
 	    	text = xMsg.getPayload().getText() + renderMessageChoices(xMsg.getPayload().getButtonChoices());
 	    } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
 	    	// OPT in user
+	    	optInUser(phoneNo);
 	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
 	    } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
 	    	text = xMsg.getPayload().getText()+ renderMessageChoices(xMsg.getPayload().getButtonChoices());
@@ -572,8 +588,93 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		        .text(texts)
 		        .build();
     }
-
+    
     /**
+     * Opt in a user
+     * @param phoneNo
+     */
+    private void optInUser(String phoneNo) {
+    	SingleOptInOutMessage message = SingleOptInOutMessage
+									        .builder()
+									        .from("WEB")
+									        .to(phoneNo)
+									        .build();
+    	
+    	optInOutUser("optin", message);
+    }
+    
+    /**
+     * Opt out a user
+     * @param phoneNo
+     */
+    private void optOutUser(String phoneNo) {
+    	SingleOptInOutMessage message = SingleOptInOutMessage
+									        .builder()
+									        .from("WEB")
+									        .to(phoneNo)
+									        .build();
+    	optInOutUser("optout", message);
+    }
+    
+    /**
+     * Opt in/out a user
+     * @param type
+     * @param message
+     */
+    private void optInOutUser(String type, SingleOptInOutMessage message) {
+        NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+                sendOutboundOptInOutMessage(OutboundOptInOutMessage.builder().type(type).recipients(new SingleOptInOutMessage[]{message}).build()).map(new Function<SendMessageResponse, Boolean>() {
+            @Override
+            public Boolean apply(SendMessageResponse sendMessageResponse) {
+                if(sendMessageResponse != null){
+                	if(sendMessageResponse.getStatus().equals("success")) {
+                		log.info("Netcore Outbound Api - Opt IN/OUT Success Response.");
+                		return true;
+                	} else {
+                		log.error("Netcore Outbound Api - Opt IN/OUT Error Response: "+sendMessageResponse.getError().getMessage());
+                	}
+                }
+                return false;
+            }
+        }).subscribe();
+    }
+
+	/**
+	 * validation for Interactive Styling Tag
+	 * @Param XMessagePayload
+	 * @return Boolean
+	 */
+	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
+
+		String regx = "^[A-Za-z0-9 _]+$";
+		if(payload.getStylingTag().equals(StylingTag.LIST)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 10
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 24 || !Pattern.matches(regx, buttonChoice.getText()))
+					return false;
+			}
+			return true;
+		}
+
+		else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 3
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 20 || buttonChoice.getKey().length() > 256 || !Pattern.matches(regx, buttonChoice.getText()))
+					return false;
+			}
+			return true;
+		}
+
+		else{
+			return false;
+		}
+	}
+
+	/**
      * Convert Message Choices to Text
      * @param buttonChoices
      * @return
