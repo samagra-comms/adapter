@@ -1,6 +1,10 @@
 package com.uci.adapter.cdac;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
+import com.uci.adapter.netcore.whatsapp.outbound.SendMessageResponse;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.dao.models.XMessageDAO;
@@ -13,13 +17,18 @@ import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Slf4j
 @Qualifier("cdacSMSBulkAdapter")
@@ -38,6 +47,9 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
 
     @Autowired
     public BotService botService;
+
+    @Autowired
+    public CdacService cdacService;
 
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
@@ -61,16 +73,17 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
         return Mono.just("");
     }
 
-    @Override
-    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
-        XMessage xMsg = callOutBoundAPI(nextMsg, OUTBOUND, username, password);
-        XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
-        xmsgRepo.insert(dao);
-    }
+//    Current we are not using it
+//    @Override
+//    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
+//        XMessage xMsg = callOutBoundAPI(nextMsg, OUTBOUND, username, password);
+//        XMessageDAO dao = XMessageDAOUtils.convertXMessageToDAO(xMsg);
+//        xmsgRepo.insert(dao);
+//    }
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        return null;
+        return cdacService.callOutBoundAPI(nextMsg);
     }
 
     public static String trackMessage(String username, String password, String messageID, String baseURL) {
