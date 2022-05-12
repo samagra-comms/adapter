@@ -1,6 +1,5 @@
 package com.uci.adapter.cdac;
 
-import messagerosa.core.model.MessageId;
 import messagerosa.core.model.XMessage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,7 +14,7 @@ public class CdacService {
     @Value("${cdac.base.url}")
     private String baseUrl;
 
-    public Mono<XMessage> callOutBoundAPI(XMessage nextMsg) {
+    public Mono<String> callOutBoundAPI(XMessage nextMsg) {
         String phoneNo = nextMsg.getTo().getUserID();
         String message = nextMsg.getPayload().getText();
         message = message.trim();
@@ -31,18 +30,12 @@ public class CdacService {
                         .queryParam("templateid", templateId).build())
                 .retrieve()
                 .bodyToMono(String.class)
-                .map(new Function<String, XMessage>() {
+                .map(new Function<String, String>() {
                     @Override
-                    public XMessage apply(String response) {
+                    public String apply(String response) {
                         if (response != null && response.startsWith("402")) {
-                            System.out.println("MESSAGE RESPONSE " + response);
-                            String splitResponse[] = response.split(",");
-                            nextMsg.setMessageState(XMessage.MessageState.SENT);
-                            if (splitResponse[1] != null && !splitResponse[1].isEmpty()) {
-                                nextMsg.setMessageId(MessageId.builder().channelMessageId(splitResponse[1].replaceFirst("MsgID = ", "")).build());
-                            }
-                            return nextMsg;
-                        } else {
+                            return response;
+                        } else{
                             return null;
                         }
                     }
