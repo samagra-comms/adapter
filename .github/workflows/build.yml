@@ -2,10 +2,10 @@ name: Build on Push & Pull Request
 on: 
   push:
     branches:
-      ["release-4.9.0"]
+      ["release-4.9.0", "merged"]
   pull_request:
     branches:
-      ["release-4.9.0"]
+      ["release-4.9.0", "merged"]
 
 jobs:
   build:
