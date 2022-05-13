@@ -646,7 +646,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 	 */
 	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
 
-		String regx = "^[A-Za-z0-9 _()]+$";
+		String regx = "^[A-Za-z0-9 _(),+-.@#$%&*={}:;'<>]+$";
 		if(payload.getStylingTag().equals(StylingTag.LIST)
 				&& payload.getButtonChoices() != null
 				&& payload.getButtonChoices().size() <= 10

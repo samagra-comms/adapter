@@ -1,6 +1,8 @@
 package com.uci.adapter.pwa;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.pwa.web.outbound.PwaWebResponse;
@@ -81,6 +83,15 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         OutboundMessage outboundMessage = getOutboundMessage(xMsg);
         log.info("Sending final xmessage to transport socket :: " + xMsg.toXML());
         String url = System.getenv("PWA_TRANSPORT_SOCKET_BASE_URL")+"/botMsg/adapterOutbound";
+        ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+        try {
+            String json = ow.writeValueAsString(outboundMessage);
+            System.out.println("json:"+json);
+        } catch (JsonProcessingException e) {
+            System.out.println("json not converted:"+e.getMessage());
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         return PwaWebService.getInstance().
                 sendOutboundMessage(url, outboundMessage)
                 .map(new Function<PwaWebResponse, XMessage>() {

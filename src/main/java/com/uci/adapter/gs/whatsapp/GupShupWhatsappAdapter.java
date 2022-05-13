@@ -47,6 +47,7 @@ import java.net.URL;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -261,7 +262,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     /**
      * Upload media & get its url/name
      * @param messageId
-     * @param id
+     * @param mediaUrl
      * @param mime_type
      * @return
      */
@@ -397,123 +398,142 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
     	log.info("processOutBoundMessageF nextXmsg {}", xMsg.toXML());
-	String adapterIdFromXML = xMsg.getAdapterId();
+		String adapterIdFromXML = xMsg.getAdapterId();
         String adapterId = "44a9df72-3d7a-4ece-94c5-98cf26307324";
-            	
-	return botservice.getGupshupAdpaterCredentials(adapterId).map(new Function<Map<String, String>, XMessage>() {
-            @Override
-            public XMessage apply(Map<String, String> credentials) {
 
-                String text = xMsg.getPayload().getText();
-                
-                UriComponentsBuilder builder = getURIBuilder();
-                if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-                	text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
-                	
-                	builder = setBuilderCredentialsAndMethod(builder, MethodType.OPTIN.toString(), credentials.get("username2Way"), credentials.get("password2Way"));
-                	builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
-                    	queryParam("phone_number", "91" + xMsg.getTo().getUserID()); 
-                } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-                    optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
-                    
-                    text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
-                    builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(), credentials.get("usernameHSM"), credentials.get("passwordHSM"));
-                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-	                    queryParam("msg", text).
-	                    queryParam("isHSM", true).
-	                    queryParam("msg_type", MessageType.HSM.toString());
-                } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-                    optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
-                    
-                    text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
-                    builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
-                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-	                    queryParam("msg", text).
-	                    queryParam("isTemplate", "true").
-	                    queryParam("msg_type", MessageType.HSM.toString());
-                } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-                    Boolean plainText = true;
-                    
-                    MessageType msgType = MessageType.TEXT;
-                    
-                    StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
-			    			? xMsg.getPayload().getStylingTag() : null;
-                    
-                    builder = setBuilderCredentialsAndMethod(builder, getMethodTypeByStylingTag(stylingTag).toString(), credentials.get("username2Way"), credentials.get("password2Way"));
-                    builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-	                    queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
-                    
-                    if(stylingTag != null) {
-                    	if(isStylingTagMediaType(stylingTag) && azureBlobService != null) {
-                    		if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
-								if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
-									xMsg.getPayload().setMediaCaption(stylingTag.toString());
+		 return botservice.getGupshupAdpaterCredentials(adapterId).map(new Function<Map<String, String>, Mono<XMessage>>() {
+				@Override
+				public Mono<XMessage> apply(Map<String, String> credentials) {
+					String text = xMsg.getPayload().getText();
+					UriComponentsBuilder builder = getURIBuilder();
+					if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
+						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
 
-								String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-                            	if(!signedUrl.isEmpty()) {
-                                	builder.queryParam("media_url", signedUrl);
-                                    builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
-                                    builder.queryParam("isHSM", false);
-                                    plainText = false;
-                            	}
-                            } else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
-                            	String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-                            	if(!signedUrl.isEmpty()) {
-                                    builder.queryParam("media_url", signedUrl);
-                                    builder.queryParam("isHSM", false);
-                                    plainText = false;
-                            	}
-                            }
-                    	} else if(stylingTag.equals(StylingTag.LIST) && validateInteractiveStylingTag(xMsg.getPayload())) {
-							String content = getOutboundListActionContent(xMsg);
-               			 	log.info("list content:  "+content);
-                    		if(!content.isEmpty()) {
-                    			builder.queryParam("interactive_type", "list");
-                    			builder.queryParam("action", content);
-                    			builder.queryParam("msg", text);
-                    			plainText = false;
-                    		}
-                    	} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN) && validateInteractiveStylingTag(xMsg.getPayload())) {
-                    		String content = getOutboundQRBtnActionContent(xMsg);
-               			 	log.info("QR btn content:  "+content);
-                    		if(!content.isEmpty()) {
-                    			builder.queryParam("interactive_type", "dr_button");
-                    			builder.queryParam("action", content);
-                    			builder.queryParam("msg", text);
-                    			plainText = false;
-                    		}	
-                    	}
-                    }
-                    if(plainText) {
-                    	text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
-                    	builder.queryParam("msg", text);
-                    }
-                } else {
-                }
-                
-                log.info(text);
-                URI expanded = URI.create(builder.toUriString());
-                log.info(expanded.toString());
-                
-                RestTemplate restTemplate = new RestTemplate();
-                GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
-                try {
-					log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
-				} catch (JsonProcessingException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					log.error("Error in callOutBoundAPI for objectmapper: "+e.getMessage());
+						builder = setBuilderCredentialsAndMethod(builder, MethodType.OPTIN.toString(), credentials.get("username2Way"), credentials.get("password2Way"));
+						builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
+							queryParam("phone_number", "91" + xMsg.getTo().getUserID());
+					} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
+						optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
+
+						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+						builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(), credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+							queryParam("msg", text).
+							queryParam("isHSM", true).
+							queryParam("msg_type", MessageType.HSM.toString());
+					} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
+						optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
+
+						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+						builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+							queryParam("msg", text).
+							queryParam("isTemplate", "true").
+							queryParam("msg_type", MessageType.HSM.toString());
+					} else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+						Boolean plainText = true;
+
+						MessageType msgType = MessageType.TEXT;
+
+						StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
+								? xMsg.getPayload().getStylingTag() : null;
+
+						builder = setBuilderCredentialsAndMethod(builder, getMethodTypeByStylingTag(stylingTag).toString(), credentials.get("username2Way"), credentials.get("password2Way"));
+						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+							queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
+
+						if(stylingTag != null) {
+							if(isStylingTagMediaType(stylingTag) && azureBlobService != null) {
+								if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
+									if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
+										xMsg.getPayload().setMediaCaption(stylingTag.toString());
+
+									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+									if(!signedUrl.isEmpty()) {
+										builder.queryParam("media_url", signedUrl);
+										builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
+										builder.queryParam("isHSM", false);
+										plainText = false;
+									}
+								} else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
+									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+									if(!signedUrl.isEmpty()) {
+										builder.queryParam("media_url", signedUrl);
+										builder.queryParam("isHSM", false);
+										plainText = false;
+									}
+								}
+							} else if(stylingTag.equals(StylingTag.LIST) && validateInteractiveStylingTag(xMsg.getPayload())) {
+								String content = getOutboundListActionContent(xMsg);
+								log.info("list content:  "+content);
+								if(!content.isEmpty()) {
+									builder.queryParam("interactive_type", "list");
+									builder.queryParam("action", content);
+									builder.queryParam("msg", text);
+									plainText = false;
+								}
+							} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN) && validateInteractiveStylingTag(xMsg.getPayload())) {
+								String content = getOutboundQRBtnActionContent(xMsg);
+								log.info("QR btn content:  "+content);
+								if(!content.isEmpty()) {
+									builder.queryParam("interactive_type", "dr_button");
+									builder.queryParam("action", content);
+									builder.queryParam("msg", text);
+									plainText = false;
+								}
+							}
+						}
+						if(plainText) {
+							text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+							builder.queryParam("msg", text);
+						}
+					} else {
+					}
+
+					log.info(text);
+					URI expanded = URI.create(builder.toUriString());
+					log.info(expanded.toString());
+
+	//                RestTemplate restTemplate = new RestTemplate();
+	//                GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
+	//                try {
+	//					log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
+	//				} catch (JsonProcessingException e) {
+	//					// TODO Auto-generated catch block
+	//					e.printStackTrace();
+	//					log.error("Error in callOutBoundAPI for objectmapper: "+e.getMessage());
+	//				}
+	//                xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+	//                xMsg.setMessageState(XMessage.MessageState.SENT);
+	//
+	//                return xMsg;
+					return GSWhatsappService.getInstance().sendOutboundMessage(expanded).map(new Function<GSWhatsappOutBoundResponse, XMessage>() {
+						@Override
+						public XMessage apply(GSWhatsappOutBoundResponse response) {
+							if(response != null){
+								xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+								xMsg.setMessageState(XMessage.MessageState.SENT);
+								return xMsg;
+							}
+							return xMsg;
+						}
+					}).doOnError(new Consumer<Throwable>() {
+						@Override
+						public void accept(Throwable throwable) {
+							log.error("Error in Send GS Whatsapp Outbound Message" + throwable.getMessage());
+						}
+					});
 				}
-                xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
-                xMsg.setMessageState(XMessage.MessageState.SENT);
-
-                return xMsg;
-            }
-        });
+			}).flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
+				 @Override
+				 public Mono<? extends XMessage> apply(Mono<XMessage> o) {
+					 return o;
+				 }
+			 });
     }
 
 	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
-		String regx = "^[A-Za-z0-9 _]+$";
+		String regx = "^[A-Za-z0-9 _(),+-.@#$%&*={}:;'<>]+$";
 		if(payload.getStylingTag().equals(StylingTag.LIST)
 				&& payload.getButtonChoices() != null
 				&& payload.getButtonChoices().size() <= 10
