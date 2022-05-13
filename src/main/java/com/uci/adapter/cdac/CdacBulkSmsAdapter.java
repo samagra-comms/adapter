@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.function.Function;
+
 @Slf4j
 @Qualifier("cdacSMSBulkAdapter")
 @Service
@@ -34,17 +36,35 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        String response = cdacService.callOutBoundAPI(nextMsg).block();
-        if (response != null) {
-            System.out.println("MESSAGE RESPONSE " + response);
-            String splitResponse[] = response.split(",");
-            nextMsg.setMessageState(XMessage.MessageState.SENT);
-            if (splitResponse[1] != null && !splitResponse[1].isEmpty()) {
-                nextMsg.setMessageId(MessageId.builder().channelMessageId(splitResponse[1].replaceFirst("MsgID = ", "")).build());
+        return cdacService.callOutBoundAPI(nextMsg).map(new Function<String, XMessage>() {
+            @Override
+            public XMessage apply(String response) {
+                if (response != null) {
+                    System.out.println("MESSAGE RESPONSE " + response);
+                    String splitResponse[] = response.split(",");
+                    nextMsg.setMessageState(XMessage.MessageState.SENT);
+                    if (splitResponse[1] != null && !splitResponse[1].isEmpty()) {
+                        nextMsg.setMessageId(MessageId.builder().channelMessageId(splitResponse[1].replaceFirst("MsgID = ", "")).build());
+                    }
+                    return nextMsg;
+                } else {
+                    return null;
+                }
             }
-            return Mono.just(nextMsg);
-        } else {
-            return null;
-        }
+        });
+
+    }
+
+    public TrackDetails getLastTrackingReport(String campaignID) throws Exception {
+//        Application campaign = BotService.getCampaignFromID(campaignID);
+//        String appName = (String) campaign.data.get("appName");
+////        XMessageDAO xMessage =
+//              return   xmsgRepo.findFirstByAppOrderByTimestampDesc(appName).map(new Function<XMessageDAO, TrackDetails>() {
+//                    @Override
+//                    public TrackDetails apply(XMessageDAO xMessage) {
+//                        return trackAndUpdate(xMessage);
+//                    }
+//                });
+        return null;
     }
 }
