@@ -87,6 +87,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 	@Autowired
 	private MediaSizeLimit mediaSizeLimit;
 
+	@Autowired
+	private MinioClientService minioClientService;
+
     /**
      * Convert Inbound Gupshup Message To XMessage
      */
@@ -448,7 +451,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 									if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
 										xMsg.getPayload().setMediaCaption(stylingTag.toString());
 
-									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+//									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+									String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
 									if(!signedUrl.isEmpty()) {
 										builder.queryParam("media_url", signedUrl);
 										builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
@@ -456,7 +460,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 										plainText = false;
 									}
 								} else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
-									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+//									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+									String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
 									if(!signedUrl.isEmpty()) {
 										builder.queryParam("media_url", signedUrl);
 										builder.queryParam("isHSM", false);
@@ -494,19 +499,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 					URI expanded = URI.create(builder.toUriString());
 					log.info(expanded.toString());
 
-	//                RestTemplate restTemplate = new RestTemplate();
-	//                GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
-	//                try {
-	//					log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
-	//				} catch (JsonProcessingException e) {
-	//					// TODO Auto-generated catch block
-	//					e.printStackTrace();
-	//					log.error("Error in callOutBoundAPI for objectmapper: "+e.getMessage());
-	//				}
-	//                xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
-	//                xMsg.setMessageState(XMessage.MessageState.SENT);
-	//
-	//                return xMsg;
 					return GSWhatsappService.getInstance().sendOutboundMessage(expanded).map(new Function<GSWhatsappOutBoundResponse, XMessage>() {
 						@Override
 						public XMessage apply(GSWhatsappOutBoundResponse response) {

@@ -33,6 +33,9 @@ public class ProviderFactory {
     @Autowired
     public AzureBlobService azureBlobService;
 
+    @Autowired
+    public MinioClientService minioClientService;
+
     public IProvider getProvider(String provider,String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
@@ -40,6 +43,7 @@ public class ProviderFactory {
                     .botservice(botService)
                     .xmsgRepo(xmsgRepo)
                     .azureBlobService(azureBlobService)
+                    .minioClientService(minioClientService)
                     .build();
             return gupshupWhatsapp;
         } else if (provider.equals("gupshup") && channel.equals("sms")) {
