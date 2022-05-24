@@ -7,9 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.uci.adapter.gs.whatsapp.outbound.MessageType;
 import com.uci.adapter.gs.whatsapp.outbound.MethodType;
-import com.uci.adapter.netcore.whatsapp.NewNetcoreService;
-import com.uci.adapter.netcore.whatsapp.inbound.NetcoreLocation;
-import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.Action;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.Section;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.SectionRow;
@@ -18,12 +15,12 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyBut
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.utils.MediaSizeLimit;
-import com.uci.dao.models.XMessageDAO;
 import com.uci.dao.repository.XMessageRepository;
-import com.uci.dao.utils.XMessageDAOUtils;
 import com.uci.utils.BotService;
 import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.bot.util.FileUtil;
+import com.uci.utils.cdn.FileCdnFactory;
+import com.uci.utils.cdn.FileCdnProvider;
 import com.uci.utils.cdn.samagra.MinioClientService;
 
 import lombok.Builder;
@@ -40,10 +37,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
-import javax.imageio.ImageIO;
-import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -80,15 +74,12 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
-    
-    @Autowired
-    private AzureBlobService azureBlobService;
 
 	@Autowired
 	private MediaSizeLimit mediaSizeLimit;
 
 	@Autowired
-	private MinioClientService minioClientService;
+	private FileCdnProvider fileCdnProvider;
 
     /**
      * Convert Inbound Gupshup Message To XMessage
@@ -276,9 +267,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	String name = "";
     	String url = "";
     	if(!mediaUrl.isEmpty()) {
-    		name = azureBlobService.uploadFile(mediaUrl, mime_type, messageId, maxSizeFOrMedia);
+    		name = fileCdnProvider.uploadFile(mediaUrl, mime_type, messageId, maxSizeFOrMedia);
     		if(name != null && !name.isEmpty())
-				url = azureBlobService.getFileSignedUrl(name);
+				url = fileCdnProvider.getFileSignedUrl(name);
     	}
     	
     	result.put("name", name);
@@ -446,13 +437,12 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 							queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
 
 						if(stylingTag != null) {
-							if(isStylingTagMediaType(stylingTag) && azureBlobService != null) {
+							if(isStylingTagMediaType(stylingTag) && fileCdnProvider != null) {
 								if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
 									if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
 										xMsg.getPayload().setMediaCaption(stylingTag.toString());
 
-//									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-									String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
+									String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
 									if(!signedUrl.isEmpty()) {
 										builder.queryParam("media_url", signedUrl);
 										builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
@@ -460,8 +450,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 										plainText = false;
 									}
 								} else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
-//									String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-									String signedUrl = minioClientService.getCdnSignedUrl(text.trim());
+									String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
 									if(!signedUrl.isEmpty()) {
 										builder.queryParam("media_url", signedUrl);
 										builder.queryParam("isHSM", false);
