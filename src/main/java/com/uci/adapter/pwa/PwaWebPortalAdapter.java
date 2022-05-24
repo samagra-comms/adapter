@@ -3,6 +3,7 @@ package com.uci.adapter.pwa;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.uci.adapter.gs.whatsapp.outbound.MessageType;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.pwa.web.outbound.PwaWebResponse;
@@ -10,24 +11,32 @@ import com.uci.adapter.pwa.web.inbound.PwaWebMessage;
 import com.uci.adapter.pwa.web.outbound.OutboundMessage;
 import com.uci.adapter.pwa.web.outbound.PwaMessage;
 import com.uci.adapter.pwa.web.outbound.PwaWebResponse;
+import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.PropertiesCache;
+import com.uci.utils.azure.AzureBlobService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
+import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.function.Function;
 
 @Slf4j
@@ -42,6 +51,10 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
     
     private String assesOneLevelUpChar;
     private String assesGoToStartChar;
+    @Autowired
+    private AzureBlobService azureBlobService;
+    @Autowired
+    private CommonUtils commonUtils;
     
 
     @Override
@@ -126,10 +139,85 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
     }
 
     private OutboundMessage getOutboundMessage(XMessage xMsg) throws JAXBException {
-        PwaMessage pwaMessage = PwaMessage.builder()
-        									.title(getTextMessage(xMsg))
-        									.choices(this.getButtonChoices(xMsg))
-        									.build();
+        StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
+                ? xMsg.getPayload().getStylingTag() : null;
+        PwaMessage pwaMessage = null;
+        if(stylingTag != null) {
+            if(isStylingTagMediaType(stylingTag)) {
+                String text = xMsg.getPayload().getText();
+                if (stylingTag.equals(StylingTag.IMAGE)) {
+                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+//                    String signedUrl = "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885_960_720.jpg";
+                    if(!signedUrl.isEmpty()) {
+                        pwaMessage = PwaMessage.builder()
+                                .msg_type(stylingTag.toString().toUpperCase())
+                                .caption(xMsg.getPayload().getMediaCaption())
+                                .media_url(signedUrl)
+                                .build();
+                    }
+                } else if(stylingTag.equals(StylingTag.DOCUMENT)){
+                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+//                    String signedUrl = "https://www.nipccd.nic.in/uploads/page/Short-stories-from-100-Selected-Storiespdf-958b29ac59dc03ab693cca052b4036e2.pdf";
+                    if(!signedUrl.isEmpty()) {
+                        pwaMessage = PwaMessage.builder()
+                                .msg_type(stylingTag.toString().toUpperCase())
+                                .caption(xMsg.getPayload().getMediaCaption())
+                                .media_url(signedUrl)
+                                .build();
+                    }
+                } else if(stylingTag.equals(StylingTag.AUDIO)){
+                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+//                    String signedUrl = "https://sample-videos.com/audio/mp3/crowd-cheering.mp3";
+                    if(!signedUrl.isEmpty()) {
+                        pwaMessage = PwaMessage.builder()
+                                .msg_type(stylingTag.toString().toUpperCase())
+                                .caption(xMsg.getPayload().getMediaCaption())
+                                .media_url(signedUrl)
+                                .build();
+                    }
+                } else if(stylingTag.equals(StylingTag.VIDEO)){
+                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+//                    String signedUrl = "http://techslides.com/demos/sample-videos/small.mp4";
+                    if(!signedUrl.isEmpty()) {
+                        pwaMessage = PwaMessage.builder()
+                                .msg_type(stylingTag.toString().toUpperCase())
+                                .caption(xMsg.getPayload().getMediaCaption())
+                                .media_url(signedUrl)
+                                .build();
+                    }
+                } else if(stylingTag.equals(StylingTag.IMAGE_URL) || stylingTag.equals(StylingTag.DOCUMENT_URL) || stylingTag.equals(StylingTag.AUDIO_URL)
+                || stylingTag.equals(StylingTag.VIDEO_URL)){
+                    String url = xMsg.getPayload().getText();
+                    Integer respCode = commonUtils.isUrlExists(url);
+                    if(respCode != null && respCode == HttpStatus.SC_OK){
+                        pwaMessage = PwaMessage.builder()
+                                .msg_type(commonUtils.convertMessageType(stylingTag.toString().toLowerCase()))
+                                .caption(xMsg.getPayload().getMediaCaption())
+                                .media_url(url)
+                                .build();
+                    } else {
+                        pwaMessage = PwaMessage.builder()
+                                .title(url)
+                                .msg_type(StylingTag.TEXT.toString().toUpperCase())
+                                .build();
+                    }
+                }
+            } else{
+                pwaMessage = PwaMessage.builder()
+                        .title(getTextMessage(xMsg))
+                        .choices(this.getButtonChoices(xMsg))
+                        .msg_type(StylingTag.TEXT.toString().toUpperCase())
+                        .caption(xMsg.getPayload().getMediaCaption())
+                        .build();
+            }
+        } else {
+            pwaMessage = PwaMessage.builder()
+                    .title(getTextMessage(xMsg))
+                    .choices(this.getButtonChoices(xMsg))
+                    .msg_type(StylingTag.TEXT.toString().toUpperCase())
+                    .caption(xMsg.getPayload().getMediaCaption())
+                    .build();
+        }
         return OutboundMessage.builder()
         		.message(pwaMessage)
 				.to(xMsg.getMessageId().getReplyId())
@@ -205,6 +293,14 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         
         this.assesOneLevelUpChar = envAssesOneLevelUpChar == "0" || (envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty()) ? envAssesOneLevelUpChar : "#";
         this.assesGoToStartChar = envAssesGoToStartChar == "0" || (envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty()) ? envAssesGoToStartChar : "*";
+    }
+
+    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
+        if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)
+        || stylingTag.equals(StylingTag.IMAGE_URL) || stylingTag.equals(StylingTag.AUDIO_URL) || stylingTag.equals(StylingTag.VIDEO_URL) || stylingTag.equals(StylingTag.DOCUMENT_URL)) {
+            return true;
+        }
+        return false;
     }
 }
 
