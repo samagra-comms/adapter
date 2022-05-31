@@ -456,6 +456,12 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 										builder.queryParam("isHSM", false);
 										plainText = false;
 									}
+								} else if(stylingTag.equals(StylingTag.AUDIO_URL) || stylingTag.equals(StylingTag.VIDEO_URL)
+										|| stylingTag.equals(StylingTag.DOCUMENT_URL)
+										|| stylingTag.equals(StylingTag.IMAGE_URL)){
+									builder.queryParam("media_url", text);
+									builder.queryParam("isHSM", false);
+									plainText = false;
 								}
 							} else if(stylingTag.equals(StylingTag.LIST) && validateInteractiveStylingTag(xMsg.getPayload())) {
 								String content = getOutboundListActionContent(xMsg);

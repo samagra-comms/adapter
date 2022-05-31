@@ -156,7 +156,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             xmsgPayload.setText((String) application.data.get("startingMessage"));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState, messageIdentifier,messageType));
 
-        } else {
+        } else if (message.getType().equalsIgnoreCase("error")) {
+			return null;
+		} else {
             System.out.println("No Match for parsing");
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState, messageIdentifier,messageType));
 
@@ -475,19 +477,24 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @return
      */
     private MediaContent getOutboundMediaContent(XMessage xMsg, StylingTag stylingTag) {
+		stylingTag = StylingTag.DOCUMENT;
     	AttachmentType attachmentType = AttachmentType.IMAGE;
-		if(stylingTag.equals(StylingTag.AUDIO)) {
+		if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.AUDIO_URL)) {
 			attachmentType = AttachmentType.AUDIO;
-		} else if(stylingTag.equals(StylingTag.VIDEO)) {
+		} else if(stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.VIDEO_URL)) {
 			attachmentType = AttachmentType.VIDEO;	
-		} else if(stylingTag.equals(StylingTag.DOCUMENT)) {
+		} else if(stylingTag.equals(StylingTag.DOCUMENT) || stylingTag.equals(StylingTag.DOCUMENT_URL)) {
 			attachmentType = AttachmentType.DOCUMENT;	
 		}
 		
 		String text = xMsg.getPayload().getText();
 		text = text.replace("\n", "").replace("<br>", "").trim();
-		
-		String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+		String signedUrl = text;
+		if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)
+				|| stylingTag.equals(StylingTag.IMAGE)){
+//			 signedUrl = azureBlobService.getFileSignedUrl(text.trim());
+		}
+		signedUrl = "https://www.nipccd.nic.in/uploads/page/Short-stories-from-100-Selected-Storiespdf-958b29ac59dc03ab693cca052b4036e2.pdf";
     	
 		log.info("signedUrl: "+signedUrl);
 		

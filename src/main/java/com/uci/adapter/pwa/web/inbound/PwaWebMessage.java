@@ -34,5 +34,6 @@ public class PwaWebMessage extends CommonMessage {
     @Nullable
     Map<String,Object> context;
 
+    PwaWebMedia media;
 }
 
