@@ -63,13 +63,14 @@ public class ProviderFactory {
         } else if(provider.equals("pwa") && channel.toLowerCase().equals("web")){
             PwaWebPortalAdapter pwaAdapter = PwaWebPortalAdapter.builder()
                     .commonUtils(commonUtils)
+                    .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
                     .build();
             return pwaAdapter;
         } else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
                     .builder()
                     .botservice(botService)
-                    .azureBlobService(azureBlobService)
+                    .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
                     .build();
             return netcoreWhatsappAdapter;
         }

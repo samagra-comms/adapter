@@ -15,8 +15,8 @@ import com.uci.adapter.pwa.web.outbound.PwaMessage;
 import com.uci.adapter.pwa.web.outbound.PwaWebResponse;
 import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.PropertiesCache;
-import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.bot.util.FileUtil;
+import com.uci.utils.cdn.FileCdnProvider;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -53,8 +53,10 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
 
     private String assesOneLevelUpChar;
     private String assesGoToStartChar;
+
     @Autowired
-    private AzureBlobService azureBlobService;
+    private FileCdnProvider fileCdnProvider;
+
     @Autowired
     private CommonUtils commonUtils;
 
@@ -155,39 +157,9 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         if(stylingTag != null) {
             if(isStylingTagMediaType(stylingTag)) {
                 String text = xMsg.getPayload().getText();
-                if (stylingTag.equals(StylingTag.IMAGE)) {
-                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-//                    String signedUrl = "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885_960_720.jpg";
-                    if(!signedUrl.isEmpty()) {
-                        pwaMessage = PwaMessage.builder()
-                                .msg_type(stylingTag.toString().toUpperCase())
-                                .caption(xMsg.getPayload().getMediaCaption())
-                                .media_url(signedUrl)
-                                .build();
-                    }
-                } else if(stylingTag.equals(StylingTag.DOCUMENT)){
-                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-//                    String signedUrl = "https://www.nipccd.nic.in/uploads/page/Short-stories-from-100-Selected-Storiespdf-958b29ac59dc03ab693cca052b4036e2.pdf";
-                    if(!signedUrl.isEmpty()) {
-                        pwaMessage = PwaMessage.builder()
-                                .msg_type(stylingTag.toString().toUpperCase())
-                                .caption(xMsg.getPayload().getMediaCaption())
-                                .media_url(signedUrl)
-                                .build();
-                    }
-                } else if(stylingTag.equals(StylingTag.AUDIO)){
-                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-//                    String signedUrl = "https://sample-videos.com/audio/mp3/crowd-cheering.mp3";
-                    if(!signedUrl.isEmpty()) {
-                        pwaMessage = PwaMessage.builder()
-                                .msg_type(stylingTag.toString().toUpperCase())
-                                .caption(xMsg.getPayload().getMediaCaption())
-                                .media_url(signedUrl)
-                                .build();
-                    }
-                } else if(stylingTag.equals(StylingTag.VIDEO)){
-                    String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-//                    String signedUrl = "http://techslides.com/demos/sample-videos/small.mp4";
+                if (stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO)
+                        || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
+                    String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
                     if(!signedUrl.isEmpty()) {
                         pwaMessage = PwaMessage.builder()
                                 .msg_type(stylingTag.toString().toUpperCase())
