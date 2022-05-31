@@ -86,7 +86,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 	@Autowired
 	private MediaSizeLimit mediaSizeLimit;
 
-    /**
+	/**
      * Convert Inbound Gupshup Message To XMessage
      */
     @Override
@@ -265,7 +265,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    private Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
+	protected Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
     	Map<String, String> result = new HashMap();
 
 		Double maxSizeFOrMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type);
