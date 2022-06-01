@@ -22,9 +22,9 @@ import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.utils.BotService;
-import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.bot.util.FileUtil;
 
+import com.uci.utils.cdn.FileCdnProvider;
 import io.fusionauth.domain.Application;
 import lombok.Builder;
 import lombok.Getter;
@@ -62,14 +62,14 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     private RestTemplate restTemplate;
 
     private BotService botservice;
-    
-    @Autowired
-    private AzureBlobService azureBlobService;
 
 	@Autowired
 	private MediaSizeLimit mediaSizeLimit;
 
-    /**
+	@Autowired
+	private FileCdnProvider fileCdnProvider;
+
+	/**
      * Convert Inbound Netcore Message To XMessage
      */
     @Override
@@ -157,7 +157,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             xmsgPayload.setText((String) application.data.get("startingMessage"));
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState, messageIdentifier,messageType));
 
-        } else {
+        } else if (message.getType().equalsIgnoreCase("error")) {
+			return null;
+		} else {
             System.out.println("No Match for parsing");
             return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState, messageIdentifier,messageType));
 
@@ -170,7 +172,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param type
      * @return
      */
-	protected Boolean isInboundMediaMessage(String type) {
+    protected Boolean isInboundMediaMessage(String type) {
     	if(type.equals("IMAGE") || type.equals("VIDEO") || type.equals("AUDIO") 
     			|| type.equals("VOICE") || type.equals("DOCUMENT")) {
     		return true;
@@ -249,7 +251,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-	protected Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
+    protected Map<String, Object> uploadInboundMediaFile(String messageId, String id, String mime_type) {
     	Map<String, Object> result = new HashMap();
     	
     	String name = "";
@@ -266,13 +268,14 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 					Double maxSizeForMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type) ;
 					result.put("size", (double) responseBytes.length);
 
+					log.info("yash : maxSizeForMedia, " + maxSizeForMedia + " actualSizeOfMedia, " + responseBytes.length);
 					if (maxSizeForMedia != null && responseBytes.length > maxSizeForMedia) {
 						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
 						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
 					} else{
-						String file = azureBlobService.uploadFileFromInputStream(new ByteArrayInputStream(responseBytes), mime_type, messageId);
+						String file = fileCdnProvider.uploadFileFromInputStream(new ByteArrayInputStream(responseBytes), mime_type, messageId);
 						name = file;
-						url = azureBlobService.getFileSignedUrl(file);
+						url = fileCdnProvider.getFileSignedUrl(file);
 						log.info("azure file name: " + name + ", url: " + url);
 					}
 
@@ -485,19 +488,19 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private MediaContent getOutboundMediaContent(XMessage xMsg, StylingTag stylingTag) {
     	AttachmentType attachmentType = AttachmentType.IMAGE;
-		if(stylingTag.equals(StylingTag.AUDIO)) {
+		if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.AUDIO_URL)) {
 			attachmentType = AttachmentType.AUDIO;
-		} else if(stylingTag.equals(StylingTag.VIDEO)) {
+		} else if(stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.VIDEO_URL)) {
 			attachmentType = AttachmentType.VIDEO;	
-		} else if(stylingTag.equals(StylingTag.DOCUMENT)) {
+		} else if(stylingTag.equals(StylingTag.DOCUMENT) || stylingTag.equals(StylingTag.DOCUMENT_URL)) {
 			attachmentType = AttachmentType.DOCUMENT;	
 		}
 		
 		String text = xMsg.getPayload().getText();
 		text = text.replace("\n", "").replace("<br>", "").trim();
-		
-		String signedUrl = azureBlobService.getFileSignedUrl(text.trim());
-    	
+		String signedUrl = text;
+		signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
+
 		log.info("signedUrl: "+signedUrl);
 		
 	    Attachment attachment = Attachment.builder()
@@ -529,7 +532,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 								? xMsg.getPayload().getStylingTag() : null;
     	
     	if(stylingTag != null) {
-    		if(azureBlobService != null 
+    		if(fileCdnProvider != null
     				&& (
 						stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)
     					|| stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)
@@ -655,7 +658,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 	 */
 	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
 
-		String regx = "^[A-Za-z0-9 _]+$";
+		String regx = "^[A-Za-z0-9 _(),+-.@#$%&*={}:;'<>]+$";
 		if(payload.getStylingTag().equals(StylingTag.LIST)
 				&& payload.getButtonChoices() != null
 				&& payload.getButtonChoices().size() <= 10

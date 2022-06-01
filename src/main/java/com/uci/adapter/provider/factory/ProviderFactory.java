@@ -4,9 +4,11 @@ import com.uci.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
 import com.uci.adapter.pwa.PwaWebPortalAdapter;
 import com.uci.adapter.sunbird.web.SunbirdWebPortalAdapter;
+import com.uci.adapter.utils.CommonUtils;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
 import com.uci.utils.azure.AzureBlobService;
+import com.uci.utils.cdn.FileCdnFactory;
 import com.uci.utils.cdn.samagra.MinioClientService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,13 +35,22 @@ public class ProviderFactory {
     @Autowired
     public AzureBlobService azureBlobService;
 
+    @Autowired
+    public MinioClientService minioClientService;
+
+    @Autowired
+    public FileCdnFactory fileCdnFactory;
+
+    @Autowired
+    public CommonUtils commonUtils;
+
     public IProvider getProvider(String provider,String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
                     .builder()
                     .botservice(botService)
+                    .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
                     .xmsgRepo(xmsgRepo)
-                    .azureBlobService(azureBlobService)
                     .build();
             return gupshupWhatsapp;
         } else if (provider.equals("gupshup") && channel.equals("sms")) {
@@ -50,16 +61,20 @@ public class ProviderFactory {
         	SunbirdWebPortalAdapter sunbirdAdapter = SunbirdWebPortalAdapter.builder().build();
             return sunbirdAdapter;
         } else if(provider.equals("pwa") && channel.toLowerCase().equals("web")){
-            PwaWebPortalAdapter pwaAdapter = PwaWebPortalAdapter.builder().build();
+            PwaWebPortalAdapter pwaAdapter = PwaWebPortalAdapter.builder()
+                    .commonUtils(commonUtils)
+                    .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
+                    .build();
             return pwaAdapter;
         } else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
             NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
                     .builder()
                     .botservice(botService)
-                    .azureBlobService(azureBlobService)
+                    .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
                     .build();
             return netcoreWhatsappAdapter;
         }
         return null;
     }
+    
 }

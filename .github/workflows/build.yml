@@ -1,5 +1,11 @@
 name: Build on Push & Pull Request
-on: [push, pull_request]
+on: 
+  push:
+    branches:
+      ["release-4.9.0", "merged"]
+  pull_request:
+    branches:
+      ["release-4.9.0", "merged"]
 
 jobs:
   build:
@@ -51,3 +57,4 @@ jobs:
           GITHUB_USERNAME: ${{ secrets.USERNAME }}
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         run: mvn -s $GITHUB_WORKSPACE/settings.xml clean install -DskipTests
+        

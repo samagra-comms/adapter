@@ -14,7 +14,7 @@ class PwaWebPortalAdapterTest {
 
     @BeforeEach
     public void setup(){
-        pwaWebPortalAdapter = new PwaWebPortalAdapter(null,null,null);
+        pwaWebPortalAdapter = new PwaWebPortalAdapter(null,null,null, null, null);
     }
 
     @Test
@@ -50,24 +50,4 @@ class PwaWebPortalAdapterTest {
 
         pwaWebPortalAdapter.processOutBoundMessageF(msg);
     }
-
-    @Test
-    void processOutBoundMessage() throws Exception {
-        XMessage msg = XMessage.builder()
-                .adapterId("44a9df72-3d7a-4ece-94c5-98cf26307324")
-                .messageId(new MessageId(null,"a11937fc-1fa2-4df4-acc0-f7340a78e4f8", "qCrRvKYGq0qM3WY1AAAB"))
-                .app("UCI Demo")
-                .messageType(XMessage.MessageType.TEXT)
-                .to(new SenderReceiverInfo("qCrRvKYGq0qM3WY1AAAB", null, "UCI Demo", null, false, false, null,  DeviceType.PHONE_PWA, "2e997723-6e48-4d3f-b8c9-16d44743a342", null))
-                .from(new SenderReceiverInfo("admin", null, null, null, false, false, null, null, null, null))
-                .channelURI("web")
-                .providerURI("pwa")
-                .timestamp(null)
-                .messageState(XMessage.MessageState.REPLIED)
-                .lastMessageID("")
-                .payload(XMessagePayload.builder().text("Hi Rozgar bot !!!").build())
-                .build();
-        pwaWebPortalAdapter.processOutBoundMessage(msg);
-    }
-
 }

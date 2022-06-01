@@ -15,5 +15,8 @@ import java.util.ArrayList;
 public class PwaMessage {
     private String title;
     private ArrayList<ButtonChoice> choices;
+    private String media_url;
+    private String caption;
+    private String msg_type;
 }
 
