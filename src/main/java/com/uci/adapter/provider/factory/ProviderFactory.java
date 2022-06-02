@@ -1,5 +1,6 @@
 package com.uci.adapter.provider.factory;
 
+import com.uci.adapter.firebase.web.FirebaseMessageAdapter;
 import com.uci.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
 import com.uci.adapter.pwa.PwaWebPortalAdapter;
@@ -14,6 +15,8 @@ import com.uci.utils.cdn.samagra.MinioClientService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+
+import java.util.Locale;
 
 @Component
 public class ProviderFactory {
@@ -73,6 +76,8 @@ public class ProviderFactory {
                     .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
                     .build();
             return netcoreWhatsappAdapter;
+        } else if(provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")){
+            return FirebaseMessageAdapter.builder().build();
         }
         return null;
     }
