@@ -18,6 +18,11 @@ public class FirebaseMessagingService {
 
     public static final String url = "https://fcm.googleapis.com/fcm/send";
 
+    private String getServerKey() {
+        String key = System.getenv("FIREBASE_SERVER_KEY");
+        return key != null && !key.isEmpty() ? key : "";
+    }
+
     /**
      * Send FCM Notification to token with title & body
      * @param token
@@ -29,7 +34,7 @@ public class FirebaseMessagingService {
         WebClient client = WebClient.builder()
                 .baseUrl(url)
                 .defaultHeaders(httpHeaders -> {
-                    httpHeaders.set("Authorization", "key=AAAAZiL4qhQ:APA91bHfQkDIXbBbChCA3AUo5Wx9eRrAE2RWjtkLBCMxOJGmQGrUXqezKBy54xGJDegR6dM8H39r6XkSVDUOQUZ0QO9-Q_vexAM9UDCvCzZnerh8k1dIFUdIaQKdP8cRCW5KJG3TB167");
+                    httpHeaders.set("Authorization", "key="+getServerKey());
                     httpHeaders.set("Content-Type", "application/json");
                 })
                 .build();
