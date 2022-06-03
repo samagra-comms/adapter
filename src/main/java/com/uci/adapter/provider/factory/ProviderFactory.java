@@ -77,7 +77,7 @@ public class ProviderFactory {
                     .build();
             return netcoreWhatsappAdapter;
         } else if(provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")){
-            return FirebaseMessageAdapter.builder().build();
+            return FirebaseMessageAdapter.builder().botService(botService).build();
         }
         return null;
     }
