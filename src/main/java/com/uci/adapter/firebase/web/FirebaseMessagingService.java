@@ -30,11 +30,11 @@ public class FirebaseMessagingService {
      * @param body
      * @return
      */
-    public Mono<Boolean> sendNotificationMessage(String token, String title, String body) {
+    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body) {
         WebClient client = WebClient.builder()
                 .baseUrl(url)
                 .defaultHeaders(httpHeaders -> {
-                    httpHeaders.set("Authorization", "key="+getServerKey());
+                    httpHeaders.set("Authorization", "key="+serviceKey);
                     httpHeaders.set("Content-Type", "application/json");
                 })
                 .build();

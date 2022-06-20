@@ -12,6 +12,7 @@ import com.uci.utils.azure.AzureBlobService;
 import com.uci.utils.cdn.FileCdnFactory;
 import com.uci.utils.cdn.samagra.MinioClientService;
 
+import com.uci.utils.service.VaultService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -43,6 +44,9 @@ public class ProviderFactory {
 
     @Autowired
     public FileCdnFactory fileCdnFactory;
+
+    @Autowired
+    public VaultService vaultService;
 
     @Autowired
     public CommonUtils commonUtils;
@@ -77,7 +81,7 @@ public class ProviderFactory {
                     .build();
             return netcoreWhatsappAdapter;
         } else if(provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")){
-            return FirebaseMessageAdapter.builder().botService(botService).build();
+            return FirebaseMessageAdapter.builder().botService(botService).vaultService(vaultService).build();
         }
         return null;
     }
