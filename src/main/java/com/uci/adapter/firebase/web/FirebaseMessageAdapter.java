@@ -40,7 +40,6 @@ public class FirebaseMessageAdapter  extends AbstractProvider implements IProvid
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        VaultService vaultService = new VaultService();
         SenderReceiverInfo to = nextMsg.getTo();
         Map<String, String> meta = to.getMeta();
         if(meta != null && meta.get("fcmToken") != null) {
