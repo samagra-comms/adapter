@@ -4,17 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.*;
-import org.apache.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
-
 @Slf4j
 @Service
-public class FirebaseMessagingService {
+public class FirebaseNotificationService {
 
     public static final String url = "https://fcm.googleapis.com/fcm/send";
 
