@@ -19,5 +19,11 @@ public class FirebaseWebMessage extends CommonMessage {
 
     @JsonAlias({"From"})
     String from;
+
+    @Nullable
+    String fcmToken;
+
+    @Nullable
+    String eventType;
 }
 
