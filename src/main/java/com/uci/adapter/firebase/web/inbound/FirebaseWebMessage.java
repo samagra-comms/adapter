@@ -21,9 +21,9 @@ public class FirebaseWebMessage extends CommonMessage {
     String from;
 
     @Nullable
-    String fcmToken;
+    String eventType;
 
     @Nullable
-    String eventType;
+    FirebaseWebReport report;
 }
 

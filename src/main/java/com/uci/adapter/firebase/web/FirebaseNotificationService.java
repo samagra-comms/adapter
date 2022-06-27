@@ -26,7 +26,7 @@ public class FirebaseNotificationService {
      * @param body
      * @return
      */
-    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body) {
+    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String phone, String channelMessageId) {
         WebClient client = WebClient.builder()
                 .baseUrl(url)
                 .defaultHeaders(httpHeaders -> {
@@ -47,6 +47,8 @@ public class FirebaseNotificationService {
         ObjectNode dataNode = mapper.createObjectNode();
         dataNode.put("body", body);
         dataNode.put("title", title);
+        dataNode.put("destAdd", phone);
+        dataNode.put("externalId", channelMessageId);
         node.put("data", dataNode);
 
         return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {

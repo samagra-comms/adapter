@@ -3,6 +3,7 @@ package com.uci.adapter.firebase.web;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.uci.adapter.firebase.web.inbound.FirebaseWebMessage;
+import com.uci.adapter.firebase.web.inbound.FirebaseWebReport;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.utils.BotService;
@@ -21,6 +22,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Slf4j
@@ -43,32 +45,34 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
      */
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException {
         FirebaseWebMessage webMessage = (FirebaseWebMessage) message;
-        SenderReceiverInfo from = SenderReceiverInfo.builder().deviceType(DeviceType.PHONE).build();
+        SenderReceiverInfo from = SenderReceiverInfo.builder().deviceType(DeviceType.PHONE_FCM).build();
         SenderReceiverInfo to = SenderReceiverInfo.builder().userID("admin").build();
         XMessage.MessageState messageState = XMessage.MessageState.REPLIED;
-        String eventType = webMessage.getEventType();
-        /* Message state changed by event type */
-        if(eventType != null && (eventType.equals("DELIVERED")
-                || eventType.equals("READ"))) {
-            messageState = getMessageState(eventType);
-        }
         MessageId messageIdentifier = MessageId.builder().build();
+        String eventType = webMessage.getEventType();
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-        log.info("XMessage Payload getting created >>>");
         xmsgPayload.setText(webMessage.getText());
         XMessage.MessageType messageType= XMessage.MessageType.TEXT;
-        //Todo: How to get Button choices from normal text
-        from.setUserID(webMessage.getFrom());
-        if(webMessage.getFcmToken() != null) {
-            Map<String, String> meta = new HashMap();
-            meta.put("fcmToken", webMessage.getFcmToken());
-            from.setMeta(meta);
-        }
 
         /* To use later in outbound reply message's message id & to */
-        messageIdentifier.setChannelMessageId(webMessage.getMessageId());
-        messageIdentifier.setReplyId(webMessage.getFrom());
+        /* Message state changed by event type */
+        if(eventType != null && (eventType.equals("DELIVERED")
+                || eventType.equals("READ")) && webMessage.getReport() != null) {
+            FirebaseWebReport reportMsg = webMessage.getReport();
+            messageState = getMessageState(eventType);
+            messageIdentifier.setChannelMessageId(reportMsg.getExternalId());
+            from.setUserID(reportMsg.getDestAdd());
+            if(reportMsg.getFcmDestAdd() != null) {
+                Map<String, String> meta = new HashMap();
+                meta.put("fcmToken", reportMsg.getFcmDestAdd());
+                from.setMeta(meta);
+            }
+        } else {
+            messageIdentifier.setChannelMessageId(webMessage.getMessageId());
+            messageIdentifier.setReplyId(webMessage.getFrom());
+            from.setUserID(webMessage.getFrom());
+        }
 
         XMessage x = XMessage.builder()
                 .to(to)
@@ -133,16 +137,17 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                             return vaultService.getAdpaterCredentials(vaultKey).map(new Function<JsonNode, Mono<XMessage>>(){
                                 @Override
                                 public Mono<XMessage> apply(JsonNode credentials) {
+                                    String channelMessageId = UUID.randomUUID().toString();
                                     log.info("credentials: "+credentials);
                                     if(credentials != null && credentials.path("serviceKey") != null
                                             && !credentials.path("serviceKey").asText().isEmpty()) {
-                                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), meta.get("fcmToken"), "Firebase Notification", nextMsg.getPayload().getText())
+                                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), meta.get("fcmToken"), "Firebase Notification", nextMsg.getPayload().getText(), nextMsg.getTo().getUserID(), channelMessageId)
                                             .map(new Function<Boolean, XMessage>() {
                                                 @Override
                                                 public XMessage apply(Boolean result) {
                                                     if (result) {
                                                         nextMsg.setTo(to);
-                                                        nextMsg.setMessageId(MessageId.builder().channelMessageId(LocalDateTime.now().toString()).build());
+                                                        nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
                                                         nextMsg.setMessageState(XMessage.MessageState.SENT);
                                                     }
                                                     return nextMsg;
