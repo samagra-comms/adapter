@@ -137,7 +137,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                             return vaultService.getAdpaterCredentials(vaultKey).map(new Function<JsonNode, Mono<XMessage>>(){
                                 @Override
                                 public Mono<XMessage> apply(JsonNode credentials) {
-                                    String channelMessageId = UUID.randomUUID().toString().replace("-", "");
+                                    String channelMessageId = UUID.randomUUID().toString();
                                     log.info("credentials: "+credentials);
                                     if(credentials != null && credentials.path("serviceKey") != null
                                             && !credentials.path("serviceKey").asText().isEmpty()) {
