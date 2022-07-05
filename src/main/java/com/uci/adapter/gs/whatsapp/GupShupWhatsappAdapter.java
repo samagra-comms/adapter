@@ -41,6 +41,7 @@ import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -95,6 +96,14 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         MessageId messageIdentifier = MessageId.builder().build();
         XMessage.MessageType messageType= XMessage.MessageType.TEXT;
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
+
+		/**
+		 * If for a replied message, message id is null, generate a new one, and set it
+		 */
+		if (message.getResponse() == null &&
+				(message.getMessageId() == null || message.getMessageId().isEmpty())) {
+			message.setMessageId(generateNewMessageId());
+		}
 
         if (message.getResponse() != null) {
             String reportResponse = message.getResponse();
@@ -746,4 +755,19 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         String result = restTemplate.getForObject(expanded, String.class);
         System.out.println(result);
     }
+
+	/**
+	 * Generate new message id by gupshup format
+	 * @return
+	 */
+	private String generateNewMessageId() {
+		Long fMin = Long.parseLong("4000000000000000000"); //19 characters
+		Long fMax = Long.parseLong("4999999999999999999"); //19 characters
+		Long first = ThreadLocalRandom.current().nextLong(fMin, fMax);
+		Long sMin = Long.parseLong("100000000000000000"); //18 characters
+		Long sMax = Long.parseLong("999999999999999999"); //18 characters
+		Long second = ThreadLocalRandom.current().nextLong(sMin, sMax);
+
+		return first.toString()+"-"+second.toString();
+	}
 }
