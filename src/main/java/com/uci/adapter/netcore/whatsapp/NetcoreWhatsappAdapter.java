@@ -648,13 +648,13 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 	 */
 	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
 
-		String regx = "^[A-Za-z0-9 _(),+-.@#$%&*={}:;'<>]+$";
+//		String regx = "^[A-Za-z0-9 _(),+-.@#$%&*={}:;'<>]+$";
 		if(payload.getStylingTag().equals(StylingTag.LIST)
 				&& payload.getButtonChoices() != null
 				&& payload.getButtonChoices().size() <= 10
 		){
 			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
-				if(buttonChoice.getText().length() > 24 || !Pattern.matches(regx, buttonChoice.getText()))
+				if(buttonChoice.getText().length() > 24)
 					return false;
 			}
 			return true;
@@ -665,7 +665,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 				&& payload.getButtonChoices().size() <= 3
 		){
 			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
-				if(buttonChoice.getText().length() > 20 || buttonChoice.getKey().length() > 256 || !Pattern.matches(regx, buttonChoice.getText()))
+				if(buttonChoice.getText().length() > 20 || buttonChoice.getKey().length() > 256)
 					return false;
 			}
 			return true;

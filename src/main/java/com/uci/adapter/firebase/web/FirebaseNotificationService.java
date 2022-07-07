@@ -4,17 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.*;
-import org.apache.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
-
 @Slf4j
 @Service
-public class FirebaseMessagingService {
+public class FirebaseNotificationService {
 
     public static final String url = "https://fcm.googleapis.com/fcm/send";
 
@@ -30,11 +26,11 @@ public class FirebaseMessagingService {
      * @param body
      * @return
      */
-    public Mono<Boolean> sendNotificationMessage(String token, String title, String body) {
+    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String phone, String channelMessageId) {
         WebClient client = WebClient.builder()
                 .baseUrl(url)
                 .defaultHeaders(httpHeaders -> {
-                    httpHeaders.set("Authorization", "key="+getServerKey());
+                    httpHeaders.set("Authorization", "key="+serviceKey);
                     httpHeaders.set("Content-Type", "application/json");
                 })
                 .build();
@@ -51,6 +47,9 @@ public class FirebaseMessagingService {
         ObjectNode dataNode = mapper.createObjectNode();
         dataNode.put("body", body);
         dataNode.put("title", title);
+        dataNode.put("externalId", channelMessageId);
+        dataNode.put("destAdd", phone);
+        dataNode.put("fcmDestAdd", token);
         node.put("data", dataNode);
 
         return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {

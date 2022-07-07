@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.uci.utils.BotService;
 import com.uci.utils.CampaignService;
+import com.uci.utils.service.VaultService;
 import io.fusionauth.client.FusionAuthClient;
 
 import java.time.Duration;
@@ -91,5 +92,10 @@ public class AppConfiguration1 {
                 .build();
         
     	return new BotService(webClient, getFAClient(), cache);
+    }
+
+    @Bean
+    public VaultService getVaultService() {
+        return new VaultService(cache);
     }
 }
