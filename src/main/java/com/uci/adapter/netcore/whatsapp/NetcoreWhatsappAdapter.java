@@ -20,6 +20,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.utils.BotService;
 import com.uci.utils.bot.util.FileUtil;
@@ -38,6 +39,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
+import javax.print.attribute.standard.Media;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -509,6 +511,53 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 	        	.attachments(new Attachment[] {attachment})
 	        	.build();
     }
+
+	/**
+	 * Get Media Content object for Outbound Single Message object
+	 * @param xMsg
+	 * @return
+	 */
+	private MediaContent getOutboundMessageMediaContent(XMessage xMsg) {
+		AttachmentType attachmentType = AttachmentType.IMAGE;
+		MessageMedia media = xMsg.getPayload().getMedia();
+		MediaCategory category = media.getCategory();
+		if(category.equals(MediaCategory.AUDIO) || category.equals(MediaCategory.AUDIO_URL)) {
+			attachmentType = AttachmentType.AUDIO;
+		} else if(category.equals(MediaCategory.VIDEO) || category.equals(MediaCategory.VIDEO_URL)) {
+			attachmentType = AttachmentType.VIDEO;
+		} else if(category.equals(MediaCategory.FILE) || category.equals(MediaCategory.FILE_URL)) {
+			attachmentType = AttachmentType.DOCUMENT;
+		}
+
+		String url = media.getUrl().trim();
+		url = url.replace("\n", "").replace("<br>", "").trim();
+		String signedUrl;
+		if(CommonUtils.isMediaCategoryCdnMediaType(category)) {
+			signedUrl = fileCdnProvider.getFileSignedUrl(url.trim());
+		} else {
+			signedUrl = url;
+		}
+
+
+		log.info("signedUrl: "+signedUrl);
+
+		Attachment attachment = Attachment.builder()
+				.attachment_url(signedUrl)
+				.attachment_type(attachmentType.toString())
+				.build();
+
+		if(category.equals(MediaCategory.IMAGE) || category.equals(MediaCategory.FILE)
+				|| category.equals(MediaCategory.IMAGE_URL) || category.equals(MediaCategory.FILE_URL)) {
+			if(media.getText() == null || media.getText().isEmpty()){
+				media.setText(category.toString());
+			}
+			attachment.setCaption(media.getText());
+		}
+
+		return MediaContent.builder()
+				.attachments(new Attachment[] {attachment})
+				.build();
+	}
     
     /**
      * Get Outbound Single Message Object with text/interactive content/media content
@@ -522,25 +571,23 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 								? xMsg.getPayload().getStylingTag() : null;
     	
     	if(stylingTag != null) {
-    		if(fileCdnProvider != null
-    				&& (
-						stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)
-    					|| stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)
-            		)
-            ) {
-    			//IMAGE/AUDIO/VIDEO/DOCUMENT
-        		return SingleMessage
-    			        .builder()
-    			        .from(source)
-    			        .to(phoneNo)
-    			        .recipientType("individual")
-    			        .messageType(MessageType.MEDIA.toString())
-    			        .header("custom_data")
-    			        .mediaContent(new MediaContent[]{
-    			        	getOutboundMediaContent(xMsg, stylingTag)
-    			        })
-    			        .build();
-    		} else if(isStylingTagInterativeType(stylingTag) && validateInteractiveStylingTag(xMsg.getPayload())) {
+//    		if(CommonUtils.isStylingTagPublicMediaType(stylingTag) ||
+//					(fileCdnProvider != null && CommonUtils.isStylingTagCdnMediaType(stylingTag))
+//            ) {
+//    			//IMAGE/AUDIO/VIDEO/DOCUMENT
+//        		return SingleMessage
+//    			        .builder()
+//    			        .from(source)
+//    			        .to(phoneNo)
+//    			        .recipientType("individual")
+//    			        .messageType(MessageType.MEDIA.toString())
+//    			        .header("custom_data")
+//    			        .mediaContent(new MediaContent[]{
+//    			        	getOutboundMediaContent(xMsg, stylingTag)
+//    			        })
+//    			        .build();
+//    		}
+			if(isStylingTagInterativeType(stylingTag) && validateInteractiveStylingTag(xMsg.getPayload())) {
     			//Menu List & Quick Reply Buttons
         		return SingleMessage
     			        .builder()
@@ -554,7 +601,24 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     			        })
     			        .build();
     		}
-    	}
+    	} else if(xMsg.getPayload().getMedia() != null &&
+					(CommonUtils.isMediaCategoryPublicMediaType(xMsg.getPayload().getMedia().getCategory())
+						|| (fileCdnProvider != null && CommonUtils.isMediaCategoryCdnMediaType(xMsg.getPayload().getMedia().getCategory()))
+					)
+		) {
+			//IMAGE/AUDIO/VIDEO/DOCUMENT
+			return SingleMessage
+					.builder()
+					.from(source)
+					.to(phoneNo)
+					.recipientType("individual")
+					.messageType(MessageType.MEDIA.toString())
+					.header("custom_data")
+					.mediaContent(new MediaContent[]{
+							getOutboundMessageMediaContent(xMsg)
+					})
+					.build();
+		}
     	//Plain List with text 
 		String text = "";
 

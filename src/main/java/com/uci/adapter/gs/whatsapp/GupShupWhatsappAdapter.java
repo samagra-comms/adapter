@@ -14,6 +14,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyButton;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
@@ -240,16 +241,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     			mime_type = node.path("mime_type") != null ? node.path("mime_type").asText() : "";
     	
     			mediaUrl = url+signature;
-    			
-    			if(FileUtil.isFileTypeImage(mime_type)) {
-    	    		category = MediaCategory.IMAGE;
-    	    	} else if(FileUtil.isFileTypeAudio(mime_type)) {
-    	    		category = MediaCategory.AUDIO;
-    	    	} else if(FileUtil.isFileTypeVideo(mime_type)) {
-    	    		category = MediaCategory.VIDEO;
-    	    	} else if(FileUtil.isFileTypeDocument(mime_type)) {
-    	    		category = MediaCategory.FILE;
-    	    	}
+
+				category = CommonUtils.getMediaCategory(mime_type);
     		} catch (JsonProcessingException e) {
     			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
     		}
@@ -404,130 +397,175 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 		String adapterIdFromXML = xMsg.getAdapterId();
         String adapterId = "44a9df72-3d7a-4ece-94c5-98cf26307324";
 
-		 return botservice.getAdapterCredentials(adapterId).map(new Function<JsonNode, Mono<XMessage>>() {
+		 return botservice.getGupshupAdpaterCredentials(adapterIdFromXML).map(new Function<Map<String, String>, Mono<XMessage>>() {
 				@Override
-				public Mono<XMessage> apply(JsonNode credentials) {
-					if(credentials != null && !credentials.isEmpty()) {
-						String text = xMsg.getPayload().getText();
-						UriComponentsBuilder builder = getURIBuilder();
-						if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-							text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+				public Mono<XMessage> apply(Map<String, String> credentials) {
+					if(credentials != null && !credentials.isEmpty()) {					
+					String text = xMsg.getPayload().getText();
+					UriComponentsBuilder builder = getURIBuilder();
+					if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
+						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
 
-							builder = setBuilderCredentialsAndMethod(builder, MethodType.OPTIN.toString(), credentials.findValue("username2Way").asText(), credentials.findValue("password2Way").asText());
-							builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
-									queryParam("phone_number", "91" + xMsg.getTo().getUserID());
-						} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-							optInUser(xMsg, credentials.findValue("usernameHSM").asText(), credentials.findValue("passwordHSM").asText(), credentials.findValue("username2Way").asText(), credentials.findValue("password2Way").asText());
+						builder = setBuilderCredentialsAndMethod(builder, MethodType.OPTIN.toString(), credentials.get("username2Way"), credentials.get("password2Way"));
+						builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
+							queryParam("phone_number", "91" + xMsg.getTo().getUserID());
+					} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
+						optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
 
-							text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
-							builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(), credentials.findValue("usernameHSM").asText(), credentials.findValue("passwordHSM").asText());
-							builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-									queryParam("msg", text).
-									queryParam("isHSM", true).
-									queryParam("msg_type", MessageType.HSM.toString());
-						} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-							optInUser(xMsg, credentials.findValue("usernameHSM").asText(), credentials.findValue("passwordHSM").asText(), credentials.findValue("username2Way").asText(), credentials.findValue("password2Way").asText());
+						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+						builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(), credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+							queryParam("msg", text).
+							queryParam("isHSM", true).
+							queryParam("msg_type", MessageType.HSM.toString());
+					} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
+						optInUser(xMsg, credentials.get("usernameHSM"), credentials.get("passwordHSM"), credentials.get("username2Way"), credentials.get("password2Way"));
 
-							text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
-							builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.findValue("usernameHSM").asText(), credentials.findValue("passwordHSM").asText());
-							builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-									queryParam("msg", text).
-									queryParam("isTemplate", "true").
-									queryParam("msg_type", MessageType.HSM.toString());
-						} else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-							Boolean plainText = true;
+						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+						builder = setBuilderCredentialsAndMethod(builder, "SendMessage", credentials.get("usernameHSM"), credentials.get("passwordHSM"));
+						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+							queryParam("msg", text).
+							queryParam("isTemplate", "true").
+							queryParam("msg_type", MessageType.HSM.toString());
+					} else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+						Boolean plainText = true;
 
-							MessageType msgType = MessageType.TEXT;
+						MessageType msgType = MessageType.TEXT;
 
-							StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
-									? xMsg.getPayload().getStylingTag() : null;
+						StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
+								? xMsg.getPayload().getStylingTag() : null;
 
-							builder = setBuilderCredentialsAndMethod(builder, getMethodTypeByStylingTag(stylingTag).toString(), credentials.findValue("username2Way").asText(), credentials.findValue("password2Way").asText());
-							builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-									queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
+						builder = setBuilderCredentialsAndMethod(builder, getMethodTypeByStylingTag(stylingTag).toString(), credentials.get("username2Way"), credentials.get("password2Way"));
+						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+							queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
 
-							if(stylingTag != null) {
-								if(isStylingTagMediaType(stylingTag) && fileCdnProvider != null) {
-									if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
-										if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
-											xMsg.getPayload().setMediaCaption(stylingTag.toString());
-
-										String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
-										if(!signedUrl.isEmpty()) {
-											builder.queryParam("media_url", signedUrl);
-											builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
-											builder.queryParam("isHSM", false);
-											plainText = false;
-										}
-									} else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
-										String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
-										if(!signedUrl.isEmpty()) {
-											builder.queryParam("media_url", signedUrl);
-											builder.queryParam("isHSM", false);
-											plainText = false;
-										}
-									} else if(stylingTag.equals(StylingTag.AUDIO_URL) || stylingTag.equals(StylingTag.VIDEO_URL)
-											|| stylingTag.equals(StylingTag.DOCUMENT_URL)
-											|| stylingTag.equals(StylingTag.IMAGE_URL)){
-										builder.queryParam("media_url", text);
-										builder.queryParam("isHSM", false);
-										plainText = false;
-									}
-								} else if(stylingTag.equals(StylingTag.LIST) && validateInteractiveStylingTag(xMsg.getPayload())) {
-									String content = getOutboundListActionContent(xMsg);
-									log.info("list content:  "+content);
-									if(!content.isEmpty()) {
-										builder.queryParam("interactive_type", "list");
-										builder.queryParam("action", content);
-										builder.queryParam("msg", text);
-										plainText = false;
-									}
-								} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN) && validateInteractiveStylingTag(xMsg.getPayload())) {
-									String content = getOutboundQRBtnActionContent(xMsg);
-									log.info("QR btn content:  "+content);
-									if(!content.isEmpty()) {
-										builder.queryParam("interactive_type", "dr_button");
-										builder.queryParam("action", content);
-										builder.queryParam("msg", text);
-										plainText = false;
-									}
+						if(stylingTag != null) {
+//							if(CommonUtils.isStylingTagPublicMediaType(stylingTag)
+//									|| (CommonUtils.isStylingTagCdnMediaType(stylingTag) && fileCdnProvider != null)) {
+//								if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
+//									if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
+//										xMsg.getPayload().setMediaCaption(stylingTag.toString());
+//
+//									String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
+//									if(!signedUrl.isEmpty()) {
+//										builder.queryParam("media_url", signedUrl);
+//										builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
+//										builder.queryParam("isHSM", false);
+//										plainText = false;
+//									}
+//								} else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
+//									String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
+//									if(!signedUrl.isEmpty()) {
+//										builder.queryParam("media_url", signedUrl);
+//										builder.queryParam("isHSM", false);
+//										plainText = false;
+//									}
+//								} else if(stylingTag.equals(StylingTag.AUDIO_URL) || stylingTag.equals(StylingTag.VIDEO_URL)
+//										|| stylingTag.equals(StylingTag.DOCUMENT_URL)
+//										|| stylingTag.equals(StylingTag.IMAGE_URL)){
+//									if(stylingTag.equals(StylingTag.IMAGE_URL)) {
+//										builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
+//									}
+//									builder.queryParam("media_url", text);
+//									builder.queryParam("isHSM", false);
+//									plainText = false;
+//								}
+//							} else if(stylingTag.equals(StylingTag.LIST) && validateInteractiveStylingTag(xMsg.getPayload())) {
+//								String content = getOutboundListActionContent(xMsg);
+//								log.info("list content:  "+content);
+//								if(!content.isEmpty()) {
+//									builder.queryParam("interactive_type", "list");
+//									builder.queryParam("action", content);
+//									builder.queryParam("msg", text);
+//									plainText = false;
+//								}
+//							}
+							if(stylingTag.equals(StylingTag.QUICKREPLYBTN) && validateInteractiveStylingTag(xMsg.getPayload())) {
+								String content = getOutboundQRBtnActionContent(xMsg);
+								log.info("QR btn content:  "+content);
+								if(!content.isEmpty()) {
+									builder.queryParam("interactive_type", "dr_button");
+									builder.queryParam("action", content);
+									builder.queryParam("msg", text);
+									plainText = false;
 								}
 							}
-							if(plainText) {
-								text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
-								builder.queryParam("msg", text);
-							}
-						} else {
 						}
 
-						log.info(text);
-						URI expanded = URI.create(builder.toUriString());
-						log.info(expanded.toString());
+						if(xMsg.getPayload().getMedia() != null &&
+								(CommonUtils.isMediaCategoryPublicMediaType(xMsg.getPayload().getMedia().getCategory())
+								|| (CommonUtils.isMediaCategoryCdnMediaType(xMsg.getPayload().getMedia().getCategory()) && fileCdnProvider != null))) {
+							MessageMedia media = xMsg.getPayload().getMedia();
+							MediaCategory category = media.getCategory();
+							builder.replaceQueryParam("method", getMethodTypeByMediaCategory(xMsg.getPayload().getMedia().getCategory()))
+									.replaceQueryParam("msg_type", getMessageTypeByMediaCategory(category).toString());
+							if(category.equals(MediaCategory.IMAGE) || category.equals(MediaCategory.FILE)) {
+								if(media.getText() == null || media.getText().isEmpty())
+									media.setText(category.toString());
 
-						return GSWhatsappService.getInstance().sendOutboundMessage(expanded).map(new Function<GSWhatsappOutBoundResponse, XMessage>() {
-							@Override
-							public XMessage apply(GSWhatsappOutBoundResponse response) {
-								log.info("Gupshsup message send response: "+response.getResponse().getStatus());
-								if(response != null){
-									xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
-									xMsg.setMessageState(XMessage.MessageState.SENT);
-									return xMsg;
+								String signedUrl = fileCdnProvider.getFileSignedUrl(media.getUrl().trim());
+								if(!signedUrl.isEmpty()) {
+									builder.queryParam("media_url", signedUrl);
+									builder.queryParam("caption", media.getText());
+									builder.queryParam("isHSM", false);
+									plainText = false;
 								}
+							} else if(category.equals(MediaCategory.AUDIO) || category.equals(MediaCategory.VIDEO)) {
+								String signedUrl = fileCdnProvider.getFileSignedUrl(media.getUrl().trim());
+								if(!signedUrl.isEmpty()) {
+									builder.queryParam("media_url", signedUrl);
+									builder.queryParam("isHSM", false);
+									plainText = false;
+								}
+							} else if(category.equals(MediaCategory.AUDIO_URL) || category.equals(MediaCategory.VIDEO_URL)
+									|| category.equals(MediaCategory.FILE_URL)
+									|| category.equals(MediaCategory.IMAGE_URL)){
+								if(media.getText() == null || media.getText().isEmpty())
+									media.setText(category.toString());
+
+								if(category.equals(MediaCategory.IMAGE_URL) || category.equals(MediaCategory.FILE_URL)){
+									builder.queryParam("caption", media.getText().trim());
+								}
+
+								builder.queryParam("media_url", media.getUrl().trim());
+								builder.queryParam("isHSM", false);
+								plainText = false;
+							}
+						}
+
+						if(plainText) {
+							text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+							builder.queryParam("msg", text);
+						}
+					} else {
+					}
+
+					log.info(text);
+					URI expanded = URI.create(builder.toUriString());
+					log.info(expanded.toString());
+
+					return GSWhatsappService.getInstance().sendOutboundMessage(expanded).map(new Function<GSWhatsappOutBoundResponse, XMessage>() {
+						@Override
+						public XMessage apply(GSWhatsappOutBoundResponse response) {
+							if(response != null){
+								xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+								xMsg.setMessageState(XMessage.MessageState.SENT);
 								return xMsg;
 							}
-						}).doOnError(new Consumer<Throwable>() {
-							@Override
-							public void accept(Throwable throwable) {
-								log.error("Error in Send GS Whatsapp Outbound Message" + throwable.getMessage());
-							}
-						});
+							return xMsg;
+						}
+					}).doOnError(new Consumer<Throwable>() {
+						@Override
+						public void accept(Throwable throwable) {
+							log.error("Error in Send GS Whatsapp Outbound Message" + throwable.getMessage());
+						}
+					});
 					} else {
 						log.error("Credentials not found");
 //						xMsg.setMessageId(MessageId.builder().channelMessageId("").build());
 						xMsg.setMessageState(XMessage.MessageState.NOT_SENT);
 						return Mono.just(xMsg);
 					}
-
 				}
 			}).flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
 				 @Override
@@ -645,27 +683,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     }
     
     
-    /**
-     * Check if styling tag is image/audio/video type
-     * @return
-     */
-    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
-    		return true;
-    	}
-    	return false;
-    }
-    
-    /**
-     * Check if styling tag is list/quick reply button
-     * @return
-     */
-    private Boolean isStylingTagIntercativeType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
-    		return true;
-    	}
-    	return false;
-    }
+
     
     /**
      * Get Message Method Type by given styling tag
@@ -676,14 +694,30 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	MethodType methodType = MethodType.SIMPLEMESSAGE;
     	
     	if(stylingTag != null) {
-    		if(isStylingTagMediaType(stylingTag)) {
+    		if(CommonUtils.isStylingTagCdnMediaType(stylingTag) || CommonUtils.isStylingTagPublicMediaType(stylingTag)) {
     			methodType = MethodType.MEDIAMESSAGE;
-    		} else if(isStylingTagIntercativeType(stylingTag)) {
+    		} else if(CommonUtils.isStylingTagIntercativeType(stylingTag)) {
     			methodType = MethodType.SIMPLEMESSAGE;
     		}
     	}
     	return methodType;
     }
+
+	/**
+	 * Get Message Method Type by given styling tag
+	 * @param category
+	 * @return
+	 */
+	private MethodType getMethodTypeByMediaCategory(MediaCategory category) {
+		MethodType methodType = MethodType.SIMPLEMESSAGE;
+
+		if(category != null) {
+			if(CommonUtils.isMediaCategoryCdnMediaType(category) || CommonUtils.isMediaCategoryPublicMediaType(category)) {
+				methodType = MethodType.MEDIAMESSAGE;
+			}
+		}
+		return methodType;
+	}
     
     /**
      * Get Message Type by given styling tag
@@ -694,21 +728,43 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	MessageType messageType = MessageType.TEXT;
     	
     	if(stylingTag != null) {
-    		if(stylingTag.equals(StylingTag.IMAGE)) {
+    		if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.IMAGE_URL)) {
     			messageType = MessageType.IMAGE;
-    		} else if(stylingTag.equals(StylingTag.AUDIO) ) {
+    		} else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.AUDIO_URL)) {
     			messageType = MessageType.AUDIO;
-    		} else if(stylingTag.equals(StylingTag.VIDEO) ) {
+    		} else if(stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.VIDEO_URL)) {
     			messageType = MessageType.VIDEO;
-    		} else if(stylingTag.equals(StylingTag.DOCUMENT) ) {
+    		} else if(stylingTag.equals(StylingTag.DOCUMENT) || stylingTag.equals(StylingTag.DOCUMENT_URL)) {
     			messageType = MessageType.DOCUMENT;
-    		} else if(isStylingTagIntercativeType(stylingTag)) {
+    		} else if(CommonUtils.isStylingTagIntercativeType(stylingTag)) {
     			messageType = MessageType.TEXT;
     		}
     	}
     	return messageType;
     }
-    
+
+	/**
+	 * Get Message Type by given styling tag
+	 * @param category
+	 * @return
+	 */
+	private MessageType getMessageTypeByMediaCategory(MediaCategory category) {
+		MessageType messageType = MessageType.TEXT;
+
+		if(category != null) {
+			if(category.equals(MediaCategory.IMAGE) || category.equals(MediaCategory.IMAGE_URL)) {
+				messageType = MessageType.IMAGE;
+			} else if(category.equals(MediaCategory.AUDIO) || category.equals(MediaCategory.AUDIO_URL)) {
+				messageType = MessageType.AUDIO;
+			} else if(category.equals(MediaCategory.VIDEO) || category.equals(MediaCategory.VIDEO_URL)) {
+				messageType = MessageType.VIDEO;
+			} else if(category.equals(MediaCategory.FILE) || category.equals(MediaCategory.FILE_URL)) {
+				messageType = MessageType.DOCUMENT;
+			}
+		}
+		return messageType;
+	}
+
     /**
      * Get Uri builder with default parameters
      * @return

@@ -117,6 +117,11 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+
+//        xMsg.setMessageId(MessageId.builder().channelMessageId("test").build());
+//        xMsg.setMessageState(XMessage.MessageState.SENT);
+//        return Mono.just(xMsg);
+
         return PwaWebService.getInstance().
                 sendOutboundMessage(url, outboundMessage)
                 .map(new Function<PwaWebResponse, XMessage>() {
@@ -154,27 +159,68 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
                 ? xMsg.getPayload().getStylingTag() : null;
         PwaMessage pwaMessage = null;
-        if(stylingTag != null) {
-            if(isStylingTagMediaType(stylingTag)) {
-                String text = xMsg.getPayload().getText();
-                if (stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO)
-                        || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
-                    String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
+//        if(stylingTag != null) {
+//            if(isStylingTagMediaType(stylingTag)) {
+//                String text = xMsg.getPayload().getText();
+//                if (stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO)
+//                        || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
+//                    String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
+//                    if(!signedUrl.isEmpty()) {
+//                        pwaMessage = PwaMessage.builder()
+//                                .msg_type(stylingTag.toString().toUpperCase())
+//                                .caption(xMsg.getPayload().getMediaCaption())
+//                                .media_url(signedUrl)
+//                                .build();
+//                    }
+//                } else if(stylingTag.equals(StylingTag.IMAGE_URL) || stylingTag.equals(StylingTag.DOCUMENT_URL) || stylingTag.equals(StylingTag.AUDIO_URL)
+//                || stylingTag.equals(StylingTag.VIDEO_URL)){
+//                    String url = xMsg.getPayload().getText();
+//                    Integer respCode = commonUtils.isUrlExists(url);
+//                    if(respCode != null && respCode == HttpStatus.SC_OK){
+//                        pwaMessage = PwaMessage.builder()
+//                                .msg_type(commonUtils.convertMessageType(stylingTag.toString().toLowerCase()))
+//                                .caption(xMsg.getPayload().getMediaCaption())
+//                                .media_url(url)
+//                                .build();
+//                    } else {
+//                        pwaMessage = PwaMessage.builder()
+//                                .title(url)
+//                                .msg_type(StylingTag.TEXT.toString().toUpperCase())
+//                                .build();
+//                    }
+//                }
+//            } else{
+//                pwaMessage = PwaMessage.builder()
+//                        .title(getTextMessage(xMsg))
+//                        .choices(this.getButtonChoices(xMsg))
+//                        .msg_type(StylingTag.TEXT.toString().toUpperCase())
+//                        .caption(xMsg.getPayload().getMediaCaption())
+//                        .build();
+//            }
+//        }
+        if(xMsg.getPayload().getMedia() != null
+                && (CommonUtils.isMediaCategoryPublicMediaType(xMsg.getPayload().getMedia().getCategory())
+                    || (CommonUtils.isMediaCategoryCdnMediaType(xMsg.getPayload().getMedia().getCategory()) && fileCdnProvider != null)
+                )
+        ) {
+            MessageMedia media = xMsg.getPayload().getMedia();
+            MediaCategory category = media.getCategory();
+                if (CommonUtils.isMediaCategoryCdnMediaType(category)) {
+                    String signedUrl = fileCdnProvider.getFileSignedUrl(media.getUrl().trim());
                     if(!signedUrl.isEmpty()) {
                         pwaMessage = PwaMessage.builder()
                                 .msg_type(stylingTag.toString().toUpperCase())
-                                .caption(xMsg.getPayload().getMediaCaption())
+                                .caption(media.getText())
                                 .media_url(signedUrl)
                                 .build();
                     }
-                } else if(stylingTag.equals(StylingTag.IMAGE_URL) || stylingTag.equals(StylingTag.DOCUMENT_URL) || stylingTag.equals(StylingTag.AUDIO_URL)
-                || stylingTag.equals(StylingTag.VIDEO_URL)){
+                } else if(CommonUtils.isMediaCategoryPublicMediaType(category)){
                     String url = xMsg.getPayload().getText();
                     Integer respCode = commonUtils.isUrlExists(url);
                     if(respCode != null && respCode == HttpStatus.SC_OK){
                         pwaMessage = PwaMessage.builder()
-                                .msg_type(commonUtils.convertMessageType(stylingTag.toString().toLowerCase()))
-                                .caption(xMsg.getPayload().getMediaCaption())
+                                .msg_type(commonUtils.convertMediaCategoryToMessageType(category).toUpperCase())
+                                .caption(media.getText())
                                 .media_url(url)
                                 .build();
                     } else {
@@ -184,14 +230,6 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
                                 .build();
                     }
                 }
-            } else{
-                pwaMessage = PwaMessage.builder()
-                        .title(getTextMessage(xMsg))
-                        .choices(this.getButtonChoices(xMsg))
-                        .msg_type(StylingTag.TEXT.toString().toUpperCase())
-                        .caption(xMsg.getPayload().getMediaCaption())
-                        .build();
-            }
         } else {
             pwaMessage = PwaMessage.builder()
                     .title(getTextMessage(xMsg))
