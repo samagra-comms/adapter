@@ -571,22 +571,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 								? xMsg.getPayload().getStylingTag() : null;
     	
     	if(stylingTag != null) {
-//    		if(CommonUtils.isStylingTagPublicMediaType(stylingTag) ||
-//					(fileCdnProvider != null && CommonUtils.isStylingTagCdnMediaType(stylingTag))
-//            ) {
-//    			//IMAGE/AUDIO/VIDEO/DOCUMENT
-//        		return SingleMessage
-//    			        .builder()
-//    			        .from(source)
-//    			        .to(phoneNo)
-//    			        .recipientType("individual")
-//    			        .messageType(MessageType.MEDIA.toString())
-//    			        .header("custom_data")
-//    			        .mediaContent(new MediaContent[]{
-//    			        	getOutboundMediaContent(xMsg, stylingTag)
-//    			        })
-//    			        .build();
-//    		}
 			if(isStylingTagInterativeType(stylingTag) && validateInteractiveStylingTag(xMsg.getPayload())) {
     			//Menu List & Quick Reply Buttons
         		return SingleMessage
@@ -755,17 +739,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             return processedChoices.substring(0,processedChoices.length()-1);
         }
         return "";
-    }
-    
-    /**
-     * Check if styling tag is image/audio/video type
-     * @return
-     */
-    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
-    		return true;
-    	}
-    	return false;
     }
     
     /**
