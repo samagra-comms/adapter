@@ -471,46 +471,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	}
     	return null;
     }
-    
-    /**
-     * Get Media Content object for Outbound Single Message object
-     * @param xMsg
-     * @param stylingTag
-     * @return
-     */
-    private MediaContent getOutboundMediaContent(XMessage xMsg, StylingTag stylingTag) {
-    	AttachmentType attachmentType = AttachmentType.IMAGE;
-		if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.AUDIO_URL)) {
-			attachmentType = AttachmentType.AUDIO;
-		} else if(stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.VIDEO_URL)) {
-			attachmentType = AttachmentType.VIDEO;	
-		} else if(stylingTag.equals(StylingTag.DOCUMENT) || stylingTag.equals(StylingTag.DOCUMENT_URL)) {
-			attachmentType = AttachmentType.DOCUMENT;	
-		}
-		
-		String text = xMsg.getPayload().getText();
-		text = text.replace("\n", "").replace("<br>", "").trim();
-		String signedUrl = text;
-		signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
-
-		log.info("signedUrl: "+signedUrl);
-		
-	    Attachment attachment = Attachment.builder()
-    	    			.attachment_url(signedUrl)
-    	    			.attachment_type(attachmentType.toString())
-    	    			.build();
-
-		if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
-	    	if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty()){
-				xMsg.getPayload().setMediaCaption(stylingTag.toString());
-			}
-			attachment.setCaption(xMsg.getPayload().getMediaCaption());
-	    }
-	    
-	    return MediaContent.builder()
-	        	.attachments(new Attachment[] {attachment})
-	        	.build();
-    }
 
 	/**
 	 * Get Media Content object for Outbound Single Message object
@@ -518,41 +478,14 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 	 * @return
 	 */
 	private MediaContent getOutboundMessageMediaContent(XMessage xMsg) {
-		AttachmentType attachmentType = AttachmentType.IMAGE;
 		MessageMedia media = xMsg.getPayload().getMedia();
-		MediaCategory category = media.getCategory();
-		if(category.equals(MediaCategory.AUDIO) || category.equals(MediaCategory.AUDIO_URL)) {
-			attachmentType = AttachmentType.AUDIO;
-		} else if(category.equals(MediaCategory.VIDEO) || category.equals(MediaCategory.VIDEO_URL)) {
-			attachmentType = AttachmentType.VIDEO;
-		} else if(category.equals(MediaCategory.FILE) || category.equals(MediaCategory.FILE_URL)) {
-			attachmentType = AttachmentType.DOCUMENT;
-		}
-
-		String url = media.getUrl().trim();
-		url = url.replace("\n", "").replace("<br>", "").trim();
-		String signedUrl;
-		if(CommonUtils.isMediaCategoryCdnMediaType(category)) {
-			signedUrl = fileCdnProvider.getFileSignedUrl(url.trim());
-		} else {
-			signedUrl = url;
-		}
-
-
-		log.info("signedUrl: "+signedUrl);
+		AttachmentType attachmentType = getAttachmentTypeByMediaCategory(media.getCategory());
 
 		Attachment attachment = Attachment.builder()
-				.attachment_url(signedUrl)
+				.attachment_url(media.getUrl())
 				.attachment_type(attachmentType.toString())
+				.caption(media.getText())
 				.build();
-
-		if(category.equals(MediaCategory.IMAGE) || category.equals(MediaCategory.FILE)
-				|| category.equals(MediaCategory.IMAGE_URL) || category.equals(MediaCategory.FILE_URL)) {
-			if(media.getText() == null || media.getText().isEmpty()){
-				media.setText(category.toString());
-			}
-			attachment.setCaption(media.getText());
-		}
 
 		return MediaContent.builder()
 				.attachments(new Attachment[] {attachment})
@@ -571,7 +504,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 								? xMsg.getPayload().getStylingTag() : null;
     	
     	if(stylingTag != null) {
-			if(isStylingTagInterativeType(stylingTag) && validateInteractiveStylingTag(xMsg.getPayload())) {
+			if(CommonUtils.isStylingTagIntercativeType(stylingTag) && validateInteractiveStylingTag(xMsg.getPayload())) {
     			//Menu List & Quick Reply Buttons
         		return SingleMessage
     			        .builder()
@@ -585,12 +518,8 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     			        })
     			        .build();
     		}
-    	} else if(xMsg.getPayload().getMedia() != null &&
-					(CommonUtils.isMediaCategoryPublicMediaType(xMsg.getPayload().getMedia().getCategory())
-						|| (fileCdnProvider != null && CommonUtils.isMediaCategoryCdnMediaType(xMsg.getPayload().getMedia().getCategory()))
-					)
-		) {
-			//IMAGE/AUDIO/VIDEO/DOCUMENT
+    	} else if(xMsg.getPayload().getMedia() != null && xMsg.getPayload().getMedia().getUrl() != null) {
+			//IMAGE/AUDIO/VIDEO/FILE
 			return SingleMessage
 					.builder()
 					.from(source)
@@ -690,6 +619,25 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
 	/**
+	 * Get Attachment Type by given media category
+	 * @param category
+	 * @return
+	 */
+	private AttachmentType getAttachmentTypeByMediaCategory(MediaCategory category) {
+		AttachmentType attachmentType = null;
+		if(category.equals(MediaCategory.IMAGE)) {
+			attachmentType = AttachmentType.IMAGE;
+		} else if(category.equals(MediaCategory.AUDIO)) {
+			attachmentType = AttachmentType.AUDIO;
+		} else if(category.equals(MediaCategory.VIDEO)) {
+			attachmentType = AttachmentType.VIDEO;
+		} else if(category.equals(MediaCategory.FILE)) {
+			attachmentType = AttachmentType.DOCUMENT;
+		}
+		return attachmentType;
+	}
+
+	/**
 	 * validation for Interactive Styling Tag
 	 * @Param XMessagePayload
 	 * @return Boolean
@@ -706,9 +654,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 					return false;
 			}
 			return true;
-		}
-
-		else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
+		} else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
 				&& payload.getButtonChoices() != null
 				&& payload.getButtonChoices().size() <= 3
 		){
@@ -717,9 +663,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 					return false;
 			}
 			return true;
-		}
-
-		else{
+		} else{
 			return false;
 		}
 	}
@@ -739,16 +683,5 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
             return processedChoices.substring(0,processedChoices.length()-1);
         }
         return "";
-    }
-    
-    /**
-     * Check if styling tag is list/quick reply button
-     * @return
-     */
-    private Boolean isStylingTagInterativeType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
-    		return true;
-    	}
-    	return false;
     }
 }

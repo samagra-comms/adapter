@@ -17,6 +17,18 @@ import java.util.Map;
 @Slf4j
 @Component
 public class CommonUtils {
+    /**
+     * Check if text is a url
+     * @param text
+     * @return
+     */
+    public static Boolean isTextAUrl(String text) {
+        if(text.startsWith("http://") || text.startsWith("https://")) {
+            return true;
+        }
+        return false;
+    }
+
     public Integer isUrlExists(String urlString) {
         try {
             if (urlString == null) {
@@ -31,37 +43,12 @@ public class CommonUtils {
         }
     }
 
-    public String convertMessageType(String msgType) {
-        switch (msgType) {
-            case "image_url":
-                return StylingTag.IMAGE.toString().toUpperCase();
-            case "audio_url":
-                return StylingTag.AUDIO.toString().toUpperCase();
-            case "video_url":
-                return StylingTag.VIDEO.toString().toUpperCase();
-            case "document_url":
-                return StylingTag.DOCUMENT.toString().toUpperCase();
-            default:
-                return null;
-        }
-    }
-
-    public String convertMediaCategoryToMessageType(MediaCategory category) {
-        switch (category) {
-            case IMAGE_URL:
-                return StylingTag.IMAGE.toString().toUpperCase();
-            case AUDIO_URL:
-                return StylingTag.AUDIO.toString().toUpperCase();
-            case VIDEO_URL:
-                return StylingTag.VIDEO.toString().toUpperCase();
-            case FILE_URL:
-                return StylingTag.DOCUMENT.toString().toUpperCase();
-            default:
-                return null;
-        }
-    }
-
-    public static MediaCategory getMediaCategory(String mimeType) {
+    /**
+     * Get Media Category by mime type
+     * @param mimeType
+     * @return
+     */
+    public static MediaCategory getMediaCategoryByMimeType(String mimeType) {
         MediaCategory category = null;
         if (FileUtil.isFileTypeImage(mimeType)) {
             category = MediaCategory.IMAGE;
@@ -88,16 +75,8 @@ public class CommonUtils {
             category = MediaCategory.AUDIO;
         } else if (tag.equals(StylingTag.VIDEO)) {
             category = MediaCategory.VIDEO;
-        } else if (tag.equals(StylingTag.DOCUMENT)) {
+        } else if (tag.equals(StylingTag.FILE)) {
             category = MediaCategory.FILE;
-        } else if (tag.equals(StylingTag.IMAGE_URL)) {
-            category = MediaCategory.IMAGE_URL;
-        } else if (tag.equals(StylingTag.AUDIO_URL)) {
-            category = MediaCategory.AUDIO_URL;
-        } else if (tag.equals(StylingTag.VIDEO_URL)) {
-            category = MediaCategory.VIDEO_URL;
-        } else if (tag.equals(StylingTag.DOCUMENT_URL)) {
-            category = MediaCategory.FILE_URL;
         }
         return category;
     }
@@ -106,19 +85,8 @@ public class CommonUtils {
      * Check if styling tag is image/audio/video type
      * @return
      */
-    public static Boolean isStylingTagCdnMediaType(StylingTag stylingTag) {
-        if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Check if styling tag is image/audio/video type
-     * @return
-     */
-    public static Boolean isStylingTagPublicMediaType(StylingTag stylingTag) {
-        if(stylingTag.equals(StylingTag.IMAGE_URL) || stylingTag.equals(StylingTag.AUDIO_URL) || stylingTag.equals(StylingTag.VIDEO_URL) || stylingTag.equals(StylingTag.DOCUMENT_URL)) {
+    public static Boolean isStylingTagMediaType(StylingTag stylingTag) {
+        if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.FILE)) {
             return true;
         }
         return false;
@@ -139,19 +107,8 @@ public class CommonUtils {
      * Check if styling tag is image/audio/video type
      * @return
      */
-    public static Boolean isMediaCategoryCdnMediaType(MediaCategory category) {
+    public static Boolean isMediaCategory(MediaCategory category) {
         if(category.equals(MediaCategory.IMAGE) || category.equals(MediaCategory.AUDIO) || category.equals(MediaCategory.VIDEO) || category.equals(MediaCategory.FILE)) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Check if styling tag is image/audio/video type
-     * @return
-     */
-    public static Boolean isMediaCategoryPublicMediaType(MediaCategory category) {
-        if(category.equals(MediaCategory.IMAGE_URL) || category.equals(MediaCategory.AUDIO_URL) || category.equals(MediaCategory.VIDEO_URL) || category.equals(MediaCategory.FILE_URL)) {
             return true;
         }
         return false;
