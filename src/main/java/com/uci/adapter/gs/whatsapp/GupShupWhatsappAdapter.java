@@ -392,9 +392,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 		String adapterIdFromXML = xMsg.getAdapterId();
         String adapterId = "44a9df72-3d7a-4ece-94c5-98cf26307324";
 
-		 return botservice.getAdapterCredentials(adapterIdFromXML).map(new Function<Map<String, String>, Mono<XMessage>>() {
+		 return botservice.getAdapterCredentials(adapterIdFromXML).map(new Function<JsonNode, Mono<XMessage>>() {
 				@Override
-				public Mono<XMessage> apply(Map<String, String> credentials) {
+				public Mono<XMessage> apply(JsonNode credentials) {
 					if(credentials != null && !credentials.isEmpty()) {							
 					String text = xMsg.getPayload().getText();
 					UriComponentsBuilder builder = getURIBuilder();
