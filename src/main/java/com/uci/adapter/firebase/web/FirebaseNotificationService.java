@@ -14,11 +14,6 @@ public class FirebaseNotificationService {
 
     public static final String url = "https://fcm.googleapis.com/fcm/send";
 
-    private String getServerKey() {
-        String key = System.getenv("FIREBASE_SERVER_KEY");
-        return key != null && !key.isEmpty() ? key : "";
-    }
-
     /**
      * Send FCM Notification to token with title & body
      * @param token

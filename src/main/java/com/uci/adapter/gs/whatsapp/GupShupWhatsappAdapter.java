@@ -14,14 +14,11 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyButton;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
-import com.uci.utils.azure.AzureBlobService;
-import com.uci.utils.bot.util.FileUtil;
-import com.uci.utils.cdn.FileCdnFactory;
 import com.uci.utils.cdn.FileCdnProvider;
-import com.uci.utils.cdn.samagra.MinioClientService;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -44,7 +41,6 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 @Getter
 @Setter
@@ -240,16 +236,8 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     			mime_type = node.path("mime_type") != null ? node.path("mime_type").asText() : "";
     	
     			mediaUrl = url+signature;
-    			
-    			if(FileUtil.isFileTypeImage(mime_type)) {
-    	    		category = MediaCategory.IMAGE;
-    	    	} else if(FileUtil.isFileTypeAudio(mime_type)) {
-    	    		category = MediaCategory.AUDIO;
-    	    	} else if(FileUtil.isFileTypeVideo(mime_type)) {
-    	    		category = MediaCategory.VIDEO;
-    	    	} else if(FileUtil.isFileTypeDocument(mime_type)) {
-    	    		category = MediaCategory.FILE;
-    	    	}
+
+				category = CommonUtils.getMediaCategoryByMimeType(mime_type);
     		} catch (JsonProcessingException e) {
     			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
     		}
@@ -400,11 +388,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      */
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
-    	log.info("processOutBoundMessageF nextXmsg {}", xMsg.toXML());
+		log.info("processOutBoundMessageF nextXmsg {}", xMsg.toXML());
 		String adapterIdFromXML = xMsg.getAdapterId();
         String adapterId = "44a9df72-3d7a-4ece-94c5-98cf26307324";
 
-		 return botservice.getGupshupAdpaterCredentials(adapterId).map(new Function<Map<String, String>, Mono<XMessage>>() {
+		 return botservice.getGupshupAdpaterCredentials(adapterIdFromXML).map(new Function<Map<String, String>, Mono<XMessage>>() {
 				@Override
 				public Mono<XMessage> apply(Map<String, String> credentials) {
 					String text = xMsg.getPayload().getText();
@@ -441,47 +429,23 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 						StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
 								? xMsg.getPayload().getStylingTag() : null;
 
-						builder = setBuilderCredentialsAndMethod(builder, getMethodTypeByStylingTag(stylingTag).toString(), credentials.get("username2Way"), credentials.get("password2Way"));
+						builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(), credentials.get("username2Way"), credentials.get("password2Way"));
 						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-							queryParam("msg_type", getMessageTypeByStylingTag(stylingTag).toString());
+							queryParam("msg_type", MessageType.TEXT.toString());
 
-						if(stylingTag != null) {
-							if(isStylingTagMediaType(stylingTag) && fileCdnProvider != null) {
-								if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.DOCUMENT)) {
-									if(xMsg.getPayload().getMediaCaption() == null || xMsg.getPayload().getMediaCaption().isEmpty())
-										xMsg.getPayload().setMediaCaption(stylingTag.toString());
-
-									String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
-									if(!signedUrl.isEmpty()) {
-										builder.queryParam("media_url", signedUrl);
-										builder.queryParam("caption", xMsg.getPayload().getMediaCaption());
-										builder.queryParam("isHSM", false);
-										plainText = false;
-									}
-								} else if(stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO)) {
-									String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
-									if(!signedUrl.isEmpty()) {
-										builder.queryParam("media_url", signedUrl);
-										builder.queryParam("isHSM", false);
-										plainText = false;
-									}
-								} else if(stylingTag.equals(StylingTag.AUDIO_URL) || stylingTag.equals(StylingTag.VIDEO_URL)
-										|| stylingTag.equals(StylingTag.DOCUMENT_URL)
-										|| stylingTag.equals(StylingTag.IMAGE_URL)){
-									builder.queryParam("media_url", text);
-									builder.queryParam("isHSM", false);
-									plainText = false;
-								}
-							} else if(stylingTag.equals(StylingTag.LIST) && validateInteractiveStylingTag(xMsg.getPayload())) {
-								String content = getOutboundListActionContent(xMsg);
-								log.info("list content:  "+content);
-								if(!content.isEmpty()) {
-									builder.queryParam("interactive_type", "list");
-									builder.queryParam("action", content);
-									builder.queryParam("msg", text);
-									plainText = false;
-								}
-							} else if(stylingTag.equals(StylingTag.QUICKREPLYBTN) && validateInteractiveStylingTag(xMsg.getPayload())) {
+						/* For interactive type - list/button */
+						if(stylingTag != null && CommonUtils.isStylingTagIntercativeType(stylingTag)
+							&& validateInteractiveStylingTag(xMsg.getPayload())) {
+							if(stylingTag.equals(StylingTag.LIST)) {
+                                String content = getOutboundListActionContent(xMsg);
+                                log.info("list content:  "+content);
+                                if(!content.isEmpty()) {
+                                    builder.queryParam("interactive_type", "list");
+                                    builder.queryParam("action", content);
+                                    builder.queryParam("msg", text);
+                                    plainText = false;
+                                }
+                            } else if(stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
 								String content = getOutboundQRBtnActionContent(xMsg);
 								log.info("QR btn content:  "+content);
 								if(!content.isEmpty()) {
@@ -492,11 +456,23 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 								}
 							}
 						}
+
+						/* For media */
+						if(xMsg.getPayload().getMedia() != null && xMsg.getPayload().getMedia().getUrl() != null) {
+							MessageMedia media = xMsg.getPayload().getMedia();
+							builder.replaceQueryParam("method", MethodType.MEDIAMESSAGE.toString())
+									.replaceQueryParam("msg_type", getMessageTypeByMediaCategory(media.getCategory()).toString());
+							builder.queryParam("media_url", media.getUrl());
+							builder.queryParam("caption", media.getText());
+							builder.queryParam("isHSM", false);
+							plainText = false;
+						}
+
+						/* For plain text */
 						if(plainText) {
 							text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
 							builder.queryParam("msg", text);
 						}
-					} else {
 					}
 
 					log.info(text);
@@ -528,6 +504,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 			 });
     }
 
+	/**
+	 * Validate if button choice option are valid for the list/button styling
+	 * @param payload
+	 * @return
+	 */
 	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
 //		String regx = "^[A-Za-z0-9 _(),+-.@#$%&*={}:;'<>]+$";
 		if(payload.getStylingTag().equals(StylingTag.LIST)
@@ -539,9 +520,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 					return false;
 			}
 			return true;
-		}
-
-		else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
+		} else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
 				&& payload.getButtonChoices() != null
 				&& payload.getButtonChoices().size() <= 3
 		){
@@ -550,9 +529,7 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 					return false;
 			}
 			return true;
-		}
-
-		else{
+		} else{
 			return false;
 		}
 	}
@@ -634,72 +611,29 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 		}
 		return "";
     }
-    
-    
-    /**
-     * Check if styling tag is image/audio/video type
-     * @return
-     */
-    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
-    		return true;
-    	}
-    	return false;
-    }
-    
-    /**
-     * Check if styling tag is list/quick reply button
-     * @return
-     */
-    private Boolean isStylingTagIntercativeType(StylingTag stylingTag) {
-    	if(stylingTag.equals(StylingTag.LIST) || stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
-    		return true;
-    	}
-    	return false;
-    }
-    
-    /**
-     * Get Message Method Type by given styling tag
-     * @param stylingTag
-     * @return
-     */
-    private MethodType getMethodTypeByStylingTag(StylingTag stylingTag) {
-    	MethodType methodType = MethodType.SIMPLEMESSAGE;
-    	
-    	if(stylingTag != null) {
-    		if(isStylingTagMediaType(stylingTag)) {
-    			methodType = MethodType.MEDIAMESSAGE;
-    		} else if(isStylingTagIntercativeType(stylingTag)) {
-    			methodType = MethodType.SIMPLEMESSAGE;
-    		}
-    	}
-    	return methodType;
-    }
-    
-    /**
-     * Get Message Type by given styling tag
-     * @param stylingTag
-     * @return
-     */
-    private MessageType getMessageTypeByStylingTag(StylingTag stylingTag) {
-    	MessageType messageType = MessageType.TEXT;
-    	
-    	if(stylingTag != null) {
-    		if(stylingTag.equals(StylingTag.IMAGE)) {
-    			messageType = MessageType.IMAGE;
-    		} else if(stylingTag.equals(StylingTag.AUDIO) ) {
-    			messageType = MessageType.AUDIO;
-    		} else if(stylingTag.equals(StylingTag.VIDEO) ) {
-    			messageType = MessageType.VIDEO;
-    		} else if(stylingTag.equals(StylingTag.DOCUMENT) ) {
-    			messageType = MessageType.DOCUMENT;
-    		} else if(isStylingTagIntercativeType(stylingTag)) {
-    			messageType = MessageType.TEXT;
-    		}
-    	}
-    	return messageType;
-    }
-    
+
+	/**
+	 * Get Message Type by given media category
+	 * @param category
+	 * @return
+	 */
+	private MessageType getMessageTypeByMediaCategory(MediaCategory category) {
+		MessageType messageType = MessageType.TEXT;
+
+		if(category != null) {
+			if(category.equals(MediaCategory.IMAGE)) {
+				messageType = MessageType.IMAGE;
+			} else if(category.equals(MediaCategory.AUDIO)) {
+				messageType = MessageType.AUDIO;
+			} else if(category.equals(MediaCategory.VIDEO)) {
+				messageType = MessageType.VIDEO;
+			} else if(category.equals(MediaCategory.FILE)) {
+				messageType = MessageType.DOCUMENT;
+			}
+		}
+		return messageType;
+	}
+
     /**
      * Get Uri builder with default parameters
      * @return

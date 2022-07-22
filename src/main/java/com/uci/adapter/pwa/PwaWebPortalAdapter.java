@@ -117,6 +117,11 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+
+//        xMsg.setMessageId(MessageId.builder().channelMessageId("test").build());
+//        xMsg.setMessageState(XMessage.MessageState.SENT);
+//        return Mono.just(xMsg);
+
         return PwaWebService.getInstance().
                 sendOutboundMessage(url, outboundMessage)
                 .map(new Function<PwaWebResponse, XMessage>() {
@@ -154,52 +159,30 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
                 ? xMsg.getPayload().getStylingTag() : null;
         PwaMessage pwaMessage = null;
-        if(stylingTag != null) {
-            if(isStylingTagMediaType(stylingTag)) {
-                String text = xMsg.getPayload().getText();
-                if (stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO)
-                        || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)) {
-                    String signedUrl = fileCdnProvider.getFileSignedUrl(text.trim());
-                    if(!signedUrl.isEmpty()) {
-                        pwaMessage = PwaMessage.builder()
-                                .msg_type(stylingTag.toString().toUpperCase())
-                                .caption(xMsg.getPayload().getMediaCaption())
-                                .media_url(signedUrl)
-                                .build();
-                    }
-                } else if(stylingTag.equals(StylingTag.IMAGE_URL) || stylingTag.equals(StylingTag.DOCUMENT_URL) || stylingTag.equals(StylingTag.AUDIO_URL)
-                || stylingTag.equals(StylingTag.VIDEO_URL)){
-                    String url = xMsg.getPayload().getText();
-                    Integer respCode = commonUtils.isUrlExists(url);
-                    if(respCode != null && respCode == HttpStatus.SC_OK){
-                        pwaMessage = PwaMessage.builder()
-                                .msg_type(commonUtils.convertMessageType(stylingTag.toString().toLowerCase()))
-                                .caption(xMsg.getPayload().getMediaCaption())
-                                .media_url(url)
-                                .build();
-                    } else {
-                        pwaMessage = PwaMessage.builder()
-                                .title(url)
-                                .msg_type(StylingTag.TEXT.toString().toUpperCase())
-                                .build();
-                    }
-                }
-            } else{
-                pwaMessage = PwaMessage.builder()
-                        .title(getTextMessage(xMsg))
-                        .choices(this.getButtonChoices(xMsg))
-                        .msg_type(StylingTag.TEXT.toString().toUpperCase())
-                        .caption(xMsg.getPayload().getMediaCaption())
-                        .build();
-            }
-        } else {
+        Boolean plainText = true;
+
+        /* For media */
+        if(xMsg.getPayload().getMedia() != null && xMsg.getPayload().getMedia().getUrl() != null) {
+            MessageMedia media = xMsg.getPayload().getMedia();
+            pwaMessage = PwaMessage.builder()
+                    .msg_type(media.getCategory().toString().toUpperCase())
+                    .caption(media.getText())
+                    .media_url(media.getUrl())
+                    .build();
+            plainText = false;
+        }
+
+        /* For plain text */
+        if(plainText) {
             pwaMessage = PwaMessage.builder()
                     .title(getTextMessage(xMsg))
-                    .choices(this.getButtonChoices(xMsg))
                     .msg_type(StylingTag.TEXT.toString().toUpperCase())
-                    .caption(xMsg.getPayload().getMediaCaption())
                     .build();
+            if(this.getButtonChoices(xMsg).size() > 0) {
+                pwaMessage.setChoices(this.getButtonChoices(xMsg));
+            }
         }
+
         return OutboundMessage.builder()
         		.message(pwaMessage)
 				.to(xMsg.getMessageId().getReplyId())
@@ -277,14 +260,6 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         this.assesGoToStartChar = envAssesGoToStartChar == "0" || (envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty()) ? envAssesGoToStartChar : "*";
     }
 
-    private Boolean isStylingTagMediaType(StylingTag stylingTag) {
-        if(stylingTag.equals(StylingTag.IMAGE) || stylingTag.equals(StylingTag.AUDIO) || stylingTag.equals(StylingTag.VIDEO) || stylingTag.equals(StylingTag.DOCUMENT)
-        || stylingTag.equals(StylingTag.IMAGE_URL) || stylingTag.equals(StylingTag.AUDIO_URL) || stylingTag.equals(StylingTag.VIDEO_URL) || stylingTag.equals(StylingTag.DOCUMENT_URL)) {
-            return true;
-        }
-        return false;
-    }
-
     private Boolean isInboundMediaMessage(String mimeType) {
         if (FileUtil.isFileTypeAudio(mimeType) || FileUtil.isFileTypeDocument(mimeType) || FileUtil.isFileTypeImage(mimeType)
                 || FileUtil.isFileTypeVideo(mimeType)) {
@@ -297,7 +272,7 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         MessageMedia media = new MessageMedia();
         media.setText(pwaWebMedia.getFileName());
         media.setUrl(pwaWebMedia.getUrl());
-        media.setCategory((MediaCategory) CommonUtils.getMediaCategory(pwaWebMedia.getMimeType()));
+        media.setCategory(CommonUtils.getMediaCategoryByMimeType(pwaWebMedia.getMimeType()));
         return media;
     }
 
