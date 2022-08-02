@@ -21,7 +21,7 @@ public class FirebaseNotificationService {
      * @param body
      * @return
      */
-    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String phone, String channelMessageId) {
+    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId) {
         WebClient client = WebClient.builder()
                 .baseUrl(url)
                 .defaultHeaders(httpHeaders -> {
@@ -37,6 +37,9 @@ public class FirebaseNotificationService {
         ObjectNode notificationNode = mapper.createObjectNode();
         notificationNode.put("body", body);
         notificationNode.put("title", title);
+        if(click_action != null && !click_action.isEmpty()) {
+            notificationNode.put("click_action", click_action);
+        }
         node.put("notification", notificationNode);
 
         ObjectNode dataNode = mapper.createObjectNode();
