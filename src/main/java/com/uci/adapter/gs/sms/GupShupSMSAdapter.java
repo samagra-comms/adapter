@@ -1,13 +1,17 @@
 package com.uci.adapter.gs.sms;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uci.adapter.gs.sms.outbound.GSSMSResponse;
 import com.uci.adapter.gs.sms.outbound.GupshupSMSResponse;
 import com.uci.adapter.gs.whatsapp.GSWhatsappOutBoundResponse;
+import com.uci.adapter.gs.whatsapp.GSWhatsappService;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.utils.GupShupUtills;
 
+import com.uci.utils.BotService;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
@@ -28,6 +32,8 @@ import javax.xml.bind.JAXBException;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -37,6 +43,9 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     @Autowired
     @Qualifier("rest")
     private RestTemplate restTemplate;
+
+    @Autowired
+    private BotService botService;
 
     private final static String GUPSHUP_SMS_OUTBOUND = "http://enterprise.smsgupshup.com/GatewayAPI/rest";
 
@@ -64,9 +73,9 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
      * @throws Exception
      */
     @Override
-    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
-        return Mono.just(callOutBoundAPI(xMsg));
-    }
+//    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
+//        return Mono.just(callOutBoundAPI(xMsg));
+//    }
 
     /**
      * Call gupshup sms outbound sms to send sms message to user & return xmsg
@@ -74,37 +83,74 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
      * @return
      * @throws Exception
      */
-    public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_SMS_OUTBOUND);
+    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
+        String adapterIdFromXML = xMsg.getAdapterId();
 
-        builder.queryParam("method", "SendMessage");
-        builder.queryParam("send_to", xMsg.getTo().getUserID());
-        builder.queryParam("msg",  xMsg.getPayload().getText());
-        builder.queryParam("msg_type", "Text");
-        builder.queryParam("messageId", "123456781");
-        builder.queryParam("userid", "2000164521");
-        builder.queryParam("auth_scheme", "plain");
-        builder.queryParam("password", "samagra_15");
-        builder.queryParam("v", "1.1");
-        builder.queryParam("format", "json");
-        builder.queryParam("data_encoding", "text");
-        builder.queryParam("extra", "Samagra");
+        return botService.getAdapterCredentials(adapterIdFromXML)
+                .map(new Function<JsonNode, Mono<XMessage>>() {
+                    @Override
+                        public Mono<XMessage> apply(JsonNode credentials) {
+                            if (credentials != null && !credentials.isEmpty()) {
+                                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_SMS_OUTBOUND);
 
-        URI expanded = URI.create(builder.toUriString());
-        log.info(expanded.toString());
+                                builder.queryParam("method", "SendMessage");
+                                builder.queryParam("send_to", xMsg.getTo().getUserID());
+                                builder.queryParam("msg",  xMsg.getPayload().getText());
+                                builder.queryParam("msg_type", "Text");
+                                builder.queryParam("messageId", "123456781");
+                                builder.queryParam("userid", credentials.findValue("username").asText());
+                                builder.queryParam("auth_scheme", "plain");
+                                builder.queryParam("password", credentials.findValue("password").asText());
+                                builder.queryParam("v", "1.1");
+                                builder.queryParam("format", "json");
+                                builder.queryParam("data_encoding", "text");
+                                builder.queryParam("extra", "Samagra");
 
-        RestTemplate restTemplate = new RestTemplate();
-        GupshupSMSResponse response = restTemplate.getForObject(expanded, GupshupSMSResponse.class);
-        try {
-            log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
-        } catch (JsonProcessingException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            log.error("Error in callOutBoundAPI for objectmapper: "+e.getMessage());
-        }
-        xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
-        xMsg.setMessageState(XMessage.MessageState.SENT);
+                                URI expanded = URI.create(builder.toUriString());
+                                log.info(expanded.toString());
 
-        return xMsg;
+                                return GSSMSService.getInstance().sendOutboundMessage(expanded).map(new Function<GupshupSMSResponse, XMessage>() {
+                                    @Override
+                                    public XMessage apply(GupshupSMSResponse response) {
+                                        if(response != null){
+                                            xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+                                            xMsg.setMessageState(XMessage.MessageState.SENT);
+                                            return xMsg;
+                                        }
+                                        return xMsg;
+                                    }
+                                }).doOnError(new Consumer<Throwable>() {
+                                    @Override
+                                    public void accept(Throwable throwable) {
+                                        log.error("Error in Send GS Whatsapp Outbound Message" + throwable.getMessage());
+                                    }
+                                });
+//                                RestTemplate restTemplate = new RestTemplate();
+//                                GupshupSMSResponse response = restTemplate.getForObject(expanded, GupshupSMSResponse.class);
+//                                try {
+//                                    log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
+//                                } catch (JsonProcessingException e) {
+//                                    // TODO Auto-generated catch block
+//                                    e.printStackTrace();
+//                                    log.error("Error in callOutBoundAPI for objectmapper: "+e.getMessage());
+//                                }
+//                                xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+//                                xMsg.setMessageState(XMessage.MessageState.SENT);
+//
+//                                return xMsg;
+                            } else {
+                                log.error("Credentials not found");
+                                //                      xMsg.setMessageId(MessageId.builder().channelMessageId("").build());
+                                xMsg.setMessageState(XMessage.MessageState.NOT_SENT);
+                                return Mono.just(xMsg);
+                            }
+                        }
+                }).flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
+                    @Override
+                    public Mono<? extends XMessage> apply(Mono<XMessage> o) {
+                        return o;
+                    }
+                });
+
     }
 }
