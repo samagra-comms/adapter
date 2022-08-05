@@ -483,12 +483,15 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     					return GSWhatsappService.getInstance().sendOutboundMessage(expanded).map(new Function<GSWhatsappOutBoundResponse, XMessage>() {
     						@Override
     						public XMessage apply(GSWhatsappOutBoundResponse response) {
-    							if(response != null){
+    							if(response != null && response.getResponse().getStatus().equals("success")){
     								xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
     								xMsg.setMessageState(XMessage.MessageState.SENT);
     								return xMsg;
-    							}
-    							return xMsg;
+    							} else {
+									log.error("Gupshup Whatsapp Message not sent: "+response.getResponse().getDetails());
+									xMsg.setMessageState(XMessage.MessageState.NOT_SENT);
+									return xMsg;
+								}
     						}
     					}).doOnError(new Consumer<Throwable>() {
     						@Override
