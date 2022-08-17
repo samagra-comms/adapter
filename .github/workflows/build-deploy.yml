@@ -5,10 +5,10 @@ on:
     tags:
       - 'v*.*.*'
     branches:
-      ["release-4.9.0", "release-4.10.0", "merged"]
+      ["release-4.9.0", "release-4.10.0", "release-5.0.0"]
   pull_request:
     branches:
-      ["release-4.9.0", "release-4.10.0", "merged"]
+      ["release-4.9.0", "release-4.10.0", "release-5.0.0"]
       
 jobs:
   build-deploy-github:
