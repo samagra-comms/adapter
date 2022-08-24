@@ -1,6 +1,7 @@
 package com.uci.adapter.cdac;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.dao.repository.XMessageRepository;
@@ -36,22 +37,41 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        return cdacService.callOutBoundAPI(nextMsg).map(new Function<String, XMessage>() {
+        return botService.getAdapterCredentials(nextMsg.getAdapterId()).map(new Function<JsonNode, XMessage>() {
             @Override
-            public XMessage apply(String response) {
-                if (response != null) {
-                    System.out.println("MESSAGE RESPONSE " + response);
-                    String splitResponse[] = response.split(",");
-                    nextMsg.setMessageState(XMessage.MessageState.SENT);
-                    if (splitResponse[1] != null && !splitResponse[1].isEmpty()) {
-                        nextMsg.setMessageId(MessageId.builder().channelMessageId(splitResponse[1].replaceFirst("MsgID = ", "")).build());
+            public XMessage apply(JsonNode credentials) {
+                if (credentials != null && !credentials.isEmpty()
+                    && credentials.get("username") != null && credentials.get("password") != null
+                    && credentials.get("senderId") != null && credentials.get("secureKey") != null) {
+                    String templateId = nextMsg.getTransformers().get(0).getMetaData().get("templateId");
+                    String response = cdacService.sendUnicodeSMS(
+                            credentials.get("username").asText(),
+                            credentials.get("password").asText(),
+                            nextMsg.getPayload().getText(),
+                            credentials.get("senderId").asText(),
+                            nextMsg.getTo().getUserID(),
+                            credentials.get("secureKey").asText(),
+                            templateId);
+                    if (response != null) {
+                        String splitResponse[] = response.split(",");
+                        nextMsg.setMessageState(XMessage.MessageState.SENT);
+                        if (splitResponse[1] != null && !splitResponse[1].isEmpty()) {
+                            nextMsg.setMessageId(MessageId.builder().channelMessageId(splitResponse[1].replaceFirst("MsgID = ", "")).build());
+                        }
+                        return nextMsg;
+                    } else {
+                        log.error("No Response from cdac api");
+                        nextMsg.setMessageState(XMessage.MessageState.NOT_SENT);
+                        return nextMsg;
                     }
-                    return nextMsg;
                 } else {
-                    return null;
+                    log.error("Credentials not found");
+                    nextMsg.setMessageState(XMessage.MessageState.NOT_SENT);
+                    return nextMsg;
                 }
             }
         });
+
 
     }
 
