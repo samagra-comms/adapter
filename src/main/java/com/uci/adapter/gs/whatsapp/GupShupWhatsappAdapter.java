@@ -19,6 +19,7 @@ import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
+import com.uci.utils.bot.util.FileUtil;
 import com.uci.utils.cdn.FileCdnProvider;
 
 import lombok.Builder;
@@ -33,11 +34,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.sunbird.cloud.storage.BaseStorageService;
-import org.sunbird.cloud.storage.factory.StorageConfig;
-import org.sunbird.cloud.storage.factory.StorageServiceFactory;
 import reactor.core.publisher.Mono;
-import scala.Option;
 
 import java.net.URI;
 import java.sql.Timestamp;
@@ -272,9 +269,10 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	String name = "";
     	String url = "";
     	if(!mediaUrl.isEmpty()) {
-    		url = mediaService.uploadFileFromUrl(null, mediaUrl, mime_type, messageId, maxSizeFOrMedia);
-//    		if(name != null && !name.isEmpty())
-//				url = fileCdnProvider.getFileSignedUrl(name);
+			String filePath = FileUtil.downloadFileToLocalFromUrl(mediaUrl, mime_type, name, maxSizeFOrMedia);
+			if(!filePath.isEmpty()) {
+				url = mediaService.uploadFileFromPath(null, filePath);
+			}
     	}
     	
     	result.put("name", name);
