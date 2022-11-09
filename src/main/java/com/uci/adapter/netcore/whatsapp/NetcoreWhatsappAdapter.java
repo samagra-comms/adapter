@@ -20,6 +20,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.service.media.SunbirdCloudMediaService;
 import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.utils.BotService;
@@ -69,6 +70,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
 	@Autowired
 	private FileCdnProvider fileCdnProvider;
+
+	@Autowired
+	private SunbirdCloudMediaService mediaService;
 
 	/**
      * Convert Inbound Netcore Message To XMessage

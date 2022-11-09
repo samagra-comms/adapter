@@ -14,6 +14,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyButton;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.adapter.service.media.SunbirdCloudMediaService;
 import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.dao.repository.XMessageRepository;
@@ -32,7 +33,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.sunbird.cloud.storage.BaseStorageService;
+import org.sunbird.cloud.storage.factory.StorageConfig;
+import org.sunbird.cloud.storage.factory.StorageServiceFactory;
 import reactor.core.publisher.Mono;
+import scala.Option;
 
 import java.net.URI;
 import java.sql.Timestamp;
@@ -77,6 +82,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
 	@Autowired
 	private FileCdnProvider fileCdnProvider;
+
+	@Autowired
+	private SunbirdCloudMediaService mediaService;
 
     /**
      * Convert Inbound Gupshup Message To XMessage
@@ -258,15 +266,15 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      * @return
      */
     private Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
-    	Map<String, String> result = new HashMap();
+		Map<String, String> result = new HashMap();
 
 		Double maxSizeFOrMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type);
     	String name = "";
     	String url = "";
     	if(!mediaUrl.isEmpty()) {
-    		name = fileCdnProvider.uploadFile(mediaUrl, mime_type, messageId, maxSizeFOrMedia);
-    		if(name != null && !name.isEmpty())
-				url = fileCdnProvider.getFileSignedUrl(name);
+    		url = mediaService.uploadFileFromUrl(null, mediaUrl, mime_type, messageId, maxSizeFOrMedia);
+//    		if(name != null && !name.isEmpty())
+//				url = fileCdnProvider.getFileSignedUrl(name);
     	}
     	
     	result.put("name", name);

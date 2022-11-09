@@ -4,6 +4,7 @@ import com.uci.adapter.firebase.web.FirebaseNotificationAdapter;
 import com.uci.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
 import com.uci.adapter.pwa.PwaWebPortalAdapter;
+import com.uci.adapter.service.media.SunbirdCloudMediaService;
 import com.uci.adapter.sunbird.web.SunbirdWebPortalAdapter;
 import com.uci.adapter.utils.CommonUtils;
 import com.uci.dao.repository.XMessageRepository;
@@ -15,6 +16,7 @@ import com.uci.utils.cdn.samagra.MinioClientService;
 import com.uci.utils.service.VaultService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -49,13 +51,30 @@ public class ProviderFactory {
     @Autowired
     public CommonUtils commonUtils;
 
+    @Value("${sunbird.cloud.media.storage.type}")
+    private String mediaStorageType;
+
+    @Value("${sunbird.cloud.media.storage.key}")
+    private String mediaStorageKey;
+
+    @Value("${sunbird.cloud.media.storage.secret}")
+    private String mediaStorageSecret;
+
+    @Value("${sunbird.cloud.media.storage.url}")
+    private String mediaStorageUrl;
+
+    @Value("${sunbird.cloud.media.storage.container}")
+    private String mediaStorageContainer;
+
     public IProvider getProvider(String provider,String channel) {
+        SunbirdCloudMediaService mediaService = new SunbirdCloudMediaService(mediaStorageType, mediaStorageKey, mediaStorageSecret, mediaStorageUrl, mediaStorageContainer);
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
                     .builder()
                     .botservice(botService)
                     .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
                     .xmsgRepo(xmsgRepo)
+                    .mediaService(mediaService)
                     .build();
             return gupshupWhatsapp;
         } else if (provider.equals("gupshup") && channel.equals("sms")) {
