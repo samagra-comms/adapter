@@ -265,34 +265,47 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		if(!id.isEmpty() && !mime_type.isEmpty()) {
 			try {
 				log.info("Get netcore media by id:" + id);
-				byte[] responseBytes = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+				byte[] inputBytes = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
 						getMediaFile(id).readAllBytes();
 
-				if (responseBytes != null) {
+				if (inputBytes != null) {
 					// if file size is greater than MAX_SIZE_FOR_MEDIA than discard the file
 					Double maxSizeForMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type) ;
-					result.put("size", (double) responseBytes.length);
+//					result.put("size", (double) responseBytes.length);
+//
+//					log.info("yash : maxSizeForMedia, " + maxSizeForMedia + " actualSizeOfMedia, " + responseBytes.length);
+//					if (maxSizeForMedia != null && responseBytes.length > maxSizeForMedia) {
+//						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
+//						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
+//					} else{
+//						String file = fileCdnProvider.uploadFileFromInputStream(new ByteArrayInputStream(responseBytes), mime_type, messageId);
+//						name = file;
+//						url = fileCdnProvider.getFileSignedUrl(file);
+//						log.info("azure file name: " + name + ", url: " + url);
+//					}
 
-					log.info("yash : maxSizeForMedia, " + maxSizeForMedia + " actualSizeOfMedia, " + responseBytes.length);
-					if (maxSizeForMedia != null && responseBytes.length > maxSizeForMedia) {
-						log.info("file size is("+ responseBytes.length +") greater than limit : " + maxSizeForMedia);
+					String sizeError = FileUtil.validateFileSizeByInputBytes(inputBytes, maxSizeForMedia);
+					if(sizeError.isEmpty()) {
+						String filePath = FileUtil.fileToLocalFromBytes(inputBytes, mime_type, messageId);
+						if(!filePath.isEmpty()) {
+							url = mediaService.uploadFileFromPath(null, filePath);
+						} else {
+							result.put("size", 0d);
+							result.put("error", MessageMediaError.EMPTY_RESPONSE);
+						}
+					} else {
+						result.put("size", (double) inputBytes.length);
 						result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
-					} else{
-						String file = fileCdnProvider.uploadFileFromInputStream(new ByteArrayInputStream(responseBytes), mime_type, messageId);
-						name = file;
-						url = fileCdnProvider.getFileSignedUrl(file);
-						log.info("azure file name: " + name + ", url: " + url);
 					}
 
 				} else {
-					log.info("response is empty");
 					result.put("size", 0d);
 					result.put("error", MessageMediaError.EMPTY_RESPONSE);
 				}
 			} catch (IOException e) {
 					e.printStackTrace();
-				}
 			}
+		}
     	result.put("name", name);
     	result.put("url", url);
     	

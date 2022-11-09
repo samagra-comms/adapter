@@ -195,13 +195,16 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      */
     private MessageMedia getInboundMediaMessage(GSWhatsAppMessage message) {
     	Map<String, Object> mediaInfo = getMediaInfo(message);
-    	Map<String, String> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("mediaUrl").toString(), mediaInfo.get("mime_type").toString());
+    	Map<String, Object> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("mediaUrl").toString(), mediaInfo.get("mime_type").toString());
     	MessageMedia media = new MessageMedia();
     	media.setText(mediaData.get("name").toString());
     	media.setUrl(mediaData.get("url").toString());
 		media.setCategory((MediaCategory) mediaInfo.get("category"));
-		if(mediaData.get("url").isEmpty())
-			media.setMessageMediaError(MessageMediaError.EMPTY_RESPONSE);
+//		if(mediaData.get("url") != null && mediaData.get("url").toString().isEmpty()) {
+//			media.setMessageMediaError(MessageMediaError.EMPTY_RESPONSE);
+//		}
+		media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
+		media.setSize((Double) mediaData.get("size"));
 		//TODO: store media file size in media
     	return media;
     }
@@ -262,18 +265,36 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
      * @param mime_type
      * @return
      */
-    private Map<String, String> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
-		Map<String, String> result = new HashMap();
+    private Map<String, Object> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
+		Map<String, Object> result = new HashMap();
 
-		Double maxSizeFOrMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type);
+		Double maxSizeForMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type);
     	String name = "";
     	String url = "";
     	if(!mediaUrl.isEmpty()) {
-			String filePath = FileUtil.downloadFileToLocalFromUrl(mediaUrl, mime_type, name, maxSizeFOrMedia);
-			if(!filePath.isEmpty()) {
-				url = mediaService.uploadFileFromPath(null, filePath);
+			byte[] inputBytes = FileUtil.getInputBytesFromUrl(mediaUrl);
+			if(inputBytes != null) {
+				String sizeError = FileUtil.validateFileSizeByInputBytes(inputBytes, maxSizeForMedia);
+				if(sizeError.isEmpty()) {
+					String filePath = FileUtil.fileToLocalFromBytes(inputBytes, mime_type, messageId);
+					if(!filePath.isEmpty()) {
+						url = mediaService.uploadFileFromPath(null, filePath);
+					} else {
+						result.put("size", 0d);
+						result.put("error", MessageMediaError.EMPTY_RESPONSE);
+					}
+				} else {
+					result.put("size", (double) inputBytes.length);
+					result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
+				}
+			} else {
+				result.put("size", 0d);
+				result.put("error", MessageMediaError.EMPTY_RESPONSE);
 			}
-    	}
+    	} else {
+			result.put("size", 0d);
+			result.put("error", MessageMediaError.EMPTY_RESPONSE);
+		}
     	
     	result.put("name", name);
     	result.put("url", url);
