@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.uci.adapter.cdn.FileCdnProvider;
 import com.uci.adapter.gs.whatsapp.outbound.MessageType;
 import com.uci.adapter.gs.whatsapp.outbound.MethodType;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.Action;
@@ -14,13 +15,12 @@ import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyButton;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
-import com.uci.adapter.service.media.SunbirdCloudMediaService;
+import com.uci.adapter.cdn.service.SunbirdCloudMediaService;
 import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
 import com.uci.utils.bot.util.FileUtil;
-import com.uci.utils.cdn.FileCdnProvider;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -79,9 +79,6 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
 	@Autowired
 	private FileCdnProvider fileCdnProvider;
-
-	@Autowired
-	private SunbirdCloudMediaService mediaService;
 
     /**
      * Convert Inbound Gupshup Message To XMessage
@@ -200,12 +197,12 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     	media.setText(mediaData.get("name").toString());
     	media.setUrl(mediaData.get("url").toString());
 		media.setCategory((MediaCategory) mediaInfo.get("category"));
-//		if(mediaData.get("url") != null && mediaData.get("url").toString().isEmpty()) {
-//			media.setMessageMediaError(MessageMediaError.EMPTY_RESPONSE);
-//		}
-		media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
-		media.setSize((Double) mediaData.get("size"));
-		//TODO: store media file size in media
+		if(mediaData.get("error") != null) {
+			media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
+		}
+		if(mediaData.get("size") != null) {
+			media.setSize((Double) mediaData.get("size"));
+		}
     	return media;
     }
     
@@ -276,9 +273,11 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 			if(inputBytes != null) {
 				String sizeError = FileUtil.validateFileSizeByInputBytes(inputBytes, maxSizeForMedia);
 				if(sizeError.isEmpty()) {
-					String filePath = FileUtil.fileToLocalFromBytes(inputBytes, mime_type, messageId);
+					/* Unique File Name */
+					name = FileUtil.getUploadedFileName(mime_type, messageId);
+					String filePath = FileUtil.fileToLocalFromBytes(inputBytes, mime_type, name);
 					if(!filePath.isEmpty()) {
-						url = mediaService.uploadFileFromPath(null, filePath);
+						url = fileCdnProvider.uploadFileFromPath(filePath, name);
 					} else {
 						result.put("size", 0d);
 						result.put("error", MessageMediaError.EMPTY_RESPONSE);

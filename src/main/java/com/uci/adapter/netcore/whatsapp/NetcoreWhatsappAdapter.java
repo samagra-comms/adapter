@@ -1,5 +1,6 @@
 package com.uci.adapter.netcore.whatsapp;
 
+import com.uci.adapter.cdn.FileCdnProvider;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreLocation;
 import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.MessageType;
@@ -20,13 +21,12 @@ import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
-import com.uci.adapter.service.media.SunbirdCloudMediaService;
+import com.uci.adapter.cdn.service.SunbirdCloudMediaService;
 import com.uci.adapter.utils.CommonUtils;
 import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.utils.BotService;
 import com.uci.utils.bot.util.FileUtil;
 
-import com.uci.utils.cdn.FileCdnProvider;
 import io.fusionauth.domain.Application;
 import lombok.Builder;
 import lombok.Getter;
@@ -40,8 +40,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
-import javax.print.attribute.standard.Media;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -49,7 +47,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Getter
@@ -70,9 +67,6 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
 	@Autowired
 	private FileCdnProvider fileCdnProvider;
-
-	@Autowired
-	private SunbirdCloudMediaService mediaService;
 
 	/**
      * Convert Inbound Netcore Message To XMessage
@@ -197,8 +191,12 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	media.setText(mediaData.get("name").toString());
     	media.setUrl(mediaData.get("url").toString());
     	media.setCategory((MediaCategory) mediaInfo.get("category"));
-		media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
-		media.setSize((Double) mediaData.get("size"));
+		if(mediaData.get("error") != null) {
+			media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
+		}
+		if(mediaData.get("size") != null) {
+			media.setSize((Double) mediaData.get("size"));
+		}
 		return media;
     }
     
@@ -286,9 +284,11 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 
 					String sizeError = FileUtil.validateFileSizeByInputBytes(inputBytes, maxSizeForMedia);
 					if(sizeError.isEmpty()) {
-						String filePath = FileUtil.fileToLocalFromBytes(inputBytes, mime_type, messageId);
+						/* Unique File Name */
+						name = FileUtil.getUploadedFileName(mime_type, messageId);
+						String filePath = FileUtil.fileToLocalFromBytes(inputBytes, mime_type, name);
 						if(!filePath.isEmpty()) {
-							url = mediaService.uploadFileFromPath(null, filePath);
+							url = fileCdnProvider.uploadFileFromPath(filePath, name);
 						} else {
 							result.put("size", 0d);
 							result.put("error", MessageMediaError.EMPTY_RESPONSE);
