@@ -104,9 +104,10 @@ public class AzureBlobService implements FileCdnProvider {
                 blobClient.uploadFromFile(filePath);
 
                 // Return blob name
-                return blobClient.getBlobName();
+                return getFileSignedUrl(blobClient.getBlobName());
             }
         } catch(Exception ex) {
+            ex.printStackTrace();
             log.error("Exception in azure uploadFileFromPath: "+ex.getMessage());
         }
 
