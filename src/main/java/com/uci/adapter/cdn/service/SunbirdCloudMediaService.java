@@ -39,7 +39,7 @@ public class SunbirdCloudMediaService implements FileCdnProvider {
         if(this.service == null && mediaStorageType != null && mediaStorageKey != null && mediaStorageSecret != null && mediaStorageUrl != null) {
             String urlT = mediaStorageUrl;
 
-            StorageConfig config = new StorageConfig(mediaStorageType, mediaStorageKey, this.mediaStorageSecret, getStringObject(urlT));
+            StorageConfig config = new StorageConfig(mediaStorageType, mediaStorageKey, this.mediaStorageSecret, getStringObject(urlT),getStringObject(""));
             BaseStorageService service = StorageServiceFactory.getStorageService(config);
             this.service = service;
         }

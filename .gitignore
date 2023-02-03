@@ -77,3 +77,4 @@ samagra.gupshup.incoming.iml
 
 .DS_store
 target/
+.idea/
