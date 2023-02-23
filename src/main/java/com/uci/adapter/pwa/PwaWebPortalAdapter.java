@@ -178,8 +178,9 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
                     .title(getTextMessage(xMsg))
                     .msg_type(StylingTag.TEXT.toString().toUpperCase())
                     .build();
-            if(this.getButtonChoices(xMsg).size() > 0) {
-                pwaMessage.setChoices(this.getButtonChoices(xMsg));
+            ArrayList<ButtonChoice> buttonChoices = this.getButtonChoices(xMsg);
+            if(buttonChoices.size() > 0) {
+                pwaMessage.setChoices(buttonChoices);
             }
         }
 
