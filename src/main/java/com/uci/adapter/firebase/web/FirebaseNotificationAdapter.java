@@ -118,8 +118,12 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
         SenderReceiverInfo to = nextMsg.getTo();
-        Map<String, String> meta = to.getMeta();
-        if(meta != null && meta.get("fcmToken") != null) {
+        XMessagePayload payload = nextMsg.getPayload();
+        Map<String, String> data = new HashMap<>();
+        for (Data dataArrayList : payload.getData()) {
+            data.put(dataArrayList.getKey(), dataArrayList.getValue());
+        }
+        if(data != null && data.get("fcmToken") != null) {
             return botService.getAdapterByID(nextMsg.getAdapterId()).map(new Function<JsonNode, Mono<Mono<XMessage>>>() {
                 @Override
                 public Mono<Mono<XMessage>> apply(JsonNode adapter) {
@@ -142,10 +146,10 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                     if(credentials != null && credentials.path("serviceKey") != null
                                             && !credentials.path("serviceKey").asText().isEmpty()) {
                                         String click_action = null;
-                                        if(meta.get("fcmClickActionUrl") != null && !meta.get("fcmClickActionUrl").isEmpty()) {
-                                            click_action = meta.get("fcmClickActionUrl");
+                                        if(data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
+                                            click_action = data.get("fcmClickActionUrl");
                                         }
-                                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), meta.get("fcmToken"), "Firebase Notification", nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId)
+                                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId)
                                             .map(new Function<Boolean, XMessage>() {
                                                 @Override
                                                 public XMessage apply(Boolean result) {
