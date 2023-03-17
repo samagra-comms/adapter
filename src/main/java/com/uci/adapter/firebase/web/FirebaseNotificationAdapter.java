@@ -129,7 +129,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                             && !credentials.path("serviceKey").asText().isEmpty()) {
                         String click_action = null;
                         if(data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
-                            click_action = meta.get("fcmClickActionUrl");
+                            click_action = data.get("fcmClickActionUrl");
                         }
                         return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId)
                                 .map(new Function<Boolean, XMessage>() {
