@@ -7,7 +7,6 @@ import com.uci.adapter.firebase.web.inbound.FirebaseWebReport;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.utils.BotService;
-import com.uci.utils.service.VaultService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,9 +31,6 @@ import java.util.function.Function;
 public class FirebaseNotificationAdapter extends AbstractProvider implements IProvider {
     @Autowired
     public BotService botService;
-
-    @Autowired
-    public VaultService vaultService;
 
     /**
      * Convert Firebase Message Object to XMessage Object
@@ -123,65 +119,40 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
         for (Data dataArrayList : payload.getData()) {
             data.put(dataArrayList.getKey(), dataArrayList.getValue());
         }
-        if(data != null && data.get("fcmToken") != null) {
-            return botService.getAdapterByID(nextMsg.getAdapterId()).map(new Function<JsonNode, Mono<Mono<XMessage>>>() {
+	if(data != null && data.get("fcmToken") != null) {
+            return botService.getAdapterCredentials(nextMsg.getAdapterId()).map(new Function<JsonNode, Mono<XMessage>>() {
                 @Override
-                public Mono<Mono<XMessage>> apply(JsonNode adapter) {
-                    log.info("adapter: "+adapter);
-                    if(adapter != null) {
-                        String vaultKey;
-                        try{
-                            vaultKey = adapter.path("config").path("credentials").path("variable").asText();
-                        } catch (Exception ex) {
-                            log.error("Exception in fetching adapter variable from json node: "+ex.getMessage());
-                            vaultKey = null;
+                public Mono<XMessage> apply(JsonNode credentials) {
+                    String channelMessageId = UUID.randomUUID().toString();
+                    log.info("credentials: "+credentials);
+                    if(credentials != null && credentials.path("serviceKey") != null
+                            && !credentials.path("serviceKey").asText().isEmpty()) {
+                        String click_action = null;
+                        if(data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
+                            click_action = meta.get("fcmClickActionUrl");
                         }
-
-                        if(vaultKey != null && !vaultKey.isEmpty()) {
-                            return vaultService.getAdpaterCredentials(vaultKey).map(new Function<JsonNode, Mono<XMessage>>(){
-                                @Override
-                                public Mono<XMessage> apply(JsonNode credentials) {
-                                    String channelMessageId = UUID.randomUUID().toString();
-                                    log.info("credentials: "+credentials);
-                                    if(credentials != null && credentials.path("serviceKey") != null
-                                            && !credentials.path("serviceKey").asText().isEmpty()) {
-                                        String click_action = null;
-                                        if(data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
-                                            click_action = data.get("fcmClickActionUrl");
+                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId)
+                                .map(new Function<Boolean, XMessage>() {
+                                    @Override
+                                    public XMessage apply(Boolean result) {
+                                        if (result) {
+                                            nextMsg.setTo(to);
+                                            nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
+                                            nextMsg.setMessageState(XMessage.MessageState.SENT);
                                         }
-                                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId)
-                                            .map(new Function<Boolean, XMessage>() {
-                                                @Override
-                                                public XMessage apply(Boolean result) {
-                                                    if (result) {
-                                                        nextMsg.setTo(to);
-                                                        nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
-                                                        nextMsg.setMessageState(XMessage.MessageState.SENT);
-                                                    }
-                                                    return nextMsg;
-                                                }
-                                            });
+                                        return nextMsg;
                                     }
-                                    return Mono.just(null);
-                                }
-                            });
-                        }
+                                });
                     }
-                    return Mono.just(Mono.just(null));
+                    return null;
                 }
-            }).flatMap(new Function<Mono<Mono<XMessage>>, Mono<XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(Mono<Mono<XMessage>> m) {
-                    log.info("Mono FlatMap Level 1");
-                    return m.flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
+            }).flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
                         @Override
                         public Mono<? extends XMessage> apply(Mono<XMessage> n) {
                             log.info("Mono FlatMap Level 2");
                             return n;
                         }
                     });
-                }
-            });
 
         }
         return null;

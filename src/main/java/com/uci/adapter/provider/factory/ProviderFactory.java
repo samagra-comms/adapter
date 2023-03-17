@@ -13,7 +13,6 @@ import com.uci.adapter.utils.CommonUtils;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
 
-import com.uci.utils.service.VaultService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,9 +37,6 @@ public class ProviderFactory {
     
     @Autowired
     public FileCdnFactory fileCdnFactory;
-
-    @Autowired
-    public VaultService vaultService;
 
     @Autowired
     public CommonUtils commonUtils;
@@ -75,7 +71,7 @@ public class ProviderFactory {
                     .build();
             return netcoreWhatsappAdapter;
         } else if(provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")){
-            return FirebaseNotificationAdapter.builder().botService(botService).vaultService(vaultService).build();
+            return FirebaseNotificationAdapter.builder().botService(botService).build();
         }
         return null;
     }
