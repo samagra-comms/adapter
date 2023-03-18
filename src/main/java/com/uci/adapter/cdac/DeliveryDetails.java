@@ -2,7 +2,7 @@ package com.uci.adapter.cdac;
 
 import lombok.*;
 
-import javax.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElement;
 import java.util.List;
 
 @Data

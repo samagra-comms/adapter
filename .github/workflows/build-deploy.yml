@@ -1,0 +1,76 @@
+# Build & Deploy on Tag & Push
+name: Github Package
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+    branches:
+      ["release-4.*.*", "release-5.*.*"]
+  pull_request:
+    branches:
+      ["release-4.*.*", "release-5.*.*"]
+      
+jobs:
+  build-deploy-github:
+    name: Build & Deploy to GitHub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: 11
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-
+
+      - name: maven-settings-xml-action
+        uses: whelk-io/maven-settings-xml-action@v20
+        with:
+          servers: >
+            [
+              {
+                "id": "github-message-rosa",
+                "username": "${env.GITHUB_USERNAME}",
+                "password": "${env.GITHUB_TOKEN}"
+              },
+              {
+                "id": "github-utils",
+                "username": "${env.GITHUB_USERNAME}",
+                "password": "${env.GITHUB_TOKEN}"
+              },
+              {
+                "id": "github-dao",
+                "username": "${env.GITHUB_USERNAME}",
+                "password": "${env.GITHUB_TOKEN}"
+              },
+              {
+                "id": "github",
+                "username": "${env.GITHUB_USERNAME}",
+                "password": "${env.GITHUB_TOKEN}"
+              }
+            ]
+          output_file: $GITHUB_WORKSPACE/settings.xml
+        env:
+          GITHUB_USERNAME: ${{ secrets.USERNAME }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+      - name: Delete package specific version
+        uses: smartsquaregmbh/delete-old-packages@v0.4.0
+        with:
+          version: 5.1.0 # This should be same as in the pom.xml file,
+                          # to delete only the pom specified version, not the other older versions
+          names: |
+            com.uci.adapter
+          token: ${{ secrets.TOKEN }}
+
+      - name: Deploy
+        env:
+          GITHUB_USERNAME: ${{ secrets.USERNAME }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        run: mvn -s $GITHUB_WORKSPACE/settings.xml clean install -Pgithub deploy -DskipTests

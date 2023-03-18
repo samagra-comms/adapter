@@ -8,5 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 public class OutboundMessage {
-    private SunbirdMessage[] message;
+    private SunbirdMessage message;
+    private String to;
+    private String messageId;
 }

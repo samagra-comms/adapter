@@ -1,21 +1,8 @@
 package com.uci.adapter.cdac;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import messagerosa.core.model.SenderReceiverInfo;
-import messagerosa.core.model.XMessage;
-import messagerosa.core.model.XMessagePayload;
-import org.junit.jupiter.api.Test;
-
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
-
-import java.io.ByteArrayInputStream;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 
 class CdacBulkSmsAdapterTest {
 

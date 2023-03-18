@@ -2,21 +2,32 @@ package com.uci.adapter.gs.whatsapp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.uci.adapter.cdn.FileCdnProvider;
+import com.uci.adapter.gs.whatsapp.outbound.MessageType;
+import com.uci.adapter.gs.whatsapp.outbound.MethodType;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.Action;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.Section;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.SectionRow;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;
+import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.ReplyButton;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
-import com.uci.dao.models.XMessageDAO;
+import com.uci.adapter.cdn.service.SunbirdCloudMediaService;
+import com.uci.adapter.utils.CommonUtils;
+import com.uci.adapter.utils.MediaSizeLimit;
 import com.uci.dao.repository.XMessageRepository;
-import com.uci.dao.utils.XMessageDAOUtills;
 import com.uci.utils.BotService;
+import com.uci.utils.bot.util.FileUtil;
+
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import messagerosa.core.model.MessageId;
-import messagerosa.core.model.SenderReceiverInfo;
-import messagerosa.core.model.XMessage;
-import messagerosa.core.model.XMessagePayload;
+import messagerosa.core.model.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,6 +40,8 @@ import java.net.URI;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Getter
@@ -61,6 +74,15 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
 
+	@Autowired
+	private MediaSizeLimit mediaSizeLimit;
+
+	@Autowired
+	private FileCdnProvider fileCdnProvider;
+
+    /**
+     * Convert Inbound Gupshup Message To XMessage
+     */
     @Override
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
         GSWhatsAppMessage message = (GSWhatsAppMessage) msg;
@@ -70,12 +92,16 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         final XMessage.MessageState[] messageState = new XMessage.MessageState[1];
         messageState[0] = XMessage.MessageState.REPLIED;
         MessageId messageIdentifier = MessageId.builder().build();
-
+        XMessage.MessageType messageType= XMessage.MessageType.TEXT;
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
-        String appName = "";
-        final String[] adapter = {""};
 
-        log.info("test");
+		/**
+		 * If for a replied message, message id is null, generate a new one, and set it
+		 */
+		if (message.getResponse() == null &&
+				(message.getMessageId() == null || message.getMessageId().isEmpty())) {
+			message.setMessageId(generateNewMessageId());
+		}
 
         if (message.getResponse() != null) {
             String reportResponse = message.getResponse();
@@ -87,211 +113,598 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
                 xmsgPayload.setText("");
                 messageIdentifier.setChannelMessageId(reportMsg.getExternalId());
                 from.setUserID(reportMsg.getDestAddr().substring(2));
-                switch (eventType) {
-                    case "SENT":
-                        messageState[0] = XMessage.MessageState.SENT;
-                        break;
-                    case "DELIVERED":
-                        messageState[0] = XMessage.MessageState.DELIVERED;
-                        break;
-                    case "READ":
-                        messageState[0] = XMessage.MessageState.READ;
-                        break;
-                    default:
-                        messageState[0] = XMessage.MessageState.FAILED_TO_DELIVER;
-                        //TODO: Save the state of message and reason in this case.
-                        break;
-                }
+                messageState[0] = getMessageState(eventType);
             }
-            return getAppName(from, message.getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(String a) {
-                    if (a == null || a.isEmpty()) {
-                        return Mono.just(processedXMessage(message, xmsgPayload, a, to, from, "",
-                                messageState[0], messageIdentifier));
-                    } else {
-                        return botservice.getCurrentAdapter(a).map(new Function<String, XMessage>() {
-                            @Override
-                            public XMessage apply(String frc) {
-                                return processedXMessage(message, xmsgPayload, a, to, from, frc,
-                                        messageState[0], messageIdentifier);
-                            }
-                        });
-                    }
-                }
-            });
-        }
-
-        else if (message.getType().equals("text")) {
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        } else if (message.getType().equals("text")) {
             //Actual Message with payload (user response)
             from.setUserID(message.getMobile().substring(2));
-            return getAppName(from, message.getText()).flatMap(new Function<String, Mono<? extends XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(String appName) {
-                    return botservice.getCurrentAdapter(appName).map(new Function<String, XMessage>() {
-                        @Override
-                        public XMessage apply(String adapterName) {
-                            messageIdentifier.setReplyId(message.getReplyId());
-                            if (message.getType().equals("OPT_IN")) {
-                                messageState[0] = XMessage.MessageState.OPTED_IN;
-                            } else if (message.getType().equals("OPT_OUT")) {
-                                xmsgPayload.setText("stop-wa");
-                                messageState[0] = XMessage.MessageState.OPTED_OUT;
-                            } else {
-                                messageState[0] = XMessage.MessageState.REPLIED;
-                                xmsgPayload.setText(message.getText());
-                                messageIdentifier.setChannelMessageId(message.getMessageId());
-                            }
-
-                            return processedXMessage(message, xmsgPayload, appName, to, from, adapterName,
-                                    messageState[0], messageIdentifier);
-                        }
-                    });
-                }
-            });
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            if (message.getType().equals("OPT_IN")) {
+                messageState[0] = XMessage.MessageState.OPTED_IN;
+            } else if (message.getType().equals("OPT_OUT")) {
+                xmsgPayload.setText("stop-wa");
+                messageState[0] = XMessage.MessageState.OPTED_OUT;
+            } else {
+                messageState[0] = XMessage.MessageState.REPLIED;
+                xmsgPayload.setText(message.getText());
+                messageIdentifier.setChannelMessageId(message.getMessageId());
+            }
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        } else if (message.getType().equals("interactive")) {
+        	//Actual Message with payload (user response)
+            from.setUserID(message.getMobile().substring(2));
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            messageState[0] = XMessage.MessageState.REPLIED;
+            xmsgPayload.setText(getInboundInteractiveContentText(message));
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+            
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        } else if (message.getType().equals("location")) {
+        	//Actual Message with payload (user response)
+            from.setUserID(message.getMobile().substring(2));
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            messageState[0] = XMessage.MessageState.REPLIED;
+            xmsgPayload.setLocation(getInboundLocationParams(message));
+            xmsgPayload.setText("");
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+            
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
+        } else if (isInboundMediaMessage(message.getType())) {
+        	//Actual Message with payload (user response)
+            from.setUserID(message.getMobile().substring(2));
+            messageIdentifier.setReplyId(message.getReplyId());
+            
+            messageState[0] = XMessage.MessageState.REPLIED;
+            xmsgPayload.setText("");
+            xmsgPayload.setMedia(getInboundMediaMessage(message));
+            messageIdentifier.setChannelMessageId(message.getMessageId());
+            
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0], messageIdentifier, messageType));
         } else if (message.getType().equals("button")) {
             from.setUserID(message.getMobile().substring(2));
-            // Get the last message sent to this user using the reply-messageID
-            // Get the app from that message
-            // Get the buttonLinkedApp
-            // Add the starting text as the first message.
-
-//            XMessageDAO lastMessage = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//             appName = lastMessage.getApp();
-//            Application application = botservice.getButtonLinkedApp(appName);
-//            appName = application.name;
-//            xmsgPayload.setText((String) application.data.get("startingMessage"));
-            return Mono.just(processedXMessage(message,xmsgPayload,appName,to,from, adapter[0], messageState[0],messageIdentifier));
+            return Mono.just(processedXMessage(message, xmsgPayload, to, from, messageState[0],messageIdentifier, messageType));
         }
         return null;
 
     }
+    
+    /**
+     * Check if inbound message is media type
+     * @param type
+     * @return
+     */
+    private Boolean isInboundMediaMessage(String type) {
+    	if(type.equals("image") || type.equals("video") || type.equals("audio") 
+    			|| type.equals("voice") || type.equals("document")) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    /**
+     * Get Inbound Media name/url
+     * @param message
+     * @return
+     */
+    private MessageMedia getInboundMediaMessage(GSWhatsAppMessage message) {
+    	Map<String, Object> mediaInfo = getMediaInfo(message);
+    	Map<String, Object> mediaData = uploadInboundMediaFile(message.getMessageId(), mediaInfo.get("mediaUrl").toString(), mediaInfo.get("mime_type").toString());
+    	MessageMedia media = new MessageMedia();
+    	media.setText(mediaData.get("name").toString());
+    	media.setUrl(mediaData.get("url").toString());
+		media.setCategory((MediaCategory) mediaInfo.get("category"));
+		if(mediaData.get("error") != null) {
+			media.setMessageMediaError((MessageMediaError) mediaData.get("error"));
+		}
+		if(mediaData.get("size") != null) {
+			media.setSize((Double) mediaData.get("size"));
+		}
+    	return media;
+    }
+    
+    /**
+     * Get Media Id & mime type
+     * @param message
+     * @return
+     */
+    private Map<String, Object> getMediaInfo(GSWhatsAppMessage message) {
+    	Map<String, Object> result = new HashMap();
+    	
+    	String mediaUrl = "";
+    	String mime_type = "";
+    	Object category = null;
+    	String mediaContent = "";
+    	if(message.getType().equals("image")) {
+    		mediaContent = message.getImage();
+    	} else if(message.getType().equals("audio")) {
+    		mediaContent = message.getAudio();
+    	} else if(message.getType().equals("voice")) {
+    		mediaContent = message.getVoice();
+    	} else if(message.getType().equals("video")) {
+    		mediaContent = message.getVideo();
+    	} else if(message.getType().equals("document")) {
+    		mediaContent = message.getDocument();
+    	}
+    	
+    	if(mediaContent != null && !mediaContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(mediaContent);
+    			log.info("media content node: "+node);
+    	    	
+    			String url = node.path("url") != null ? node.path("url").asText() : "";
+    			String signature = node.path("signature") != null ? node.path("signature").asText() : "";
+    			mime_type = node.path("mime_type") != null ? node.path("mime_type").asText() : "";
+    	
+    			mediaUrl = url+signature;
 
-    private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload,
-                                       String appName, SenderReceiverInfo to, SenderReceiverInfo from,
-                                       String adapter, XMessage.MessageState messageState, MessageId messageIdentifier) {
-        if (message.getLocation() != null) xmsgPayload.setText(message.getLocation());
+				category = CommonUtils.getMediaCategoryByMimeType(mime_type);
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
+    		}
+    	}
+    	
+    	result.put("mediaUrl", mediaUrl);
+    	result.put("mime_type", mime_type);
+    	result.put("category", category);
+    	
+    	return result;
+    }
+    
+    /**
+     * Upload media & get its url/name
+     * @param messageId
+     * @param mediaUrl
+     * @param mime_type
+     * @return
+     */
+    private Map<String, Object> uploadInboundMediaFile(String messageId, String mediaUrl, String mime_type) {
+		Map<String, Object> result = new HashMap();
+
+		Double maxSizeForMedia = mediaSizeLimit.getMaxSizeForMedia(mime_type);
+    	String name = "";
+    	String url = "";
+    	if(!mediaUrl.isEmpty()) {
+			byte[] inputBytes = FileUtil.getInputBytesFromUrl(mediaUrl);
+			if(inputBytes != null) {
+				String sizeError = FileUtil.validateFileSizeByInputBytes(inputBytes, maxSizeForMedia);
+				if(sizeError.isEmpty()) {
+					/* Unique File Name */
+					name = FileUtil.getUploadedFileName(mime_type, messageId);
+					String filePath = FileUtil.fileToLocalFromBytes(inputBytes, mime_type, name);
+					if(!filePath.isEmpty()) {
+						url = fileCdnProvider.uploadFileFromPath(filePath, name);
+					} else {
+						result.put("size", 0d);
+						result.put("error", MessageMediaError.EMPTY_RESPONSE);
+					}
+				} else {
+					result.put("size", (double) inputBytes.length);
+					result.put("error", MessageMediaError.PAYLOAD_TO_LARGE);
+				}
+			} else {
+				result.put("size", 0d);
+				result.put("error", MessageMediaError.EMPTY_RESPONSE);
+			}
+    	} else {
+			result.put("size", 0d);
+			result.put("error", MessageMediaError.EMPTY_RESPONSE);
+		}
+    	
+    	result.put("name", name);
+    	result.put("url", url);
+    	
+    	return result;
+    }
+    
+    /**
+     * Get XMessage Payload Location params for inbound Location 
+     * @param message
+     * @return
+     */
+    private LocationParams getInboundLocationParams(GSWhatsAppMessage message) {
+    	Double longitude = null;
+    	Double latitude = null;
+    	String address = "";
+    	String name = "";
+    	String url = "";
+    	String locationContent = message.getLocation();
+    	if(locationContent != null && !locationContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(locationContent);
+    			log.info("locationcontent node: "+node);
+    	    	
+    			longitude = node.path("longitude") != null ? Double.parseDouble(node.path("longitude").asText()) : null;
+    			latitude = node.path("latitude") != null ? Double.parseDouble(node.path("latitude").asText()) : null;
+    			address = node.path("address") != null ? node.path("address").asText() : "";
+    			name = node.path("name") != null ? node.path("name").asText() : "";
+    			url = node.path("url") != null ? node.path("url").asText() : "";
+    	    	
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundLocationParams: "+e.getMessage());
+    		}
+    	}
+    	
+        LocationParams location = new LocationParams();
+        location.setLatitude(latitude);
+        location.setLongitude(longitude);
+        location.setAddress(address);
+        location.setUrl(url);
+        location.setName(name);
+    	
+    	return location;
+    }
+
+    /**
+     * Get Text from Interactive Context Reply
+     * @param message
+     * @return
+     */
+    private String getInboundInteractiveContentText(GSWhatsAppMessage message) {
+    	String text  = "";
+    	String interactiveContent = message.getInteractive();
+    	if(interactiveContent != null && !interactiveContent.isEmpty()) {
+    		ObjectMapper mapper = new ObjectMapper();
+        	try {
+        		JsonNode node = mapper.readTree(interactiveContent);
+    			log.info("interactive content node: "+node);
+    	    	
+    			String type = node.path("type") != null ? node.path("type").asText() : "";
+    	    	
+    			if(type.equalsIgnoreCase("list_reply")) {
+    				if(node.path("list_reply").path("title") != null) {
+    					text = node.path("list_reply").path("title").asText();
+    				}
+    	    	} else if(type.equalsIgnoreCase("button_reply")) {
+    	    		if(node.path("button_reply").path("title") != null) {
+    	    			text = node.path("button_reply").path("title").asText();
+    	    		}
+    	    	}
+    		} catch (JsonProcessingException e) {
+    			log.error("Exception in getInboundInteractiveContentText: "+e.getMessage());
+    		}
+    	}
+    	log.info("Inbound interactive text: "+text);
+    	return text;
+    }
+    
+    @NotNull
+    public static XMessage.MessageState getMessageState(String eventType) {
+        XMessage.MessageState messageState;
+        switch (eventType) {
+	        case "SENT":
+	            messageState = XMessage.MessageState.SENT;
+	            break;
+	        case "DELIVERED":
+	            messageState = XMessage.MessageState.DELIVERED;
+	            break;
+	        case "READ":
+	            messageState = XMessage.MessageState.READ;
+	            break;
+	        default:
+	            messageState = XMessage.MessageState.FAILED_TO_DELIVER;
+	            //TODO: Save the state of message and reason in this case.
+	            break;
+        }
+        return messageState;
+    }
+
+    private XMessage processedXMessage(GSWhatsAppMessage message, XMessagePayload xmsgPayload, SenderReceiverInfo to,
+                                       SenderReceiverInfo from, XMessage.MessageState messageState,
+                                       MessageId messageIdentifier, XMessage.MessageType messageType) {
         return XMessage.builder()
-                .app(appName)
                 .to(to)
                 .from(from)
-                .adapterId(adapter)
                 .channelURI("WhatsApp")
                 .providerURI("gupshup")
                 .messageState(messageState)
                 .messageId(messageIdentifier)
+                .messageType(messageType)
                 .timestamp(message.getTimestamp() == null ? Timestamp.valueOf(LocalDateTime.now()).getTime() : message.getTimestamp())
                 .payload(xmsgPayload).build();
     }
 
     /**
-     * @param from: User form the whom the message was received.
-     * @param text: User's text
-     * @return appName
+     * Process outbound messages - convert XMessage to Gupshup Message Format and send to gupshup api
      */
-    private Mono<String> getAppName(SenderReceiverInfo from, String text) {
-        try {
-            return botservice.getCampaignFromStartingMessage(text).map(new Function<String, String>() {
-                @Override
-                public String apply(String appName) {
-                    if (appName == null) {
-                        appName = "";
-//                        try {
-//                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                            appName = xMessageLast.getApp();
-//                        } catch (Exception e2) {
-//                            XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                            appName = xMessageLast.getApp();
-//                        }
+    @Override
+    public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
+		log.info("processOutBoundMessageF nextXmsg {}", xMsg.toXML());
+		String adapterIdFromXML = xMsg.getAdapterId();
+        String adapterId = "44a9df72-3d7a-4ece-94c5-98cf26307324";
+
+		 return botservice.getAdapterCredentials(adapterIdFromXML).map(new Function<JsonNode, Mono<XMessage>>() {
+				@Override
+				public Mono<XMessage> apply(JsonNode credentials) {
+					if(credentials != null && !credentials.isEmpty()) {
+                        String text = xMsg.getPayload().getText();
+    					UriComponentsBuilder builder = getURIBuilder();
+    					if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
+    						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+
+    						builder = setBuilderCredentialsAndMethod(builder, MethodType.OPTIN.toString(),  credentials.findValue("username2Way").asText(),  credentials.findValue("password2Way").asText());
+    						builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
+    							queryParam("phone_number", "91" + xMsg.getTo().getUserID());
+    					} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
+    						optInUser(xMsg,  credentials.findValue("usernameHSM").asText(),  credentials.findValue("passwordHSM").asText(),  credentials.findValue("username2Way").asText(),  credentials.findValue("password2Way").asText());
+
+    						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+    						builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(),  credentials.findValue("usernameHSM").asText(),  credentials.findValue("passwordHSM").asText());
+    						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+    							queryParam("msg", text).
+    							queryParam("isHSM", true).
+    							queryParam("msg_type", MessageType.HSM.toString());
+    					} else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
+    						optInUser(xMsg,  credentials.findValue("usernameHSM").asText(),  credentials.findValue("passwordHSM").asText(),  credentials.findValue("username2Way").asText(),  credentials.findValue("password2Way").asText());
+
+    						text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+    						builder = setBuilderCredentialsAndMethod(builder, "SendMessage",  credentials.findValue("usernameHSM").asText(),  credentials.findValue("passwordHSM").asText());
+    						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+    							queryParam("msg", text).
+    							queryParam("isTemplate", "true").
+    							queryParam("msg_type", MessageType.HSM.toString());
+    					} else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
+    						Boolean plainText = true;
+
+    						MessageType msgType = MessageType.TEXT;
+
+    						StylingTag stylingTag = xMsg.getPayload().getStylingTag() != null
+    								? xMsg.getPayload().getStylingTag() : null;
+
+    						builder = setBuilderCredentialsAndMethod(builder, MethodType.SIMPLEMESSAGE.toString(),  credentials.findValue("username2Way").asText(),  credentials.findValue("password2Way").asText());
+    						builder.queryParam("send_to", "91" + xMsg.getTo().getUserID()).
+    							queryParam("msg_type", MessageType.TEXT.toString());
+
+    						/* For interactive type - list/button */
+    						if(stylingTag != null && CommonUtils.isStylingTagIntercativeType(stylingTag)
+    							&& validateInteractiveStylingTag(xMsg.getPayload())) {
+    							if(stylingTag.equals(StylingTag.LIST)) {
+                                    String content = getOutboundListActionContent(xMsg);
+                                    log.info("list content:  "+content);
+                                    if(!content.isEmpty()) {
+                                        builder.queryParam("interactive_type", "list");
+                                        builder.queryParam("action", content);
+                                        builder.queryParam("msg", text);
+                                        plainText = false;
+                                    }
+                                } else if(stylingTag.equals(StylingTag.QUICKREPLYBTN)) {
+    								String content = getOutboundQRBtnActionContent(xMsg);
+    								log.info("QR btn content:  "+content);
+    								if(!content.isEmpty()) {
+    									builder.queryParam("interactive_type", "dr_button");
+    									builder.queryParam("action", content);
+    									builder.queryParam("msg", text);
+    									plainText = false;
+    								}
+    							}
+    						}
+
+    						/* For media */
+    						if(xMsg.getPayload().getMedia() != null && xMsg.getPayload().getMedia().getUrl() != null) {
+    							MessageMedia media = xMsg.getPayload().getMedia();
+    							builder.replaceQueryParam("method", MethodType.MEDIAMESSAGE.toString())
+    									.replaceQueryParam("msg_type", getMessageTypeByMediaCategory(media.getCategory()).toString());
+    							builder.queryParam("media_url", media.getUrl());
+    							builder.queryParam("caption", media.getText());
+    							builder.queryParam("isHSM", false);
+    							plainText = false;
+    						}
+
+    						/* For plain text */
+    						if(plainText) {
+    							text += renderMessageChoices(xMsg.getPayload().getButtonChoices());
+    							builder.queryParam("msg", text);
+    						}
+    					}
+
+    					log.info(text);
+    					URI expanded = URI.create(builder.toUriString());
+    					log.info(expanded.toString());
+
+    					return GSWhatsappService.getInstance().sendOutboundMessage(expanded).map(new Function<GSWhatsappOutBoundResponse, XMessage>() {
+    						@Override
+    						public XMessage apply(GSWhatsappOutBoundResponse response) {
+    							if(response != null && response.getResponse().getStatus().equals("success")){
+    								xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
+    								xMsg.setMessageState(XMessage.MessageState.SENT);
+    								return xMsg;
+    							} else {
+									log.error("Gupshup Whatsapp Message not sent: "+response.getResponse().getDetails());
+									xMsg.setMessageState(XMessage.MessageState.NOT_SENT);
+									return xMsg;
+								}
+    						}
+    					}).doOnError(new Consumer<Throwable>() {
+    						@Override
+    						public void accept(Throwable throwable) {
+    							log.error("Error in Send GS Whatsapp Outbound Message" + throwable.getMessage());
+    						}
+    					});
+    				} else {
+                        log.error("Credentials not found");
+//                      xMsg.setMessageId(MessageId.builder().channelMessageId("").build());
+                        xMsg.setMessageState(XMessage.MessageState.NOT_SENT);
+                        return Mono.just(xMsg);
                     }
-                    return appName;
                 }
-            });
-
-        } catch (Exception e) {
-            String appName="";
-//            try {
-//                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                appName = xMessageLast.getApp();
-//            } catch (Exception e2) {
-//                XMessageDAO xMessageLast = xmsgRepo.findTopByUserIdAndMessageStateOrderByTimestampDesc(from.getUserID(), "SENT");
-//                appName = xMessageLast.getApp();
-//            }
-            return Mono.justOrEmpty(appName);
-        }
+			}).flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
+				 @Override
+				 public Mono<? extends XMessage> apply(Mono<XMessage> o) {
+					 return o;
+				 }
+			 });
     }
 
-    @Override
-    public void processOutBoundMessage(XMessage nextMsg) throws Exception {
-        log.info("nextXmsg {}", nextMsg.toXML());
-        callOutBoundAPI(nextMsg);
+	/**
+	 * Validate if button choice option are valid for the list/button styling
+	 * @param payload
+	 * @return
+	 */
+	private boolean validateInteractiveStylingTag(XMessagePayload payload) {
+//		String regx = "^[A-Za-z0-9 _(),+-.@#$%&*={}:;'<>]+$";
+		if(payload.getStylingTag().equals(StylingTag.LIST)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 10
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 24)
+					return false;
+			}
+			return true;
+		} else if(payload.getStylingTag().equals(StylingTag.QUICKREPLYBTN)
+				&& payload.getButtonChoices() != null
+				&& payload.getButtonChoices().size() <= 3
+		){
+			for(ButtonChoice buttonChoice : payload.getButtonChoices()){
+				if(buttonChoice.getText().length() > 20 || buttonChoice.getKey().length() > 256)
+					return false;
+			}
+			return true;
+		} else{
+			return false;
+		}
+	}
+
+	/**
+     * Get Content for a List Action for outbound message
+     * @param xMsg
+     * @return
+     */
+    private String getOutboundListActionContent(XMessage xMsg) {
+    	ArrayList rows = new ArrayList();
+		xMsg.getPayload().getButtonChoices().forEach(choice -> {
+			SectionRow row = SectionRow.builder()
+								.id(choice.getKey())
+								.title(choice.getText())
+								.build();
+			rows.add(row);
+		});
+		
+		Action action = Action.builder()
+				.button("Options")
+    			.sections(new Section[]{Section.builder()
+    					.title("Choose an option")
+    					.rows(rows)
+    					.build()
+    			})
+    			.build();
+		
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			 String content = mapper.writeValueAsString(action);
+			 JsonNode node = mapper.readTree(content);
+			 ObjectNode data = mapper.createObjectNode();
+			 
+			 data.put("button", node.path("button"));
+			 data.put("sections", node.path("sections"));
+			 return mapper.writeValueAsString(data);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			log.error("Exception in getInteractiveListContent: "+e.getMessage());
+		}
+		return "";
+    }
+    
+    
+    /**
+     * Get Content for a Quick reply btn Action for outbound message
+     * @param xMsg
+     * @return
+     */
+    private String getOutboundQRBtnActionContent(XMessage xMsg) {
+    	ArrayList buttons = new ArrayList();
+		xMsg.getPayload().getButtonChoices().forEach(choice -> {
+			Button button = Button.builder()
+    	         	.type("reply")
+    	         	.reply(ReplyButton.builder()
+    	         				.id(choice.getKey())
+    	         				.title(choice.getText())
+    	         				.build())
+    	         	.build();
+			buttons.add(button);
+		});
+	        
+	    Action action = Action.builder()
+    	    			.buttons(buttons)
+    	    			.build();
+	    
+	    ObjectMapper mapper = new ObjectMapper();
+		try {
+			 String content = mapper.writeValueAsString(action);
+			 JsonNode node = mapper.readTree(content);
+			 ObjectNode data = mapper.createObjectNode();
+			 
+			 data.put("buttons", node.path("buttons"));
+			 return mapper.writeValueAsString(data);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			log.error("Exception in getInteractiveQRBtnContent: "+e.getMessage());
+		}
+		return "";
     }
 
-    @Override
-    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        return null;
-    }
+	/**
+	 * Get Message Type by given media category
+	 * @param category
+	 * @return
+	 */
+	private MessageType getMessageTypeByMediaCategory(MediaCategory category) {
+		MessageType messageType = MessageType.TEXT;
 
-    public XMessage callOutBoundAPI(XMessage xMsg) throws Exception {
-        log.info("next question to user is {}", xMsg.toXML());
-        String url = CAMPAIGN_URL + "admin/v1/adapter/getCredentials/" + xMsg.getAdapterId();
-        GWCredentials credentials = restTemplate.getForObject(url, GWCredentials.class);
+		if(category != null) {
+			if(category.equals(MediaCategory.IMAGE)) {
+				messageType = MessageType.IMAGE;
+			} else if(category.equals(MediaCategory.AUDIO)) {
+				messageType = MessageType.AUDIO;
+			} else if(category.equals(MediaCategory.VIDEO)) {
+				messageType = MessageType.VIDEO;
+			} else if(category.equals(MediaCategory.FILE)) {
+				messageType = MessageType.DOCUMENT;
+			}
+		}
+		return messageType;
+	}
 
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
+    /**
+     * Get Uri builder with default parameters
+     * @return
+     */
+    private UriComponentsBuilder getURIBuilder() {
+    	return UriComponentsBuilder.fromHttpUrl(GUPSHUP_OUTBOUND).
                 queryParam("v", "1.1").
                 queryParam("format", "json").
                 queryParam("auth_scheme", "plain").
                 queryParam("extra", "Samagra").
                 queryParam("data_encoding", "text").
                 queryParam("messageId", "123456789");
-        if (xMsg.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
-            builder.queryParam("channel", xMsg.getChannelURI().toLowerCase()).
-                    queryParam("userid", credentials.username2Way).
-                    queryParam("password", credentials.password2Way).
-                    queryParam("phone_number", "91" + xMsg.getTo().getUserID()).
-                    queryParam("method", "OPT_IN");
-        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM)) {
-            optInUser(xMsg, credentials.usernameHSM, credentials.passwordHSM, credentials.username2Way, credentials.password2Way);
-
-            builder.queryParam("method", "SendMessage").
-                    queryParam("userid", credentials.usernameHSM).
-                    queryParam("password", credentials.passwordHSM).
-                    queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-                    queryParam("msg", xMsg.getPayload().getText()).
-                    queryParam("isHSM", true).
-                    queryParam("msg_type", "HSM");
-        } else if (xMsg.getMessageType() != null && xMsg.getMessageType().equals(XMessage.MessageType.HSM_WITH_BUTTON)) {
-            optInUser(xMsg, credentials.usernameHSM, credentials.passwordHSM, credentials.username2Way, credentials.password2Way);
-
-            builder.queryParam("method", "SendMessage").
-                    queryParam("userid", credentials.usernameHSM).
-                    queryParam("password", credentials.passwordHSM).
-                    queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-                    queryParam("msg", xMsg.getPayload().getText()).
-                    queryParam("isTemplate", "true").
-                    queryParam("msg_type", "HSM");
-        } else if (xMsg.getMessageState().equals(XMessage.MessageState.REPLIED)) {
-            System.out.println(xMsg.getPayload().getText());
-            builder.queryParam("method", "SendMessage").
-                    queryParam("userid", credentials.username2Way).
-                    queryParam("password", credentials.password2Way).
-                    queryParam("send_to", "91" + xMsg.getTo().getUserID()).
-                    queryParam("msg", xMsg.getPayload().getText()).
-                    queryParam("msg_type", "TEXT");
-        } else {
+    }
+    
+    private UriComponentsBuilder setBuilderCredentialsAndMethod(UriComponentsBuilder builder, String method, String username, String password) {
+    	return builder.queryParam("method", method).
+                queryParam("userid", username).
+                queryParam("password", password);
+    }
+    
+    /**
+     * Convert Message Choices to Text
+     * @param buttonChoices
+     * @return
+     */
+    private String renderMessageChoices(ArrayList<ButtonChoice> buttonChoices) {
+        StringBuilder processedChoicesBuilder = new StringBuilder("");
+        if(buttonChoices != null){
+            for(ButtonChoice choice:buttonChoices){
+                processedChoicesBuilder.append(choice.getText()).append("\n");
+            }
+            String processedChoices = processedChoicesBuilder.toString();
+            return processedChoices.substring(0,processedChoices.length()-1);
         }
-        log.info(xMsg.getPayload().getText());
-        URI expanded = URI.create(builder.toUriString());
-        log.info(expanded.toString());
-        RestTemplate restTemplate = new RestTemplate();
-        GSWhatsappOutBoundResponse response = restTemplate.getForObject(expanded, GSWhatsappOutBoundResponse.class);
-        log.info("response ================{}", new ObjectMapper().writeValueAsString(response));
-        xMsg.setMessageId(MessageId.builder().channelMessageId(response.getResponse().getId()).build());
-        xMsg.setMessageState(XMessage.MessageState.SENT);
-
-        XMessageDAO dao = XMessageDAOUtills.convertXMessageToDAO(xMsg);
-        xmsgRepo.insert(dao);
-        return xMsg;
+        return "";
     }
 
     private void optInUser(XMessage xMsg, String usernameHSM, String passwordHSM, String username2Way, String password2Way) {
@@ -312,4 +725,19 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
         String result = restTemplate.getForObject(expanded, String.class);
         System.out.println(result);
     }
+
+	/**
+	 * Generate new message id by gupshup format
+	 * @return
+	 */
+	private String generateNewMessageId() {
+		Long fMin = Long.parseLong("4000000000000000000"); //19 characters
+		Long fMax = Long.parseLong("4999999999999999999"); //19 characters
+		Long first = ThreadLocalRandom.current().nextLong(fMin, fMax);
+		Long sMin = Long.parseLong("100000000000000000"); //18 characters
+		Long sMax = Long.parseLong("999999999999999999"); //18 characters
+		Long second = ThreadLocalRandom.current().nextLong(sMin, sMax);
+
+		return first.toString()+"-"+second.toString();
+	}
 }

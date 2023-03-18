@@ -3,7 +3,7 @@ package com.uci.adapter.sunbird.web.outbound;
 import lombok.*;
 import messagerosa.core.model.*;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 import java.util.ArrayList;
 
 @Getter

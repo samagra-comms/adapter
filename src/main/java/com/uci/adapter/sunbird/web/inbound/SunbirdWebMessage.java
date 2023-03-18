@@ -5,7 +5,7 @@ import com.uci.adapter.Request.CommonMessage;
 import com.sun.istack.Nullable;
 import lombok.Getter;
 import lombok.Setter;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 import java.util.Map;
 
 @Getter
@@ -15,7 +15,7 @@ public class SunbirdWebMessage extends CommonMessage {
 
     String messageId;
 
-    @JsonAlias({"Body"})
+    @JsonAlias({"body"})
     String text;
 
     @Nullable
@@ -27,6 +27,9 @@ public class SunbirdWebMessage extends CommonMessage {
 
     @JsonAlias({"From"})
     String from;
+
+    @JsonAlias({"to"})
+    String to;
 
     @Nullable
     Map<String,Object> context;

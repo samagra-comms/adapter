@@ -6,29 +6,70 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.2.7.RELEASE</version>
+		<version>3.0.0</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.uci</groupId>
 	<artifactId>adapter</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>5.1.0</version>
+	<!-- On changing, Set version in deploy.xml to delete the previous packages if exists and deploy new package for the specified version -->
 	<name>adapter</name>
 	<packaging>jar</packaging>
 	<description>adapter</description>
 
 	<properties>
-		<java.version>11</java.version>
+		<java.version>17</java.version>
 	</properties>
-
+	<!-- For Dao repository to upload to github packages -->
+	<profiles>
+		<profile>
+			<id>github</id>
+			<activation>
+				<property>
+					<name>useGitHubPackages</name>
+					<value>true</value>
+				</property>
+			</activation>
+			<distributionManagement>
+				<repository>
+					<id>github</id>
+					<name>GitHub Packages</name>
+					<url>https://maven.pkg.github.com/samagra-comms/adapter</url>
+				</repository>
+			</distributionManagement>
+		</profile>
+	</profiles>
+	<!-- For Downloading repositories from github packages -->
+	<repositories>
+		<repository>
+			<id>github-message-rosa</id>
+			<name>GitHub Packages</name>
+			<url>https://maven.pkg.github.com/samagra-comms/message-rosa</url>
+		</repository>
+		<repository>
+			<id>github-utils</id>
+			<name>GitHub Packages</name>
+			<url>https://maven.pkg.github.com/samagra-comms/utils</url>
+		</repository>
+		<repository>
+			<id>github-dao</id>
+			<name>GitHub Packages</name>
+			<url>https://maven.pkg.github.com/samagra-comms/dao</url>
+		</repository>
+	</repositories>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.12</version>
+			<version>1.18.22</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -57,8 +98,14 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.fasterxml.jackson.dataformat</groupId>
-			<artifactId>jackson-dataformat-xml</artifactId>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<scope>compile</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.json</groupId>
@@ -76,18 +123,25 @@
 		<dependency>
 			<groupId>com.uci</groupId>
 			<artifactId>utils</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<version>5.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>com.uci</groupId>
 			<artifactId>message-rosa</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<version>5.1.0</version>
 		</dependency>
 
+<!--		<dependency>-->
+<!--			<groupId>org.apache.httpcomponents</groupId>-->
+<!--			<artifactId>httpclient</artifactId>-->
+<!--		</dependency>-->
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents.client5/httpclient5 -->
 		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
+			<version>5.2.1</version>
 		</dependency>
+
 		<dependency>
 			<groupId>io.fusionauth</groupId>
 			<artifactId>fusionauth-java-client</artifactId>
@@ -96,7 +150,6 @@
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-web</artifactId>
-			<version>5.2.7.RELEASE</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -132,10 +185,33 @@
 		<dependency>
 			<groupId>com.uci</groupId>
 			<artifactId>dao</artifactId>
-			<version>1.0</version>
+			<version>5.1.0</version>
 			<scope>compile</scope>
 		</dependency>
-
+		<!-- https://mvnrepository.com/artifact/org.sunbird/cloud-store-sdk -->
+		<dependency>
+			<groupId>org.sunbird</groupId>
+			<artifactId>cloud-store-sdk_2.12</artifactId>
+			<version>1.4.1</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.sunbird/cloud-store-sdk -->
+		<dependency>
+			<groupId>org.sunbird</groupId>
+			<artifactId>cloud-store-sdk_2.12</artifactId>
+			<version>1.4.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-properties-migrator</artifactId>
+			<version>3.0.3</version>
+			<scope>runtime</scope>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/jakarta.validation/jakarta.validation-api -->
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+			<version>3.0.2</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

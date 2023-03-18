@@ -1,16 +1,21 @@
 package com.uci.adapter.netcore.whatsapp;
 
+import com.azure.core.util.BinaryData;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserRequestMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.ManageUserResponse;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
+import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.SendMessageResponse;
 import okhttp3.*;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -27,10 +32,12 @@ public class NewNetcoreService {
     public NewNetcoreService(NWCredentials credentials) {
         this.client = new OkHttpClient().newBuilder().build();
         this.mediaType = MediaType.parse("application/json");
-        this.baseURL = "https://waapi.pepipost.com/api/v2/";
+        String url = System.getenv("NETCORE_WHATSAPP_URI");
+        url = url != null && !url.isEmpty() ? url : "https://waapi.pepipost.com/api/v2/";
+        this.baseURL = url;
         this.credentials = credentials;
         webClient = WebClient.builder()
-                .baseUrl("https://waapi.pepipost.com/api/v2")
+                .baseUrl(url)
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("Authorization", "Bearer " + credentials.getToken())
                 .build();
@@ -95,6 +102,16 @@ public class NewNetcoreService {
     }
 
     public Mono<SendMessageResponse> sendOutboundMessage(OutboundMessage outboundMessage) {
+    	ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+    	try {
+			String json = ow.writeValueAsString(outboundMessage);
+			System.out.println("json:"+json);
+		} catch (JsonProcessingException e) {
+			System.out.println("json not converted:"+e.getMessage());
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
         return webClient.post()
                 .uri("/message/")
                 .body(Mono.just(outboundMessage), OutboundMessage.class)
@@ -118,5 +135,75 @@ public class NewNetcoreService {
                         System.out.println("ERROR IS " + throwable.getLocalizedMessage());
                     }
                 });
+    }
+    
+    public Mono<SendMessageResponse> sendOutboundOptInOutMessage(OutboundOptInOutMessage outboundMessage) {
+    	ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+    	try {
+			String json = ow.writeValueAsString(outboundMessage);
+			System.out.println("json:"+json);
+		} catch (JsonProcessingException e) {
+			System.out.println("json not converted:"+e.getMessage());
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+        return webClient.post()
+                .uri("/consent/manage")
+                .body(Mono.just(outboundMessage), OutboundOptInOutMessage.class)
+                .retrieve()
+                .bodyToMono(SendMessageResponse.class)
+                .map(new Function<SendMessageResponse, SendMessageResponse>() {
+                    @Override
+                    public SendMessageResponse apply(SendMessageResponse sendMessageResponse) {
+                        if (sendMessageResponse != null) {
+                            System.out.println("sendOutboundOptInOutMessage MESSAGE RESPONSE " + sendMessageResponse.getMessage());
+                            System.out.println("sendOutboundOptInOutMessage STATUS RESPONSE " + sendMessageResponse.getStatus());
+                            System.out.println("sendOutboundOptInOutMessage DATA RESPONSE " + sendMessageResponse.getData());
+                            return sendMessageResponse;
+                        } else {
+                        	System.out.println("sendOutboundOptInOutMessage response is null.");
+                            return null;
+                        }
+                    }
+                }).doOnError(new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) {
+                        System.out.println("ERROR IS " + throwable.getLocalizedMessage());
+                    }
+                });
+    }
+    
+    /**
+     * Get Media File from netcore by id
+     * @param id
+     * @return
+     */
+    public InputStream getMediaFile(String id) {
+    	ObjectMapper mapper = new ObjectMapper();
+        try {
+            Request request = new Request.Builder()
+                    .url(baseURL + "media/"+id)
+                    .get()
+                    .addHeader("Authorization", "Bearer " + credentials.getToken())
+                    .build();
+            
+            Response response = client.newCall(request).execute();
+
+            ResponseBody body = response.body();
+            
+            InputStream in = body.byteStream();
+            
+            if(body.contentLength() <= 0) {
+            	System.out.println("Media file content length is 0");
+            	return null;
+            }
+            
+            return in;
+        } catch (Exception e ) {
+        	System.out.println("Exception in netcore getMediaFile: "+e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 }

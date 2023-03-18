@@ -3,7 +3,7 @@ package com.uci.adapter.netcore.whatsapp.inbound;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Getter
 @Setter

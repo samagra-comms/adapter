@@ -2,10 +2,9 @@ package com.uci.adapter.provider.factory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import messagerosa.core.model.XMessage;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import javax.xml.bind.JAXBException;
+import jakarta.xml.bind.JAXBException;
 
 public interface IProvider {
 
