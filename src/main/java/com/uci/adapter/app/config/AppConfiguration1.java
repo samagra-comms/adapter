@@ -10,13 +10,13 @@ import io.fusionauth.client.FusionAuthClient;
 
 import java.time.Duration;
 
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.hc.client5.http.auth.CredentialsProvider;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.Credentials;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,9 +48,9 @@ public class AppConfiguration1 {
     @Bean
     @Qualifier("custom")
     public RestTemplate getCustomTemplate(RestTemplateBuilder builder) {
-        Credentials credentials = new UsernamePasswordCredentials("test","abcd1234");
+        Credentials credentials = new UsernamePasswordCredentials("test","abcd1234".toCharArray());
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY, credentials);
+        ((BasicCredentialsProvider) credentialsProvider).setCredentials(new AuthScope(null, -1), credentials);
 
         HttpClient httpClient = HttpClients
                 .custom()

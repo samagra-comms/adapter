@@ -1,6 +1,6 @@
 package com.uci.adapter.netcore.whatsapp.outbound.media;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;

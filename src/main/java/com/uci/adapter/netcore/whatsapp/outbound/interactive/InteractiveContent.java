@@ -1,13 +1,6 @@
 package com.uci.adapter.netcore.whatsapp.outbound.interactive;
 
-import java.util.ArrayList;
-
-import javax.xml.bind.annotation.XmlRootElement;
-
-import com.fasterxml.jackson.annotation.JsonAlias;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.sun.istack.Nullable;
-import com.uci.adapter.netcore.whatsapp.outbound.SingleMessage.SingleMessageBuilder;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import lombok.Builder;
 import lombok.Getter;

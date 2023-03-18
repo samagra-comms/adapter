@@ -1,8 +1,6 @@
 package com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply;
 
-import java.util.ArrayList;
-
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import lombok.Builder;
 import lombok.Getter;

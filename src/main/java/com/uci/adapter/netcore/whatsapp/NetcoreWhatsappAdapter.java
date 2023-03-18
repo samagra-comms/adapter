@@ -28,13 +28,13 @@ import com.uci.utils.BotService;
 import com.uci.utils.bot.util.FileUtil;
 
 import io.fusionauth.domain.Application;
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
 
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;

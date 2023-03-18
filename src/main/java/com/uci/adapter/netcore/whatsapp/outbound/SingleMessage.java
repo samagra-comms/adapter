@@ -8,7 +8,7 @@ import com.uci.adapter.netcore.whatsapp.outbound.media.MediaContent;
 
 import lombok.*;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Getter
 @Setter

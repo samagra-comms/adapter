@@ -9,8 +9,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.ArrayList;

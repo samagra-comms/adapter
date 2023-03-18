@@ -2,7 +2,7 @@ package com.uci.adapter.Enums;
 
 import java.util.HashMap;
 import java.util.Map;
-import javax.xml.bind.annotation.XmlEnum;
+import jakarta.xml.bind.annotation.XmlEnum;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor

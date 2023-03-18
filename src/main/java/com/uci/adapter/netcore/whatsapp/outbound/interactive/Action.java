@@ -2,10 +2,8 @@ package com.uci.adapter.netcore.whatsapp.outbound.interactive;
 
 import java.util.ArrayList;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.istack.Nullable;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.list.Section;
 import com.uci.adapter.netcore.whatsapp.outbound.interactive.quickreply.Button;

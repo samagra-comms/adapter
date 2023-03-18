@@ -1,28 +1,6 @@
 package com.uci.adapter.gs.sms;
 
-import java.util.ArrayList;
-
-import javax.xml.bind.JAXBException;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.client.RestTemplate;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
-import com.uci.adapter.netcore.whatsapp.inbound.NetcoreWhatsAppMessage;
-import com.uci.utils.BotService;
-
-import lombok.SneakyThrows;
-import messagerosa.core.model.ButtonChoice;
-import messagerosa.core.model.SenderReceiverInfo;
-import messagerosa.core.model.XMessage;
-import messagerosa.core.model.XMessagePayload;
-import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
+import jakarta.xml.bind.JAXBException;
 
 public class GupshupSMSAdapterTest {
 //	GupShupSMSAdapter adapter;

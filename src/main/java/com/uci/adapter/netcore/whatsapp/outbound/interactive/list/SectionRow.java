@@ -1,8 +1,6 @@
 package com.uci.adapter.netcore.whatsapp.outbound.interactive.list;
 
-import java.util.ArrayList;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 import lombok.Builder;
 import lombok.Getter;

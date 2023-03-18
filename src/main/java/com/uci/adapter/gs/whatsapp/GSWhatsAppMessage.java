@@ -1,11 +1,10 @@
 package com.uci.adapter.gs.whatsapp;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.uci.adapter.Request.CommonMessage;
-import com.uci.adapter.netcore.whatsapp.inbound.InteractiveContent;
 import com.sun.istack.Nullable;
 import lombok.Getter;
 import lombok.Setter;
