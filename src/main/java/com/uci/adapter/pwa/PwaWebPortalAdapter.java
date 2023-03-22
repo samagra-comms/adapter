@@ -128,7 +128,7 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
             @Override
             public XMessage apply(PwaWebResponse pwaWebResponse) {
                 if(pwaWebResponse != null){
-                    xMsg.setMessageId(MessageId.builder().channelMessageId(pwaWebResponse.getId()).build());
+                    xMsg.setMessageId(MessageId.builder().channelMessageId(outboundMessage.getMessageId()).build());
                     xMsg.setMessageState(XMessage.MessageState.SENT);
                 }
                 return xMsg;
@@ -149,7 +149,7 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         PwaWebService webService = new PwaWebService();
         PwaWebResponse response = webService.sendText(url, outboundMessage);
         if(null != response){
-            xMsg.setMessageId(MessageId.builder().channelMessageId(response.getId()).build());
+            xMsg.setMessageId(MessageId.builder().channelMessageId(outboundMessage.getMessageId()).build());
         }
         xMsg.setMessageState(XMessage.MessageState.SENT);
         return xMsg;
@@ -187,7 +187,7 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         return OutboundMessage.builder()
         		.message(pwaMessage)
 				.to(xMsg.getMessageId().getReplyId())
-				.messageId(xMsg.getMessageId().getChannelMessageId())
+                .messageId(UUID.randomUUID().toString())
 				.build();
     }
 
