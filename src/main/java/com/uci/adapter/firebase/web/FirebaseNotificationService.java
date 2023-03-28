@@ -4,9 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -21,7 +24,7 @@ public class FirebaseNotificationService {
      * @param body
      * @return
      */
-    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId) {
+    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data) {
         WebClient client = WebClient.builder()
                 .baseUrl(url)
                 .defaultHeaders(httpHeaders -> {
@@ -34,13 +37,16 @@ public class FirebaseNotificationService {
         ObjectNode node = mapper.createObjectNode();
         node.put("to", token);
         node.put("collapse_key", "type_a");
-        ObjectNode notificationNode = mapper.createObjectNode();
-        notificationNode.put("body", body);
-        notificationNode.put("title", title);
-        if(click_action != null && !click_action.isEmpty()) {
-            notificationNode.put("click_action", click_action);
+        // Notification Key Enable and Disable from Payload
+        if(notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")){
+            ObjectNode notificationNode = mapper.createObjectNode();
+            notificationNode.put("body", body);
+            notificationNode.put("title", title);
+            if(click_action != null && !click_action.isEmpty()) {
+                notificationNode.put("click_action", click_action);
+            }
+            node.put("notification", notificationNode);
         }
-        node.put("notification", notificationNode);
 
         ObjectNode dataNode = mapper.createObjectNode();
         dataNode.put("body", body);
@@ -48,6 +54,16 @@ public class FirebaseNotificationService {
         dataNode.put("externalId", channelMessageId);
         dataNode.put("destAdd", phone);
         dataNode.put("fcmDestAdd", token);
+        dataNode.put("click_action", click_action);
+
+        if (data != null) {
+            for (String dataKey : data.keySet()) {
+                if(!dataKey.equalsIgnoreCase("fcmToken") && !dataKey.equalsIgnoreCase("fcmClickActionUrl")){
+                    dataNode.put(dataKey, data.get(dataKey));
+                }
+            }
+        }
+
         node.put("data", dataNode);
 
         return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {

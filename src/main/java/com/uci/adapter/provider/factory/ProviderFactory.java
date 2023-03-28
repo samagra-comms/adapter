@@ -41,6 +41,9 @@ public class ProviderFactory {
     @Autowired
     public CommonUtils commonUtils;
 
+    @Value("${fcm.notificationKeyEnable:#{'true'}}")
+    private String notificationKeyEnable;
+
     public IProvider getProvider(String provider,String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
@@ -71,7 +74,7 @@ public class ProviderFactory {
                     .build();
             return netcoreWhatsappAdapter;
         } else if(provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")){
-            return FirebaseNotificationAdapter.builder().botService(botService).build();
+            return FirebaseNotificationAdapter.builder().botService(botService).notificationKeyEnable(notificationKeyEnable).build();
         }
         return null;
     }

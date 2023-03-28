@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
@@ -32,6 +34,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
     @Autowired
     public BotService botService;
 
+    private String notificationKeyEnable;
     /**
      * Convert Firebase Message Object to XMessage Object
      * @param message
@@ -131,7 +134,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                         if(data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
                             click_action = data.get("fcmClickActionUrl");
                         }
-                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId)
+                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable, data)
                                 .map(new Function<Boolean, XMessage>() {
                                     @Override
                                     public XMessage apply(Boolean result) {
