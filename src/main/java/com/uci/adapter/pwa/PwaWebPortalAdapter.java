@@ -91,7 +91,7 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         XMessage x = XMessage.builder()
                 .to(to)
                 .from(from)
-                .app(webMessage.appId)
+                .app(webMessage.getAppId())
                 .channelURI("web")
                 .providerURI("pwa")
                 .messageState(messageState)
