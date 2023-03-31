@@ -105,36 +105,42 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
 
     @Override
     public Mono<XMessage> processOutBoundMessageF(XMessage xMsg) throws Exception {
-        log.info("Sending message to transport socket :: " + xMsg.toXML());
-        OutboundMessage outboundMessage = getOutboundMessage(xMsg);
-        log.info("Sending final xmessage to transport socket :: " + xMsg.toXML());
-        String url = System.getenv("PWA_TRANSPORT_SOCKET_BASE_URL")+"/botMsg/adapterOutbound";
-        ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
         try {
-            String json = ow.writeValueAsString(outboundMessage);
-            System.out.println("json:"+json);
-        } catch (JsonProcessingException e) {
-            System.out.println("json not converted:"+e.getMessage());
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+            log.info("Sending message to transport socket :: " + xMsg.toXML());
+            OutboundMessage outboundMessage = getOutboundMessage(xMsg);
+            log.info("Sending final xmessage to transport socket :: " + xMsg.toXML());
 
-//        xMsg.setMessageId(MessageId.builder().channelMessageId("test").build());
-//        xMsg.setMessageState(XMessage.MessageState.SENT);
-//        return Mono.just(xMsg);
-
-        return PwaWebService.getInstance().
-                sendOutboundMessage(url, outboundMessage)
-                .map(new Function<PwaWebResponse, XMessage>() {
-            @Override
-            public XMessage apply(PwaWebResponse pwaWebResponse) {
-                if(pwaWebResponse != null){
-                    xMsg.setMessageId(MessageId.builder().channelMessageId(outboundMessage.getMessageId()).build());
-                    xMsg.setMessageState(XMessage.MessageState.SENT);
-                }
-                return xMsg;
+            String url = System.getenv("PWA_TRANSPORT_SOCKET_BASE_URL") + "/botMsg/adapterOutbound";
+            ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+            try {
+                String json = ow.writeValueAsString(outboundMessage);
+                System.out.println("json:" + json);
+            } catch (JsonProcessingException e) {
+                System.out.println("json not converted:" + e.getMessage());
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
-        });
+
+            //        xMsg.setMessageId(MessageId.builder().channelMessageId("test").build());
+            //        xMsg.setMessageState(XMessage.MessageState.SENT);
+            //        return Mono.just(xMsg);
+
+            return PwaWebService.getInstance().
+                    sendOutboundMessage(url, outboundMessage)
+                    .map(new Function<PwaWebResponse, XMessage>() {
+                        @Override
+                        public XMessage apply(PwaWebResponse pwaWebResponse) {
+                            if (pwaWebResponse != null) {
+                                xMsg.setMessageId(MessageId.builder().channelMessageId(outboundMessage.getMessageId()).build());
+                                xMsg.setMessageState(XMessage.MessageState.SENT);
+                            }
+                            return xMsg;
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Exception in processOutBoundMessageF: "+e.getMessage());
+            return Mono.just((new XMessage()));
+        }
     }
 
 
