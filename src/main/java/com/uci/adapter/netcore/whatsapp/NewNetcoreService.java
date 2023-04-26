@@ -11,17 +11,24 @@ import com.uci.adapter.netcore.whatsapp.outbound.OutboundMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.OutboundOptInOutMessage;
 import com.uci.adapter.netcore.whatsapp.outbound.SendMessageResponse;
 import okhttp3.*;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+@Service
 public class NewNetcoreService {
 
     private final WebClient webClient;
+
+	@Autowired
     private OkHttpClient client;
     private MediaType mediaType;
     private String baseURL;
@@ -29,13 +36,12 @@ public class NewNetcoreService {
 
     private static NewNetcoreService newNetcoreService = null;
 
-    public NewNetcoreService(NWCredentials credentials) {
-        this.client = new OkHttpClient().newBuilder().build();
+    public NewNetcoreService() {
         this.mediaType = MediaType.parse("application/json");
         String url = System.getenv("NETCORE_WHATSAPP_URI");
         url = url != null && !url.isEmpty() ? url : "https://waapi.pepipost.com/api/v2/";
         this.baseURL = url;
-        this.credentials = credentials;
+        this.credentials = new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"));
         webClient = WebClient.builder()
                 .baseUrl(url)
                 .defaultHeader("Content-Type", "application/json")
@@ -43,12 +49,8 @@ public class NewNetcoreService {
                 .build();
     }
 
-    public static NewNetcoreService getInstance(NWCredentials credentials) {
-        if (newNetcoreService == null) {
-            return new NewNetcoreService(credentials);
-        } else {
-            return newNetcoreService;
-        }
+    public static NewNetcoreService getInstance() {
+		return Objects.requireNonNullElseGet(newNetcoreService, NewNetcoreService::new);
     }
 
     public ManageUserResponse manageUser(ManageUserRequestMessage message) {

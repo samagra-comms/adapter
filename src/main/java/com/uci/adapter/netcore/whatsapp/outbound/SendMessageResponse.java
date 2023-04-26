@@ -1,5 +1,7 @@
 package com.uci.adapter.netcore.whatsapp.outbound;
 
+import java.io.Serializable;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,11 +12,11 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class SendMessageResponse {
+public class SendMessageResponse implements Serializable {
 
     @Getter
     @Setter
-    public class Data {
+    public class Data implements Serializable {
 
         @JsonAlias({"id"})
         private String identifier;
@@ -27,7 +29,7 @@ public class SendMessageResponse {
     
     @Getter
     @Setter
-    public class Error {
+    public class Error implements Serializable {
 
         @JsonAlias({"code"})
         private String code;
