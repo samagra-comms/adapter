@@ -33,7 +33,7 @@ public class SunbirdWebPortalAdapterTest {
     @BeforeEach
     public void init() {
         objectMapper = new ObjectMapper();
-        simplePayload = "{\"Body\":\"1\",\"userId\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"appId\":\"prod.diksha.portal\",\"channel\":\"ORG_001\",\"From\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"context\":null}";
+        simplePayload = "{\"body\":\"1\",\"userId\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"appId\":\"prod.diksha.portal\",\"channel\":\"ORG_001\",\"From\":\"2da3ad1ac0422d59ef004fdb173706ed\",\"context\":null}";
         adapter =  SunbirdWebPortalAdapter.builder()
                 .build();
     }

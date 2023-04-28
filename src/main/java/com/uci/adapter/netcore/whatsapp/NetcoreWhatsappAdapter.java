@@ -263,7 +263,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		if(!id.isEmpty() && !mime_type.isEmpty()) {
 			try {
 				log.info("Get netcore media by id:" + id);
-				byte[] inputBytes = NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+				byte[] inputBytes = NewNetcoreService.getInstance().
 						getMediaFile(id).readAllBytes();
 
 				if (inputBytes != null) {
@@ -408,7 +408,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	String phoneNo = "91" +xMsg.getTo().getUserID();
         SingleMessage message = getOutboundSingleMessage(xMsg, phoneNo);
         
-        return NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+        return NewNetcoreService.getInstance().
                 sendOutboundMessage(OutboundMessage.builder().message(new SingleMessage[]{message}).build()).map(new Function<SendMessageResponse, XMessage>() {
             @Override
             public XMessage apply(SendMessageResponse sendMessageResponse) {
@@ -618,7 +618,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param message
      */
     private void optInOutUser(String type, SingleOptInOutMessage message) {
-        NewNetcoreService.getInstance(new NWCredentials(System.getenv("NETCORE_WHATSAPP_AUTH_TOKEN"))).
+        NewNetcoreService.getInstance().
                 sendOutboundOptInOutMessage(OutboundOptInOutMessage.builder().type(type).recipients(new SingleOptInOutMessage[]{message}).build()).map(new Function<SendMessageResponse, Boolean>() {
             @Override
             public Boolean apply(SendMessageResponse sendMessageResponse) {

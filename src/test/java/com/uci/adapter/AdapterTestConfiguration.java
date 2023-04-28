@@ -1,6 +1,8 @@
 package com.uci.adapter;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.uci.adapter.netcore.whatsapp.NewNetcoreService;
+import okhttp3.OkHttpClient;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -11,6 +13,16 @@ import com.uci.utils.BotService;
 import io.fusionauth.client.FusionAuthClient;
 
 public class AdapterTestConfiguration {
+
+	@Autowired
+	private WebClient webClient;
+
+	@Autowired
+	private FusionAuthClient fusionAuthClient;
+
+	@Mock
+	private Cache<Object, Object> cache;
+
 	@Bean
 	public WebClient getWebClient() {
 		return WebClient.builder().baseUrl("CAMPAIGN_URL").defaultHeader("admin-token", "admin-token").build();
@@ -21,48 +33,18 @@ public class AdapterTestConfiguration {
 		return new FusionAuthClient("fa-auth-key", "fa-auth-url");
 	}
 
-	@Autowired
-	private WebClient webClient;
-
-	@Autowired
-	private FusionAuthClient fusionAuthClient;
-
-	@Mock
-	private Cache cache;
-
 	@Bean
     public BotService botService() {
         return new BotService(webClient, fusionAuthClient, cache);
     }
-	
-//	@Bean
-//    public CampaignService campaignService() {
-//        return new CampaignService(getWebClient(), getFusionAuthClient());
-//    }
-//	
-//	@Bean
-//    Map<String, Object> kafkaProducerConfiguration() {
-//        Map<String, Object> configuration = new HashMap<>();
-//        configuration.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
-//        configuration.put(ProducerConfig.CLIENT_ID_CONFIG, "sample-producer");
-//        configuration.put(ProducerConfig.ACKS_CONFIG, "all");
-//        configuration.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.springframework.kafka.support.serializer.JsonSerializer.class);
-//        configuration.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.springframework.kafka.support.serializer.JsonSerializer.class);
-//        return configuration;
-//    }
-//	
-//	@Bean
-//    public ProducerFactory<String, String> producerFactory() {
-//        return new DefaultKafkaProducerFactory(kafkaProducerConfiguration());
-//    }
-//
-//    @Bean
-//    public KafkaTemplate<String, String> kafkaTemplate() {
-//        return new KafkaTemplate<>(producerFactory());
-//    }
-//	
-//	@Bean
-//    SimpleProducer kafkaSimpleProducer() {
-//        return new SimpleProducer(kafkaTemplate());
-//    }
+
+	@Bean
+	public NewNetcoreService newNetcoreService() {
+		return new NewNetcoreService();
+	}
+
+	@Bean
+	public OkHttpClient okHttpClient() {
+		return new OkHttpClient().newBuilder().build();
+	}
 }
