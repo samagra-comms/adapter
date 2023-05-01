@@ -49,10 +49,6 @@ public class NewNetcoreService {
                 .build();
     }
 
-    public static NewNetcoreService getInstance() {
-		return Objects.requireNonNullElseGet(newNetcoreService, NewNetcoreService::new);
-    }
-
     public ManageUserResponse manageUser(ManageUserRequestMessage message) {
         ObjectMapper mapper = new ObjectMapper();
         RequestBody body = null;

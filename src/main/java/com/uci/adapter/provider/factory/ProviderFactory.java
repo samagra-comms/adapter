@@ -1,13 +1,10 @@
 package com.uci.adapter.provider.factory;
 
 import com.uci.adapter.cdn.FileCdnFactory;
-import com.uci.adapter.cdn.service.AzureBlobService;
-import com.uci.adapter.cdn.service.MinioClientService;
 import com.uci.adapter.firebase.web.FirebaseNotificationAdapter;
 import com.uci.adapter.gs.whatsapp.GupShupWhatsappAdapter;
 import com.uci.adapter.netcore.whatsapp.NetcoreWhatsappAdapter;
 import com.uci.adapter.pwa.PwaWebPortalAdapter;
-import com.uci.adapter.cdn.service.SunbirdCloudMediaService;
 import com.uci.adapter.sunbird.web.SunbirdWebPortalAdapter;
 import com.uci.adapter.utils.CommonUtils;
 import com.uci.dao.repository.XMessageRepository;
@@ -41,6 +38,9 @@ public class ProviderFactory {
     @Autowired
     public CommonUtils commonUtils;
 
+	@Autowired
+	private NetcoreWhatsappAdapter netcoreWhatsappAdapter;
+
     @Value("${fcm.notificationKeyEnable:#{'true'}}")
     private String notificationKeyEnable;
 
@@ -67,11 +67,8 @@ public class ProviderFactory {
                     .build();
             return pwaAdapter;
         } else if(provider.equalsIgnoreCase("Netcore") && channel.toLowerCase().equalsIgnoreCase("whatsapp")){
-            NetcoreWhatsappAdapter netcoreWhatsappAdapter = NetcoreWhatsappAdapter
-                    .builder()
-                    .botservice(botService)
-                    .fileCdnProvider(fileCdnFactory.getFileCdnProvider())
-                    .build();
+			netcoreWhatsappAdapter.setBotservice(botService);
+			netcoreWhatsappAdapter.setFileCdnProvider(fileCdnFactory.getFileCdnProvider());
             return netcoreWhatsappAdapter;
         } else if(provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")){
             return FirebaseNotificationAdapter.builder().botService(botService).notificationKeyEnable(notificationKeyEnable).build();

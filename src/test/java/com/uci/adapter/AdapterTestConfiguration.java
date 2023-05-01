@@ -2,15 +2,14 @@ package com.uci.adapter;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.uci.adapter.netcore.whatsapp.NewNetcoreService;
+import com.uci.utils.BotService;
+import io.fusionauth.client.FusionAuthClient;
 import okhttp3.OkHttpClient;
 import org.mockito.Mock;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import com.uci.utils.BotService;
-
-import io.fusionauth.client.FusionAuthClient;
 
 public class AdapterTestConfiguration {
 
