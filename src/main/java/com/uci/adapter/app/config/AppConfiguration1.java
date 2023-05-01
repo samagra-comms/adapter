@@ -34,7 +34,7 @@ public class AppConfiguration1 {
 
 
     @Bean
-    @Qualifier("rest")
+	@Qualifier("rest")
     public RestTemplate getRestTemplate() {
         return new RestTemplate();
     }

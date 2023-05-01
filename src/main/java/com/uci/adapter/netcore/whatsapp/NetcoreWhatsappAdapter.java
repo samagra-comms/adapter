@@ -37,6 +37,7 @@ import messagerosa.core.model.*;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
 
@@ -51,13 +52,13 @@ import java.util.function.Function;
 @Slf4j
 @Getter
 @Setter
-@Builder
+@Component
 public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvider {
 
     private final static String GUPSHUP_OUTBOUND = "https://media.smsgupshup.com/GatewayAPI/rest";
 
     @Autowired
-    @Qualifier("rest")
+	@Qualifier("rest")
     private RestTemplate restTemplate;
 
     private BotService botservice;
@@ -65,8 +66,10 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 	@Autowired
 	private MediaSizeLimit mediaSizeLimit;
 
-	@Autowired
 	private FileCdnProvider fileCdnProvider;
+
+	@Autowired
+	private NewNetcoreService newNetcoreService;
 
 	/**
      * Convert Inbound Netcore Message To XMessage
@@ -263,7 +266,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
 		if(!id.isEmpty() && !mime_type.isEmpty()) {
 			try {
 				log.info("Get netcore media by id:" + id);
-				byte[] inputBytes = NewNetcoreService.getInstance().
+				byte[] inputBytes = newNetcoreService.
 						getMediaFile(id).readAllBytes();
 
 				if (inputBytes != null) {
@@ -408,7 +411,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     	String phoneNo = "91" +xMsg.getTo().getUserID();
         SingleMessage message = getOutboundSingleMessage(xMsg, phoneNo);
         
-        return NewNetcoreService.getInstance().
+        return newNetcoreService.
                 sendOutboundMessage(OutboundMessage.builder().message(new SingleMessage[]{message}).build()).map(new Function<SendMessageResponse, XMessage>() {
             @Override
             public XMessage apply(SendMessageResponse sendMessageResponse) {
@@ -618,7 +621,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
      * @param message
      */
     private void optInOutUser(String type, SingleOptInOutMessage message) {
-        NewNetcoreService.getInstance().
+        newNetcoreService.
                 sendOutboundOptInOutMessage(OutboundOptInOutMessage.builder().type(type).recipients(new SingleOptInOutMessage[]{message}).build()).map(new Function<SendMessageResponse, Boolean>() {
             @Override
             public Boolean apply(SendMessageResponse sendMessageResponse) {

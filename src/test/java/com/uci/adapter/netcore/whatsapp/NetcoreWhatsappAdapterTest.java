@@ -10,24 +10,22 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
-import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.notNull;
 
 @Slf4j
 //@ExtendWith(MockitoExtension.class)
 @SpringBootTest(classes=AdapterTestConfiguration.class)
 class NetcoreWhatsappAdapterTest {
-	
+
     NetcoreWhatsappAdapter adapter;
     ObjectMapper objectMapper;
 
@@ -39,10 +37,8 @@ class NetcoreWhatsappAdapterTest {
     public void init() {
 
         objectMapper = new ObjectMapper();
-        adapter = NetcoreWhatsappAdapter
-                .builder()
-                .botservice(botService)
-                .build();
+        adapter = new NetcoreWhatsappAdapter();
+		adapter.setBotservice(botService);
     }
     
     @Test
