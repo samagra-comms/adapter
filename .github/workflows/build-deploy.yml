@@ -3,7 +3,7 @@ name: Github Package
 on:
   push:
     tags:
-      - 'v*.*.*'
+      ["v*.*.*", "v*.*.*-*"]
     branches:
       ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master", "development"]
   pull_request:
@@ -63,7 +63,7 @@ jobs:
       - name: Delete package specific version
         uses: smartsquaregmbh/delete-old-packages@v0.4.0
         with:
-          version: 2.1.0 # This should be same as in the pom.xml file,
+          version: 2.2.0-SNAPSHOT # This should be same as in the pom.xml file,
                           # to delete only the pom specified version, not the other older versions
           names: |
             com.uci.adapter
