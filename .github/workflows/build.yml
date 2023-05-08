@@ -3,10 +3,10 @@ name: Maven Build
 on: 
   push:
     branches:
-      ["release-4.*.*", "release-5.*.*", "release-v2.*.*"]
+      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master", "development"]
   pull_request:
     branches:
-      ["release-4.*.*", "release-5.*.*", "release-v2.*.*"]
+      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master", "development"]
 
 jobs:
   build:

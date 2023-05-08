@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.uci</groupId>
 	<artifactId>adapter</artifactId>
-	<version>2.1.0</version>
+	<version>2.2.1</version>
 	<!-- On changing, Set version in deploy.xml to delete the previous packages if exists and deploy new package for the specified version -->
 	<name>adapter</name>
 	<packaging>jar</packaging>
@@ -19,6 +19,9 @@
 
 	<properties>
 		<java.version>11</java.version>
+		<utils.version>2.2.1</utils.version>
+		<messagerosa.version>2.2.1</messagerosa.version>
+		<dao.version>2.2.1</dao.version>
 	</properties>
 	<!-- For Dao repository to upload to github packages -->
 	<profiles>
@@ -123,12 +126,12 @@
 		<dependency>
 			<groupId>com.uci</groupId>
 			<artifactId>utils</artifactId>
-			<version>2.1.0</version>
+			<version>${utils.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.uci</groupId>
 			<artifactId>message-rosa</artifactId>
-			<version>2.1.0</version>
+			<version>${messagerosa.version}</version>
 		</dependency>
 
 		<dependency>
@@ -178,7 +181,7 @@
 		<dependency>
 			<groupId>com.uci</groupId>
 			<artifactId>dao</artifactId>
-			<version>2.1.0</version>
+			<version>${dao.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.sunbird/cloud-store-sdk -->

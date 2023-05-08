@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.uci.utils.BotService;
 import io.fusionauth.client.FusionAuthClient;
 
+import okhttp3.OkHttpClient;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -33,7 +34,7 @@ public class AppConfiguration1 {
 
 
     @Bean
-    @Qualifier("rest")
+	@Qualifier("rest")
     public RestTemplate getRestTemplate() {
         return new RestTemplate();
     }
@@ -86,4 +87,9 @@ public class AppConfiguration1 {
         
     	return new BotService(webClient, getFAClient(), cache);
     }
+
+	@Bean
+	public OkHttpClient getOkHttpClient() {
+		return new OkHttpClient().newBuilder().build();
+	}
 }
