@@ -71,7 +71,10 @@ public class FirebaseNotificationService {
                 try {
                     ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
                     if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
+                        log.info("Notification triggered success : " + phone + " fcm token : " + token);
                         return true;
+                    } else{
+                        log.error("Notification not sent : "+ phone + " fcm Token : " + token + " error :" + resultNode.toString());
                     }
                 } catch (JsonProcessingException jsonMappingException) {
                     log.error("Exception in sendNotificationMessage: "+jsonMappingException.getMessage());
