@@ -25,70 +25,65 @@ public class FirebaseNotificationService {
      * @return
      */
     public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data) {
-        try {
-            WebClient client = WebClient.builder()
-                    .baseUrl(url)
-                    .defaultHeaders(httpHeaders -> {
-                        httpHeaders.set("Authorization", "key=" + serviceKey);
-                        httpHeaders.set("Content-Type", "application/json");
-                    })
-                    .build();
+        WebClient client = WebClient.builder()
+                .baseUrl(url)
+                .defaultHeaders(httpHeaders -> {
+                    httpHeaders.set("Authorization", "key=" + serviceKey);
+                    httpHeaders.set("Content-Type", "application/json");
+                })
+                .build();
 
-            ObjectMapper mapper = new ObjectMapper();
-            ObjectNode node = mapper.createObjectNode();
-            node.put("to", token);
-            node.put("collapse_key", "type_a");
-            // Notification Key Enable and Disable from Payload
-            if (notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")) {
-                ObjectNode notificationNode = mapper.createObjectNode();
-                notificationNode.put("body", body);
-                notificationNode.put("title", title);
-                if (click_action != null && !click_action.isEmpty()) {
-                    notificationNode.put("click_action", click_action);
-                }
-                node.put("notification", notificationNode);
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode node = mapper.createObjectNode();
+        node.put("to", token);
+        node.put("collapse_key", "type_a");
+        // Notification Key Enable and Disable from Payload
+        if (notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")) {
+            ObjectNode notificationNode = mapper.createObjectNode();
+            notificationNode.put("body", body);
+            notificationNode.put("title", title);
+            if (click_action != null && !click_action.isEmpty()) {
+                notificationNode.put("click_action", click_action);
             }
-
-            ObjectNode dataNode = mapper.createObjectNode();
-            dataNode.put("body", body);
-            dataNode.put("title", title);
-            dataNode.put("externalId", channelMessageId);
-            dataNode.put("destAdd", phone);
-            dataNode.put("fcmDestAdd", token);
-            dataNode.put("click_action", click_action);
-
-            if (data != null) {
-                for (String dataKey : data.keySet()) {
-                    if (!dataKey.equalsIgnoreCase("fcmToken") && !dataKey.equalsIgnoreCase("fcmClickActionUrl")) {
-                        dataNode.put(dataKey, data.get(dataKey));
-                    }
-                }
-            }
-
-            node.put("data", dataNode);
-
-            return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {
-                if (response != null) {
-                    try {
-                        ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
-                        if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
-                            log.info("Notification triggered success : " + phone + " fcm token : " + token + " FCM Response : " + resultNode.toString());
-                            return true;
-                        } else {
-                            log.error("Notification not sent : " + phone + " fcm Token : " + token + " error :" + resultNode.toString());
-                        }
-                    } catch (JsonProcessingException jsonMappingException) {
-                        log.error("Exception in sendNotificationMessage: " + jsonMappingException.getMessage());
-                    } catch (NumberFormatException ex) {
-                        log.error("Exception in sendNotificationMessage: " + ex.getMessage());
-                    }
-                }
-                return false;
-            });
-        } catch (Exception ex) {
-            log.error("An Error Occurred : " + ex.getMessage());
-            return Mono.just(false);
+            node.put("notification", notificationNode);
         }
+
+        ObjectNode dataNode = mapper.createObjectNode();
+        dataNode.put("body", body);
+        dataNode.put("title", title);
+        dataNode.put("externalId", channelMessageId);
+        dataNode.put("destAdd", phone);
+        dataNode.put("fcmDestAdd", token);
+        dataNode.put("click_action", click_action);
+
+        if (data != null) {
+            for (String dataKey : data.keySet()) {
+                if (!dataKey.equalsIgnoreCase("fcmToken") && !dataKey.equalsIgnoreCase("fcmClickActionUrl")) {
+                    dataNode.put(dataKey, data.get(dataKey));
+                }
+            }
+        }
+
+        node.put("data", dataNode);
+
+        return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {
+            if (response != null) {
+                try {
+                    ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
+                    if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
+                        log.info("Notification triggered success : " + phone + " fcm token : " + token + " FCM Response : " + resultNode.toString());
+                        return true;
+                    } else {
+                        log.error("Notification not sent : " + phone + " fcm Token : " + token + " error :" + resultNode.toString());
+                    }
+                } catch (JsonProcessingException jsonMappingException) {
+                    log.error("Exception in sendNotificationMessage: " + jsonMappingException.getMessage());
+                } catch (NumberFormatException ex) {
+                    log.error("Exception in sendNotificationMessage: " + ex.getMessage());
+                }
+            }
+            return false;
+        });
     }
 
 //    public Mono<Boolean> sendNotificationMessage2(String token, String title, String body) {
