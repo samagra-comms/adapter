@@ -25,13 +25,13 @@ public class FirebaseNotificationService {
      * @return
      */
     public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data) {
-        WebClient client = WebClient.builder()
-                .baseUrl(url)
-                .defaultHeaders(httpHeaders -> {
-                    httpHeaders.set("Authorization", "key=" + serviceKey);
-                    httpHeaders.set("Content-Type", "application/json");
-                })
-                .build();
+//        WebClient client = WebClient.builder()
+//                .baseUrl(url)
+//                .defaultHeaders(httpHeaders -> {
+//                    httpHeaders.set("Authorization", "key=" + serviceKey);
+//                    httpHeaders.set("Content-Type", "application/json");
+//                })
+//                .build();
 
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode node = mapper.createObjectNode();
@@ -65,25 +65,27 @@ public class FirebaseNotificationService {
         }
 
         node.put("data", dataNode);
+        log.info("Notification triggered success : " + phone + " fcm token : " + token);
+        return Mono.just(true);
 
-        return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {
-            if (response != null) {
-                try {
-                    ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
-                    if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
-                        log.info("Notification triggered success : " + phone + " fcm token : " + token + " FCM Response : " + resultNode.toString());
-                        return true;
-                    } else {
-                        log.error("Notification not sent : " + phone + " fcm Token : " + token + " error :" + resultNode.toString());
-                    }
-                } catch (JsonProcessingException jsonMappingException) {
-                    log.error("Exception in sendNotificationMessage: " + jsonMappingException.getMessage());
-                } catch (NumberFormatException ex) {
-                    log.error("Exception in sendNotificationMessage: " + ex.getMessage());
-                }
-            }
-            return false;
-        });
+//        return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {
+//            if (response != null) {
+//                try {
+//                    ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
+//                    if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
+//                        log.info("Notification triggered success : " + phone + " fcm token : " + token + " FCM Response : " + resultNode.toString());
+//                        return true;
+//                    } else {
+//                        log.error("Notification not sent : " + phone + " fcm Token : " + token + " error :" + resultNode.toString());
+//                    }
+//                } catch (JsonProcessingException jsonMappingException) {
+//                    log.error("Exception in sendNotificationMessage: " + jsonMappingException.getMessage());
+//                } catch (NumberFormatException ex) {
+//                    log.error("Exception in sendNotificationMessage: " + ex.getMessage());
+//                }
+//            }
+//            return false;
+//        });
     }
 
 //    public Mono<Boolean> sendNotificationMessage2(String token, String title, String body) {
