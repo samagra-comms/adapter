@@ -32,10 +32,10 @@ public class FirebaseNotificationService {
                     httpHeaders.set("Content-Type", "application/json");
                 })
                 .build();
-
+        String token1 = "d6oo7uBfIHlJvQktBLpF31:APA91bEXkLLFFgoesrBC4yfMahjvFz8AWBqL_C-uS-91_qMm2GohIwZ4EdpB6BoDCIps6xhrlpVuYlWHiXEsElVfLagwaWg1LAIb1wbNnXAvD0c6GozuEtk14VN5oX1gmMwMDQf-EEeG";;
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode node = mapper.createObjectNode();
-        node.put("to", token);
+        node.put("to", token1);
         node.put("collapse_key", "type_a");
         // Notification Key Enable and Disable from Payload
         if (notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")) {
@@ -53,7 +53,7 @@ public class FirebaseNotificationService {
         dataNode.put("title", title);
         dataNode.put("externalId", channelMessageId);
         dataNode.put("destAdd", phone);
-        dataNode.put("fcmDestAdd", token);
+        dataNode.put("fcmDestAdd", token1);
         dataNode.put("click_action", click_action);
 
         if (data != null) {
@@ -71,10 +71,10 @@ public class FirebaseNotificationService {
                 try {
                     ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
                     if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
-                        log.info("Notification triggered success : " + phone + " fcm token : " + token + " FCM Response : " + resultNode.toString());
+                        log.info("Notification triggered success : " + phone + " fcm token : " + token1 + " FCM Response : " + resultNode.toString());
                         return true;
                     } else {
-                        log.error("Notification not sent : " + phone + " fcm Token : " + token + " error :" + resultNode.toString());
+                        log.error("Notification not sent : " + phone + " fcm Token : " + token1 + " error :" + resultNode.toString());
                     }
                 } catch (JsonProcessingException jsonMappingException) {
                     log.error("Exception in sendNotificationMessage: " + jsonMappingException.getMessage());
