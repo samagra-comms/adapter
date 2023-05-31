@@ -35,8 +35,10 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
     public BotService botService;
 
     private String notificationKeyEnable;
+
     /**
      * Convert Firebase Message Object to XMessage Object
+     *
      * @param message
      * @return
      * @throws JAXBException
@@ -52,17 +54,17 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
 
         XMessagePayload xmsgPayload = XMessagePayload.builder().build();
         xmsgPayload.setText(webMessage.getText());
-        XMessage.MessageType messageType= XMessage.MessageType.TEXT;
+        XMessage.MessageType messageType = XMessage.MessageType.TEXT;
 
         /* To use later in outbound reply message's message id & to */
         /* Message state changed by event type */
-        if(eventType != null && (eventType.equals("DELIVERED")
+        if (eventType != null && (eventType.equals("DELIVERED")
                 || eventType.equals("READ")) && webMessage.getReport() != null) {
             FirebaseWebReport reportMsg = webMessage.getReport();
             messageState = getMessageState(eventType);
             messageIdentifier.setChannelMessageId(reportMsg.getExternalId());
             from.setUserID(reportMsg.getDestAdd());
-            if(reportMsg.getFcmDestAdd() != null) {
+            if (reportMsg.getFcmDestAdd() != null) {
                 Map<String, String> meta = new HashMap();
                 meta.put("fcmToken", reportMsg.getFcmDestAdd());
                 from.setMeta(meta);
@@ -83,7 +85,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                 .messageType(messageType)
                 .timestamp(Timestamp.valueOf(LocalDateTime.now()).getTime())
                 .payload(xmsgPayload).build();
-        log.info("Current message :: " +  x.toString());
+        log.info("Current message :: " + x.toString());
         return Mono.just(x);
     }
 
@@ -110,53 +112,58 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
 
     /**
      * Process XMessage & send firebase notification
+     *
      * @param nextMsg
      * @return
      * @throws Exception
      */
     @Override
-    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception {
-        SenderReceiverInfo to = nextMsg.getTo();
-        XMessagePayload payload = nextMsg.getPayload();
-        Map<String, String> data = new HashMap<>();
-        for (Data dataArrayList : payload.getData()) {
-            data.put(dataArrayList.getKey(), dataArrayList.getValue());
-        }
-	if(data != null && data.get("fcmToken") != null) {
-            return botService.getAdapterCredentials(nextMsg.getAdapterId()).map(new Function<JsonNode, Mono<XMessage>>() {
-                @Override
-                public Mono<XMessage> apply(JsonNode credentials) {
-                    String channelMessageId = UUID.randomUUID().toString();
-                    log.info("credentials: "+credentials);
-                    if(credentials != null && credentials.path("serviceKey") != null
-                            && !credentials.path("serviceKey").asText().isEmpty()) {
-                        String click_action = null;
-                        if(data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
-                            click_action = data.get("fcmClickActionUrl");
-                        }
-                        return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable, data)
-                                .map(new Function<Boolean, XMessage>() {
-                                    @Override
-                                    public XMessage apply(Boolean result) {
-                                        if (result) {
-                                            nextMsg.setTo(to);
-                                            nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
-                                            nextMsg.setMessageState(XMessage.MessageState.SENT);
+    public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) {
+        try {
+            SenderReceiverInfo to = nextMsg.getTo();
+            XMessagePayload payload = nextMsg.getPayload();
+            Map<String, String> data = new HashMap<>();
+            for (Data dataArrayList : payload.getData()) {
+                data.put(dataArrayList.getKey(), dataArrayList.getValue());
+            }
+            if (data != null && data.get("fcmToken") != null) {
+                return botService.getAdapterCredentials(nextMsg.getAdapterId()).map(new Function<JsonNode, Mono<XMessage>>() {
+                    @Override
+                    public Mono<XMessage> apply(JsonNode credentials) {
+                        String channelMessageId = UUID.randomUUID().toString();
+                        log.info("credentials: " + credentials);
+                        if (credentials != null && credentials.path("serviceKey") != null
+                                && !credentials.path("serviceKey").asText().isEmpty()) {
+                            String click_action = null;
+                            if (data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
+                                click_action = data.get("fcmClickActionUrl");
+                            }
+                            return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable, data)
+                                    .map(new Function<Boolean, XMessage>() {
+                                        @Override
+                                        public XMessage apply(Boolean result) {
+                                            if (result) {
+                                                nextMsg.setTo(to);
+                                                nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
+                                                nextMsg.setMessageState(XMessage.MessageState.SENT);
+                                            }
+                                            return nextMsg;
                                         }
-                                        return nextMsg;
-                                    }
-                                });
-                    }
-                    return null;
-                }
-            }).flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
-                        @Override
-                        public Mono<? extends XMessage> apply(Mono<XMessage> n) {
-                            log.info("Mono FlatMap Level 2");
-                            return n;
+                                    });
                         }
-                    });
+                        return null;
+                    }
+                }).flatMap(new Function<Mono<XMessage>, Mono<? extends XMessage>>() {
+                    @Override
+                    public Mono<? extends XMessage> apply(Mono<XMessage> n) {
+                        log.info("Mono FlatMap Level 2");
+                        return n;
+                    }
+                });
 
+            }
+        } catch(Exception ex){
+            log.error("FirebaseNotificationAdapter:processOutBoundMessageF::Exception: "+ex.getMessage());
         }
         return null;
     }
