@@ -21,6 +21,7 @@
 		<java.version>11</java.version>
 		<utils.version>2.2.2</utils.version>
 		<messagerosa.version>2.2.2</messagerosa.version>
+		<dao.version>2.2.2</dao.version>
 	</properties>
 	<!-- For Dao repository to upload to github packages -->
 	<profiles>
@@ -180,7 +181,7 @@
 		<dependency>
 			<groupId>com.uci</groupId>
 			<artifactId>dao</artifactId>
-			<version>2.2.0-SNAPSHOT</version>
+			<version>${dao.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.sunbird/cloud-store-sdk -->
