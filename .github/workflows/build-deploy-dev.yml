@@ -5,11 +5,11 @@ on:
     tags:
       ["v*.*.*", "v*.*.*-*"]
     branches:
-      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master"]
+      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master", "development"]
   pull_request:
     branches:
-      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master"]
-      
+      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master", "development"]
+
 jobs:
   build-deploy-github:
     name: Build & Deploy to GitHub
