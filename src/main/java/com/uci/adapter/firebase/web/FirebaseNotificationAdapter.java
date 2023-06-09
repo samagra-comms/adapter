@@ -2,6 +2,8 @@ package com.uci.adapter.firebase.web;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.firebase.messaging.*;
+import com.uci.adapter.app.config.FirebaseConfigurator;
 import com.uci.adapter.firebase.web.inbound.FirebaseWebMessage;
 import com.uci.adapter.firebase.web.inbound.FirebaseWebReport;
 import com.uci.adapter.provider.factory.AbstractProvider;
@@ -14,16 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 
 @Slf4j
@@ -35,6 +34,10 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
     public BotService botService;
 
     private String notificationKeyEnable;
+
+    public FirebaseMessaging firebaseMessaging;
+
+    private final FirebaseConfigurator firebaseConfigurator;
 
     /**
      * Convert Firebase Message Object to XMessage Object
@@ -138,6 +141,8 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                             if (data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
                                 click_action = data.get("fcmClickActionUrl");
                             }
+
+
                             return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable, data)
                                     .map(new Function<Boolean, XMessage>() {
                                         @Override
@@ -162,9 +167,87 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                 });
 
             }
-        } catch(Exception ex){
-            log.error("FirebaseNotificationAdapter:processOutBoundMessageF::Exception: "+ex.getMessage());
+        } catch (Exception ex) {
+            log.error("FirebaseNotificationAdapter:processOutBoundMessageF::Exception: " + ex.getMessage());
         }
         return null;
+    }
+
+    @Override
+    public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+        List<Message> messageList = new ArrayList<Message>();
+        List<XMessage> xMessageListCass = new ArrayList<XMessage>();
+
+        xMessageList
+                .flatMapMany(Flux::fromIterable)
+                .flatMap(nextMsg -> {
+                            SenderReceiverInfo to = nextMsg.getTo();
+                            XMessagePayload payload = nextMsg.getPayload();
+                            Map<String, String> data = new HashMap<>();
+                            for (Data dataArrayList : payload.getData()) {
+                                data.put(dataArrayList.getKey(), dataArrayList.getValue());
+                            }
+                            if (data != null && data.get("fcmToken") != null) {
+                                return botService.getAdapterCredentials(nextMsg.getAdapterId())
+                                        .map(credentials -> {
+                                            String channelMessageId = UUID.randomUUID().toString();
+//                                            log.info("credentials: " + credentials);
+                                            if (credentials != null && credentials.path("serviceKey") != null) {
+                                                log.info("service key data : " + credentials.path("serviceKey"));
+                                                String serviceKey = credentials.path("serviceKey").toString();
+                                                String click_action = null;
+                                                if (data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
+                                                    click_action = data.get("fcmClickActionUrl");
+                                                }
+                                                Message message = Message.builder()
+                                                        .setNotification(Notification.builder()
+                                                                .setTitle(nextMsg.getPayload().getTitle())
+                                                                .setBody(nextMsg.getPayload().getText())
+                                                                .build())
+                                                        .setToken(data.get("fcmToken"))
+                                                        .putData("body", nextMsg.getPayload().getText())
+                                                        .putData("title", nextMsg.getPayload().getTitle())
+                                                        .putData("externalId", channelMessageId)
+                                                        .putData("destAdd", nextMsg.getTo().getUserID())
+                                                        .putData("fcmDestAdd", data.get("fcmToken"))
+                                                        .putData("click_action", click_action)
+                                                        .build();
+                                                messageList.add(message);
+                                                //This is for cassandra insertion
+                                                log.info("channelMessageId >>> " + channelMessageId);
+                                                nextMsg.setTo(to);
+                                                nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
+                                                nextMsg.setMessageState(XMessage.MessageState.SENT);
+                                                xMessageListCass.add(nextMsg);
+                                            } else {
+                                                log.error("FirebaseNotificationAdapter:ServiceKey not found : " + credentials);
+                                            }
+                                            return nextMsg;
+                                        });
+                            } else {
+                                return Mono.just(nextMsg);
+                            }
+                        }
+                )
+                .doOnComplete(() -> {
+                    log.info("All messages processed");
+                    if (messageList != null && messageList.size() > 0) {
+                        try {
+
+                            BatchResponse response = firebaseMessaging.sendAll(messageList);
+                            for (SendResponse sendResponse : response.getResponses()) {
+                                log.info("SendResponse messageId : " + sendResponse.getMessageId() + " Exception : " + sendResponse.getException());
+                            }
+                            log.info("Response Success : " + response.getSuccessCount());
+                            log.info("Response Failed : " + response.getFailureCount());
+//                            log.info(response.getSuccessCount() + " messages were sent successfully");
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                })
+                .subscribe();
+
+        return Mono.just(xMessageListCass);
     }
 }

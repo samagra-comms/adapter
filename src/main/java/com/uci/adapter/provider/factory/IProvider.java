@@ -6,6 +6,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
+import java.util.List;
 
 public interface IProvider {
 
@@ -14,4 +15,6 @@ public interface IProvider {
     public Mono<XMessage> processOutBoundMessageF(XMessage nextMsg) throws Exception;
 
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException, JsonProcessingException;
+
+    public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception;
 }

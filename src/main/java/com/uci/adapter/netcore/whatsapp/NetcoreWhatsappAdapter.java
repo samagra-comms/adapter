@@ -46,6 +46,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -704,4 +705,9 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
         }
         return "";
     }
+
+	@Override
+	public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+		return null;
+	}
 }
