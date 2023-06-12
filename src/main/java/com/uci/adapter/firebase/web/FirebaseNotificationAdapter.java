@@ -239,22 +239,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                             FirebaseMessaging firebaseMessaging = configureFirebaseMessaging(serviceKey, adapterId);
                                             List<Message> messageList = adapterIdMap.get(adapterId);
                                             if (messageList != null && !messageList.isEmpty() && firebaseMessaging != null) {
-                                                log.info("All messages processed: messageList count: " + messageList.size());
-                                                try {
-                                                    BatchResponse response = firebaseMessaging.sendAll(messageList);
-                                                    response.getResponses().forEach(sendResponse -> {
-                                                        if (sendResponse.isSuccessful()) {
-                                                            log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
-                                                        } else if (sendResponse.getException() != null) {
-                                                            log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
-                                                        } else {
-                                                            log.info("FirebaseNotificationService: All SendResponse messageId : " + sendResponse.getMessageId() + " Exception : " + sendResponse.getException());
-                                                        }
-                                                    });
-                                                    log.info("Notification:: Success: " + response.getSuccessCount() + " Failed: " + response.getFailureCount() + " --> Total Unique users : " + uniqueUserSet.size());
-                                                } catch (Exception ex) {
-                                                    log.error("An Error occurred: " + ex.getMessage());
-                                                }
+                                                sendNotificationBatch(firebaseMessaging, messageList, uniqueUserSet);
                                             } else {
                                                 log.error("FirebaseNotificationAdapter:processOutBoundMessageF:: MessageList empty :" + messageList + " or firebaseMessage object null : " + firebaseMessaging);
                                             }
@@ -273,6 +258,33 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
         return Mono.just(xMessageListCass);
     }
 
+
+    private void sendNotificationBatch(FirebaseMessaging firebaseMessaging, List<Message> messageList, Set<String> uniqueUserSet) {
+
+        log.info("All messages processed: messageList count: " + messageList.size());
+        try {
+            int batchSize = 500;
+            int totalMessages = messageList.size();
+            for (int i = 0; i < totalMessages; i += batchSize) {
+                List<Message> batchMessages = messageList.subList(i, Math.min(i + batchSize, totalMessages));
+                try {
+                    BatchResponse response = firebaseMessaging.sendAll(batchMessages);
+                    response.getResponses().forEach(sendResponse -> {
+                        if (sendResponse.isSuccessful()) {
+                            log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
+                        } else {
+                            log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
+                        }
+                    });
+                    log.info("Notification:: Success: " + response.getSuccessCount() + " Failed: " + response.getFailureCount() + " --> Total Unique users : " + uniqueUserSet.size());
+                } catch (Exception ex) {
+                    log.error("An Error occurred: " + ex.getMessage());
+                }
+            }
+        } catch (Exception ex) {
+            log.error("An Error occurred: " + ex.getMessage());
+        }
+    }
 
     public FirebaseMessaging configureFirebaseMessaging(String serviceKey, String appName) throws Exception {
         InputStream serviceAccountStream = new ByteArrayInputStream(serviceKey.getBytes(StandardCharsets.UTF_8));
