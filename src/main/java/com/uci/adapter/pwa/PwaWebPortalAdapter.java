@@ -297,5 +297,9 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
         return null;
     }
 
+    @Override
+    public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+        return null;
+    }
 }
 

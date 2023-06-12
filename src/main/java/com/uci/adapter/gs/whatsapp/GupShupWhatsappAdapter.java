@@ -741,4 +741,9 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 
 		return first.toString()+"-"+second.toString();
 	}
+
+	@Override
+	public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+		return null;
+	}
 }

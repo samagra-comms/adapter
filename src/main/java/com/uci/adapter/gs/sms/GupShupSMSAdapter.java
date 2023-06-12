@@ -59,7 +59,10 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException{
         return null;
     }
-
+    @Override
+    public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+        return null;
+    }
     /* Not in use */
 //    @Override
 //    public void processOutBoundMessage(XMessage xMsg) throws Exception {

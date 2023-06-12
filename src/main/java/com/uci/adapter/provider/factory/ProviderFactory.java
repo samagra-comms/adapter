@@ -1,5 +1,6 @@
 package com.uci.adapter.provider.factory;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.uci.adapter.cdn.FileCdnFactory;
 import com.uci.adapter.firebase.web.FirebaseNotificationAdapter;
 import com.uci.adapter.gs.whatsapp.GupShupWhatsappAdapter;
@@ -44,6 +45,9 @@ public class ProviderFactory {
     @Value("${fcm.notificationKeyEnable:#{'true'}}")
     private String notificationKeyEnable;
 
+    @Autowired
+    private FirebaseMessaging firebaseMessaging;
+
     public IProvider getProvider(String provider,String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
@@ -71,7 +75,7 @@ public class ProviderFactory {
 			netcoreWhatsappAdapter.setFileCdnProvider(fileCdnFactory.getFileCdnProvider());
             return netcoreWhatsappAdapter;
         } else if(provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")){
-            return FirebaseNotificationAdapter.builder().botService(botService).notificationKeyEnable(notificationKeyEnable).build();
+            return FirebaseNotificationAdapter.builder().botService(botService).firebaseMessaging(firebaseMessaging).notificationKeyEnable(notificationKeyEnable).build();
         }
         return null;
     }
