@@ -29,11 +29,8 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableAutoConfiguration
@@ -103,10 +100,12 @@ public class AppConfiguration1 {
         return new OkHttpClient().newBuilder().build();
     }
 
+    @Value("${fcm.config.file}")
+    public String fcmConfigFile;
+
     @Bean
     public FirebaseMessaging firebaseMessaging() throws IOException {
-        String serviceAccountPath = "/home/auriga/Music/fcm/samagra-surabhi.json";
-        FileInputStream serviceAccountStream = new FileInputStream(serviceAccountPath);
+        FileInputStream serviceAccountStream = new FileInputStream(fcmConfigFile);
 //        InputStream serviceAccountStream = new ByteArrayInputStream(serviceKey.getBytes(StandardCharsets.UTF_8));
         GoogleCredentials googleCredentials = GoogleCredentials
                 .fromStream(serviceAccountStream);
