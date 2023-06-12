@@ -100,25 +100,4 @@ public class AppConfiguration1 {
         return new OkHttpClient().newBuilder().build();
     }
 
-    @Value("${fcm.config.file}")
-    public String fcmConfigFile;
-
-    @Bean
-    public FirebaseMessaging firebaseMessaging() throws IOException {
-        FileInputStream serviceAccountStream = new FileInputStream(fcmConfigFile);
-//        InputStream serviceAccountStream = new ByteArrayInputStream(serviceKey.getBytes(StandardCharsets.UTF_8));
-        GoogleCredentials googleCredentials = GoogleCredentials
-                .fromStream(serviceAccountStream);
-        FirebaseOptions firebaseOptions = FirebaseOptions
-                .builder()
-                .setCredentials(googleCredentials)
-                .build();
-        FirebaseApp app = null;
-        if (FirebaseApp.getApps() != null && !FirebaseApp.getApps().isEmpty()) {
-            app = FirebaseApp.getApps().get(0);
-        } else {
-            app = FirebaseApp.initializeApp(firebaseOptions);
-        }
-        return FirebaseMessaging.getInstance(app);
-    }
 }
