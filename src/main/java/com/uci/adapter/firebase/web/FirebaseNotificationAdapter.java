@@ -6,7 +6,6 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.*;
-import com.uci.adapter.app.config.FirebaseConfigurator;
 import com.uci.adapter.firebase.web.inbound.FirebaseWebMessage;
 import com.uci.adapter.firebase.web.inbound.FirebaseWebReport;
 import com.uci.adapter.provider.factory.AbstractProvider;
@@ -43,8 +42,6 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
     private String notificationKeyEnable;
 
     public FirebaseMessaging firebaseMessaging;
-
-    private final FirebaseConfigurator firebaseConfigurator;
 
     /**
      * Convert Firebase Message Object to XMessage Object
