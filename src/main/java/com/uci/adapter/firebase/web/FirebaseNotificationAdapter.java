@@ -2,6 +2,10 @@ package com.uci.adapter.firebase.web;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutureCallback;
+import com.google.api.core.ApiFutures;
+import com.google.api.gax.rpc.ApiException;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
@@ -228,7 +232,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                         }
                 )
                 .doOnComplete(() -> {
-                    log.info("FirebaseNotificationAdapter:adapterIdMap: " + adapterIdMap.keySet());
+//                    log.info("FirebaseNotificationAdapter:adapterIdMap: " + adapterIdMap.keySet());
                     adapterIdMap.keySet().forEach(adapterId -> {
                         botService.getAdapterCredentials(adapterId)
                                 .doOnNext(credentials -> {
@@ -268,15 +272,46 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
             for (int i = 0; i < totalMessages; i += batchSize) {
                 List<Message> batchMessages = messageList.subList(i, Math.min(i + batchSize, totalMessages));
                 try {
-                    BatchResponse response = firebaseMessaging.sendAll(batchMessages);
-                    response.getResponses().forEach(sendResponse -> {
-                        if (sendResponse.isSuccessful()) {
-                            log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
-                        } else {
-                            log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
+
+                    ApiFuture<BatchResponse> sendAllFuture = firebaseMessaging.sendAllAsync(batchMessages);
+
+                    ApiFutures.addCallback(sendAllFuture, new ApiFutureCallback<BatchResponse>() {
+                        @Override
+                        public void onSuccess(BatchResponse response) {
+                            // Handle the batch response
+                            response.getResponses().forEach(sendResponse -> {
+                                if (sendResponse.isSuccessful()) {
+//                                    log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
+                                } else if (sendResponse.getException() != null) {
+//                                    log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
+                                } else {
+//                                    log.info("FirebaseNotificationService: All SendResponse messageId : " + sendResponse.getMessageId() + " Exception : " + sendResponse.getException());
+                                }
+                            });
+                            log.info("Notification:: Success: " + response.getSuccessCount() + " Failed: " + response.getFailureCount() + " --> Total Unique users : " + uniqueUserSet.size());
+                        }
+
+                        @Override
+                        public void onFailure(Throwable throwable) {
+                            // Handle the error
+                            if (throwable instanceof ApiException) {
+                                ApiException apiException = (ApiException) throwable;
+                                log.error("Failed to send notification. Error code: " + apiException.getStatusCode() + ", Message: " + apiException.getMessage());
+                            } else {
+                                log.error("Failed to send notification. Error: " + throwable.getMessage());
+                            }
                         }
                     });
-                    log.info("Notification:: Success: " + response.getSuccessCount() + " Failed: " + response.getFailureCount() + " --> Total Unique users : " + uniqueUserSet.size());
+
+//                    BatchResponse response = firebaseMessaging.sendAll(batchMessages);
+//                    response.getResponses().forEach(sendResponse -> {
+//                        if (sendResponse.isSuccessful()) {
+//                            log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
+//                        } else {
+//                            log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
+//                        }
+//                    });
+//                    log.info("Notification:: Success: " + response.getSuccessCount() + " Failed: " + response.getFailureCount() + " --> Total Unique users : " + uniqueUserSet.size());
                 } catch (Exception ex) {
                     log.error("An Error occurred: " + ex.getMessage());
                 }
