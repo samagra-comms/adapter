@@ -39,6 +39,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -707,7 +708,7 @@ public class NetcoreWhatsappAdapter extends AbstractProvider implements IProvide
     }
 
 	@Override
-	public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+	public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
 		return null;
 	}
 }

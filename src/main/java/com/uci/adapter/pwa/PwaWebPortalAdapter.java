@@ -4,41 +4,33 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.uci.adapter.cdn.FileCdnProvider;
-import com.uci.adapter.gs.whatsapp.GSWhatsAppMessage;
-import com.uci.adapter.gs.whatsapp.outbound.MessageType;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
 import com.uci.adapter.pwa.web.inbound.PwaWebMedia;
-import com.uci.adapter.pwa.web.outbound.PwaWebResponse;
 import com.uci.adapter.pwa.web.inbound.PwaWebMessage;
 import com.uci.adapter.pwa.web.outbound.OutboundMessage;
 import com.uci.adapter.pwa.web.outbound.PwaMessage;
 import com.uci.adapter.pwa.web.outbound.PwaWebResponse;
 import com.uci.adapter.utils.CommonUtils;
-import com.uci.adapter.utils.PropertiesCache;
 import com.uci.utils.bot.util.FileUtil;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
-import org.apache.http.HttpStatus;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Slf4j
@@ -298,7 +290,7 @@ public class PwaWebPortalAdapter extends AbstractProvider implements IProvider {
     }
 
     @Override
-    public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+    public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
         return null;
     }
 }

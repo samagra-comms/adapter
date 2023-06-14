@@ -7,17 +7,15 @@ import com.uci.adapter.sunbird.web.inbound.SunbirdWebMessage;
 import com.uci.adapter.sunbird.web.outbound.OutboundMessage;
 import com.uci.adapter.sunbird.web.outbound.SunbirdMessage;
 import com.uci.adapter.sunbird.web.outbound.SunbirdWebResponse;
-import com.uci.adapter.utils.PropertiesCache;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
@@ -231,7 +229,7 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
     }
 
     @Override
-    public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+    public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
         return null;
     }
 }

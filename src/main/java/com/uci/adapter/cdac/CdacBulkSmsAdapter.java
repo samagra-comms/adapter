@@ -12,6 +12,7 @@ import messagerosa.core.model.XMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -37,7 +38,7 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     }
 
     @Override
-    public Mono<List<XMessage>> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+    public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
         return null;
     }
 
