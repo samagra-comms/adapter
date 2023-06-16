@@ -34,6 +34,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -740,5 +741,10 @@ public class GupShupWhatsappAdapter extends AbstractProvider implements IProvide
 		Long second = ThreadLocalRandom.current().nextLong(sMin, sMax);
 
 		return first.toString()+"-"+second.toString();
+	}
+
+	@Override
+	public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+		return null;
 	}
 }
