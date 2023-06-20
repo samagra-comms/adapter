@@ -256,7 +256,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                                                 public List<XMessage> apply(List<String> messageIds) {
                                                                     for (int i = 0; i < messageIds.size(); i++) {
                                                                         if (messageIds != null && messageIds.get(i) != null && !messageIds.get(i).isEmpty()) {
-                                                                            log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + messageIds.get(i));
+                                                                            log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + messageIds.get(i) + " Phone No : " + xMessageListCass.get(i).getTo());
                                                                             String messageId = extractMessageId(messageIds.get(i));
                                                                             MessageId oldMessageId = xMessageListCass.get(i).getMessageId();
                                                                             oldMessageId.setChannelMessageId(messageId);
@@ -264,7 +264,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                                                             xMessageListCass.get(i).setMessageId(oldMessageId);
                                                                             xMessageListCass.get(i).setMessageState(XMessage.MessageState.SENT);
                                                                         } else {
-                                                                            log.error("FirebaseNotificationService: Notification not sent : Message Id : " + messageIds.get(i));
+                                                                            log.error("FirebaseNotificationService: Notification not sent : Message Id : " + messageIds.get(i) + " Phone No : " + xMessageListCass.get(i).getTo());
                                                                             xMessageListCass.get(i).setTo(xMessageListCass.get(i).getTo());
                                                                             xMessageListCass.get(i).setMessageState(XMessage.MessageState.NOT_SENT);
                                                                         }
