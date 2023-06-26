@@ -2,11 +2,8 @@ package com.uci.adapter.app.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.firebase.messaging.FirebaseMessaging;
 import com.uci.utils.BotService;
+import com.uci.utils.dto.BotServiceParams;
 import io.fusionauth.client.FusionAuthClient;
 
 import okhttp3.OkHttpClient;
@@ -29,9 +26,6 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-
 @Configuration
 @EnableAutoConfiguration
 public class AppConfiguration1 {
@@ -39,6 +33,15 @@ public class AppConfiguration1 {
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
 
+    @Value("${fusionauth.url}")
+    public String FUSIONAUTH_URL;
+
+    @Value("${fusionauth.key}")
+    public String FUSIONAUTH_KEY;
+
+
+    @Autowired
+    public Cache<Object, Object> cache;
 
     @Bean
     @Qualifier("rest")
@@ -72,14 +75,10 @@ public class AppConfiguration1 {
                 .build();
     }
 
-    @Value("${fusionauth.url}")
-    public String FUSIONAUTH_URL;
-
-    @Value("${fusionauth.key}")
-    public String FUSIONAUTH_KEY;
-
-    @Autowired
-    public Cache<Object, Object> cache;
+    @Bean
+    public BotServiceParams getBotServiceParams() {
+        return new BotServiceParams();
+    }
 
     @Bean
     public FusionAuthClient getFAClient() {
@@ -92,7 +91,7 @@ public class AppConfiguration1 {
                 .baseUrl(CAMPAIGN_URL)
                 .build();
 
-        return new BotService(webClient, getFAClient(), cache);
+        return new BotService(webClient, getFAClient(), cache, getBotServiceParams());
     }
 
     @Bean
