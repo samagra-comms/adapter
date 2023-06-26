@@ -1,6 +1,8 @@
 package com.uci.adapter.netcore.whatsapp.inbound;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.uci.adapter.Request.CommonMessage;
 import com.sun.istack.Nullable;
 import lombok.Getter;
@@ -13,74 +15,80 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 public class NetcoreWhatsAppMessage extends CommonMessage {
 
-  private String waNumber;
+    private String waNumber;
 
-  @JsonAlias({"from", "recipient"})
-  private String mobile;
+    @JsonAlias({"from", "recipient"})
+    private String mobile;
 
-  private String replyId;
+    @JsonAlias({"from_name"})
+    private String fromName;
 
-  @JsonAlias({"message_id", "ncmessage_id"})
-  private String messageId;
+    @JsonAlias({"to"})
+    private String to;
 
-  @JsonAlias({"received_at"})
-  private String timestamp;
+    private String replyId;
 
-  @Nullable
-  private String name;
+    @JsonAlias({"message_id", "ncmessage_id"})
+    private String messageId;
 
-  @Nullable
-  private int version;
+    @JsonAlias({"received_at"})
+    private String timestamp;
 
-  @Nullable
-  @JsonAlias({"message_type"})
-  private String type;
+    @Nullable
+    private String name;
 
-  @Nullable
-  @JsonAlias({"text_type"})
-  private TextType text;
+    @Nullable
+    private int version;
 
-  @Nullable
-  @JsonAlias({"status"})
-  private String eventType;
+    @Nullable
+    @JsonAlias({"message_type"})
+    private String type;
 
-  @Nullable
-  private MessageContext context;
+    @Nullable
+    @JsonAlias({"text_type"})
+    private TextType text;
 
-  @Nullable
-  @JsonAlias({"status_remark"})
-  private String statusRemark;
+    @Nullable
+    @JsonAlias({"status"})
+    private String eventType;
 
-  @Nullable
-  @JsonAlias({"source"})
-  private String source;
+    @Nullable
+    private MessageContext context;
 
-  @Nullable
-  @JsonAlias({"image_type"})
-  private NetcoreInboundFile imageType;
- 
-  @JsonAlias({"document_type"})
-  private NetcoreInboundFile documentType;
-  
-  @JsonAlias({"voice_type"})
-  private NetcoreInboundFile voiceType;
-  
-  @JsonAlias({"audio_type"})
-  private NetcoreInboundFile audioType;
-  
-  @JsonAlias({"video_type"})
-  private NetcoreInboundFile videoType;
-  
-//  private String location;
-  private String response;
-  private String extra;
-  private String app;
-  
-  @Nullable
-  @JsonAlias({"location_type"})
-  private NetcoreLocation location;
-  
-  @Nullable
-  @JsonAlias({"interactive_type"})
-  private InteractiveContent interativeContent; 
+    @Nullable
+    @JsonAlias({"status_remark"})
+    private String statusRemark;
+
+    @Nullable
+    @JsonAlias({"source"})
+    private String source;
+
+    @Nullable
+    @JsonAlias({"image_type"})
+    private NetcoreInboundFile imageType;
+
+    @JsonAlias({"document_type"})
+    private NetcoreInboundFile documentType;
+
+    @JsonAlias({"voice_type"})
+    private NetcoreInboundFile voiceType;
+
+    @JsonAlias({"audio_type"})
+    private NetcoreInboundFile audioType;
+
+    @JsonAlias({"video_type"})
+    private NetcoreInboundFile videoType;
+
+    //  private String location;
+    private String response;
+    private String extra;
+    private String app;
+
+    @Nullable
+    @JsonAlias({"location_type"})
+    private NetcoreLocation location;
+
+    @Nullable
+    @JsonAlias({"interactive_type"})
+    private InteractiveContent interativeContent;
 }

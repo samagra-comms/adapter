@@ -7,17 +7,15 @@ import com.uci.adapter.sunbird.web.inbound.SunbirdWebMessage;
 import com.uci.adapter.sunbird.web.outbound.OutboundMessage;
 import com.uci.adapter.sunbird.web.outbound.SunbirdMessage;
 import com.uci.adapter.sunbird.web.outbound.SunbirdWebResponse;
-import com.uci.adapter.utils.PropertiesCache;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
@@ -25,6 +23,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 
 @Slf4j
@@ -227,5 +226,10 @@ public class SunbirdWebPortalAdapter extends AbstractProvider implements IProvid
         
         this.assesOneLevelUpChar = envAssesOneLevelUpChar == "0" || (envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty()) ? envAssesOneLevelUpChar : "#";
         this.assesGoToStartChar = envAssesGoToStartChar == "0" || (envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty()) ? envAssesGoToStartChar : "*";
+    }
+
+    @Override
+    public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+        return null;
     }
 }
