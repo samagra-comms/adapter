@@ -5,11 +5,11 @@ on:
     tags:
       ["v*.*.*", "v*.*.*-*"]
     branches:
-      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master"]
+      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master", "development"]
   pull_request:
     branches:
-      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master"]
-      
+      ["release-4.*.*", "release-5.*.*", "release-v2.*.*", "master", "development"]
+
 jobs:
   build-deploy-github:
     name: Build & Deploy to GitHub
@@ -68,7 +68,7 @@ jobs:
       - name: Delete package specific version
         uses: smartsquaregmbh/delete-old-packages@v0.4.0
         with:
-          version: v${{ steps.version.outputs.VERSION }}
+          version: v${{ steps.version.outputs.VERSION }}-SNAPSHOT
           names: |
             com.uci.adapter
           token: ${{ secrets.TOKEN }}
