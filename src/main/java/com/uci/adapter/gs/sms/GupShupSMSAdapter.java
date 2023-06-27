@@ -1,37 +1,24 @@
 package com.uci.adapter.gs.sms;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.uci.adapter.gs.sms.outbound.GSSMSResponse;
 import com.uci.adapter.gs.sms.outbound.GupshupSMSResponse;
-import com.uci.adapter.gs.whatsapp.GSWhatsappOutBoundResponse;
-import com.uci.adapter.gs.whatsapp.GSWhatsappService;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
-import com.uci.adapter.utils.GupShupUtills;
-
 import com.uci.utils.BotService;
-import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.MessageId;
 import messagerosa.core.model.XMessage;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
 import java.net.URI;
-import java.nio.charset.Charset;
-import java.util.*;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -59,7 +46,10 @@ public class GupShupSMSAdapter  extends AbstractProvider implements IProvider {
     public Mono<XMessage> convertMessageToXMsg(Object message) throws JAXBException{
         return null;
     }
-
+    @Override
+    public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+        return null;
+    }
     /* Not in use */
 //    @Override
 //    public void processOutBoundMessage(XMessage xMsg) throws Exception {

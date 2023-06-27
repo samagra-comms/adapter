@@ -12,8 +12,10 @@ import messagerosa.core.model.XMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.function.Function;
 
 @Slf4j
@@ -33,6 +35,11 @@ public class CdacBulkSmsAdapter extends AbstractProvider implements IProvider {
     public Mono<XMessage> convertMessageToXMsg(Object msg) throws JsonProcessingException {
         // Build xMessage => Most calls would be to update the status of Messages
         return Mono.just(XMessage.builder().build());
+    }
+
+    @Override
+    public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
+        return null;
     }
 
     @Override

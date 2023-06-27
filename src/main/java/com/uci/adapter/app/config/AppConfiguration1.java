@@ -3,6 +3,7 @@ package com.uci.adapter.app.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.uci.utils.BotService;
+import com.uci.utils.dto.BotServiceParams;
 import io.fusionauth.client.FusionAuthClient;
 
 import okhttp3.OkHttpClient;
@@ -32,9 +33,18 @@ public class AppConfiguration1 {
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
 
+    @Value("${fusionauth.url}")
+    public String FUSIONAUTH_URL;
+
+    @Value("${fusionauth.key}")
+    public String FUSIONAUTH_KEY;
+
+
+    @Autowired
+    public Cache<Object, Object> cache;
 
     @Bean
-	@Qualifier("rest")
+    @Qualifier("rest")
     public RestTemplate getRestTemplate() {
         return new RestTemplate();
     }
@@ -42,7 +52,7 @@ public class AppConfiguration1 {
     @Bean
     @Qualifier("custom")
     public RestTemplate getCustomTemplate(RestTemplateBuilder builder) {
-        Credentials credentials = new UsernamePasswordCredentials("test","abcd1234");
+        Credentials credentials = new UsernamePasswordCredentials("test", "abcd1234");
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, credentials);
 
@@ -65,14 +75,10 @@ public class AppConfiguration1 {
                 .build();
     }
 
-    @Value("${fusionauth.url}")
-    public String FUSIONAUTH_URL;
-
-    @Value("${fusionauth.key}")
-    public String FUSIONAUTH_KEY;
-    
-    @Autowired
-    public Cache<Object, Object> cache;
+    @Bean
+    public BotServiceParams getBotServiceParams() {
+        return new BotServiceParams();
+    }
 
     @Bean
     public FusionAuthClient getFAClient() {
@@ -81,15 +87,16 @@ public class AppConfiguration1 {
 
     @Bean
     public BotService getBotService() {
-    	WebClient webClient = WebClient.builder()
+        WebClient webClient = WebClient.builder()
                 .baseUrl(CAMPAIGN_URL)
                 .build();
-        
-    	return new BotService(webClient, getFAClient(), cache);
+
+        return new BotService(webClient, getFAClient(), cache, getBotServiceParams());
     }
 
-	@Bean
-	public OkHttpClient getOkHttpClient() {
-		return new OkHttpClient().newBuilder().build();
-	}
+    @Bean
+    public OkHttpClient getOkHttpClient() {
+        return new OkHttpClient().newBuilder().build();
+    }
+
 }
