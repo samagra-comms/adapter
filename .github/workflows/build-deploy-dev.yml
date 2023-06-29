@@ -68,7 +68,7 @@ jobs:
       - name: Delete package specific version
         uses: smartsquaregmbh/delete-old-packages@v0.4.0
         with:
-          version: v${{ steps.version.outputs.VERSION }}-SNAPSHOT
+          version: ${{ steps.version.outputs.VERSION }}-SNAPSHOT
           names: |
             com.uci.adapter
           token: ${{ secrets.TOKEN }}
