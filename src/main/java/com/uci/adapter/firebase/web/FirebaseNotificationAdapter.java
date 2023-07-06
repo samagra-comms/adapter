@@ -185,6 +185,13 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
         return null;
     }
 
+    /**
+     * New Implementation of Process XMessage & send firebase notification
+     * Bulk Notification Sending
+     * @param xMessageList
+     * @return
+     * @throws Exception
+     */
     @Override
     public Flux<XMessage> processOutBoundMessageF(Mono<List<XMessage>> xMessageList) throws Exception {
         List<XMessage> xMessageListCass = new ArrayList<XMessage>();
@@ -209,6 +216,14 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                 if (data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
                                     click_action = data.get("fcmClickActionUrl");
                                 }
+                                Map<String, String> dataMap = new HashMap<>();
+                                if (data != null) {
+                                    for (String dataKey : data.keySet()) {
+                                        if (!dataKey.equalsIgnoreCase("fcmToken") && !dataKey.equalsIgnoreCase("fcmClickActionUrl")) {
+                                            dataMap.put(dataKey, data.get(dataKey));
+                                        }
+                                    }
+                                }
                                 Message message = Message.builder()
                                         .setNotification(Notification.builder()
                                                 .setTitle(nextMsg.getPayload().getTitle())
@@ -221,6 +236,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                         .putData("destAdd", nextMsg.getTo().getUserID())
                                         .putData("fcmDestAdd", data.get("fcmToken"))
                                         .putData("click_action", click_action)
+                                        .putAllData(dataMap)
                                         .build();
                                 uniqueUserSet.add(nextMsg.getTo().getUserID());
                                 String adapterId = nextMsg.getAdapterId();
@@ -259,8 +275,6 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                                                         if (sendResponse != null && sendResponse.isSuccessful()) {
                                                                             log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId() + " Phone No : " + xMessageListCass.get(i).getTo());
                                                                             String messageId = extractMessageId(sendResponse.getMessageId());
-//                                                                            MessageId oldMessageId = xMessageListCass.get(i).getMessageId();
-//                                                                            oldMessageId.setChannelMessageId(messageId);
                                                                             xMessageListCass.get(i).setTo(xMessageListCass.get(i).getTo());
                                                                             xMessageListCass.get(i).getMessageId().setChannelMessageId(messageId);
                                                                             xMessageListCass.get(i).setMessageState(XMessage.MessageState.SENT);
@@ -300,6 +314,12 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                 });
     }
 
+    /**
+     * ApiFuture Callback
+     * @param future
+     * @param <T>
+     * @return
+     */
     private <T> Mono<T> toMono(ApiFuture<T> future) {
         return Mono.create(sink -> {
             ApiFutures.addCallback(future, new ApiFutureCallback<T>() {
@@ -349,92 +369,6 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
         return null;
     }
 
-
-//    public List<XMessage> updateMessageIds(List<XMessage> xMessageList, BatchResponse response) {
-//        List<SendResponse> sendResponses = response.getResponses();
-//
-//        // Iterate over each SendResponse
-//        for (int i = 0; i < sendResponses.size(); i++) {
-//            SendResponse sendResponse = sendResponses.get(i);
-//            if (sendResponse.isSuccessful()) {
-//                log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
-//                String messageId = extractMessageId(sendResponse.getMessageId());
-//                SenderReceiverInfo to = xMessageList.get(i).getTo();
-//                MessageId oldMessageId = xMessageList.get(i).getMessageId();
-//                oldMessageId.setChannelMessageId(messageId);
-//                xMessageList.get(i).setTo(to);
-//                xMessageList.get(i).setMessageId(oldMessageId);
-//                xMessageList.get(i).setMessageState(XMessage.MessageState.SENT);
-//            } else {
-//                log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
-//                SenderReceiverInfo to = xMessageList.get(i).getTo();
-//                xMessageList.get(i).setTo(to);
-//                xMessageList.get(i).setMessageState(XMessage.MessageState.NOT_SENT);
-//            }
-//        }
-//        return xMessageList;
-//    }
-
-
-//    private void sendNotificationBatch(FirebaseMessaging firebaseMessaging, List<Message> messageList, List<XMessage> xMessageList, Set<String> uniqueUserSet, long startTime) {
-//
-//        log.info("All messages processed: messageList count: " + messageList.size());
-//        try {
-//            int batchSize = 500;
-//            int totalMessages = messageList.size();
-//            for (int i = 0; i < totalMessages; i += batchSize) {
-//                List<Message> batchMessages = messageList.subList(i, Math.min(i + batchSize, totalMessages));
-//                List<XMessage> batchXMessages = xMessageList.subList(i, Math.min(i + batchSize, totalMessages));
-//                try {
-//                    ApiFuture<BatchResponse> sendAllFuture = firebaseMessaging.sendAllAsync(batchMessages);
-//
-//                    ApiFutures.addCallback(sendAllFuture, new ApiFutureCallback<BatchResponse>() {
-//                        @Override
-//                        public void onSuccess(BatchResponse response) {
-//                            // Handle the batch response
-//                            response.getResponses().forEach(sendResponse -> {
-//                                if (sendResponse.isSuccessful()) {
-//                                    log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
-//                                } else if (sendResponse.getException() != null) {
-//                                    log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
-//                                } else {
-//                                    log.info("FirebaseNotificationService: All SendResponse messageId : " + sendResponse.getMessageId() + " Exception : " + sendResponse.getException());
-//                                }
-//                            });
-//                            logTimeTaken(startTime, 0, "Notification processed by sendNotificationBatch:: onSuccess: %d ms");
-//                            log.info("Notification:: Success: " + response.getSuccessCount() + " Failed: " + response.getFailureCount() + " --> Total Unique users : " + uniqueUserSet.size());
-//                        }
-//
-//                        @Override
-//                        public void onFailure(Throwable throwable) {
-//                            // Handle the error
-//                            if (throwable instanceof ApiException) {
-//                                ApiException apiException = (ApiException) throwable;
-//                                log.error("Failed to send notification. Error code: " + apiException.getStatusCode() + ", Message: " + apiException.getMessage());
-//                            } else {
-//                                log.error("Failed to send notification. Error: " + throwable.getMessage());
-//                            }
-//                        }
-//                    });
-//
-////                    BatchResponse response = firebaseMessaging.sendAll(batchMessages);
-////                    response.getResponses().forEach(sendResponse -> {
-////                        if (sendResponse.isSuccessful()) {
-////                            log.info("FirebaseNotificationService: Notification triggered success: Message Id : " + sendResponse.getMessageId());
-////                        } else {
-////                            log.error("FirebaseNotificationService: Notification not sent : Exception : " + sendResponse.getException());
-////                        }
-////                    });
-////                    log.info("Notification:: Success: " + response.getSuccessCount() + " Failed: " + response.getFailureCount() + " --> Total Unique users : " + uniqueUserSet.size());
-//                } catch (Exception ex) {
-//                    log.error("An Error occurred: " + ex.getMessage());
-//                }
-//            }
-//        } catch (Exception ex) {
-//            log.error("An Error occurred: " + ex.getMessage());
-//        }
-//    }
-
     public FirebaseMessaging configureFirebaseMessaging(String serviceKey, String appName) throws Exception {
         InputStream serviceAccountStream = new ByteArrayInputStream(serviceKey.getBytes(StandardCharsets.UTF_8));
         GoogleCredentials googleCredentials = GoogleCredentials
@@ -450,15 +384,5 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                     return FirebaseApp.initializeApp(firebaseOptions, appName);
                 });
         return FirebaseMessaging.getInstance(existingApp);
-    }
-
-    private void logTimeTaken(long startTime, int checkpointID, String formatedMsg) {
-        long endTime = System.nanoTime();
-        long duration = (endTime - startTime) / 1000000;
-        if (formatedMsg == null) {
-            log.info(String.format("CP-%d: %d ms", checkpointID, duration));
-        } else {
-            log.info(String.format(formatedMsg, duration));
-        }
     }
 }
