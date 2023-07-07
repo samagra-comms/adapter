@@ -188,6 +188,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
     /**
      * New Implementation of Process XMessage & send firebase notification
      * Bulk Notification Sending
+     *
      * @param xMessageList
      * @return
      * @throws Exception
@@ -224,11 +225,16 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                         }
                                     }
                                 }
+                                Notification notification = null;
+                                if (notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")) {
+                                    notification = Notification.builder()
+                                            .setTitle(nextMsg.getPayload().getTitle())
+                                            .setBody(nextMsg.getPayload().getText())
+                                            .build();
+                                }
+
                                 Message message = Message.builder()
-                                        .setNotification(Notification.builder()
-                                                .setTitle(nextMsg.getPayload().getTitle())
-                                                .setBody(nextMsg.getPayload().getText())
-                                                .build())
+                                        .setNotification(notification)
                                         .setToken(data.get("fcmToken"))
                                         .putData("body", nextMsg.getPayload().getText())
                                         .putData("title", nextMsg.getPayload().getTitle())
@@ -316,6 +322,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
 
     /**
      * ApiFuture Callback
+     *
      * @param future
      * @param <T>
      * @return
