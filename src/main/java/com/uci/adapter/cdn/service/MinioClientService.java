@@ -107,7 +107,7 @@ public class MinioClientService implements FileCdnProvider {
                                     .method(Method.GET)
                                     .bucket(this.minioBucketId)
                                     .object(name)
-                                    .expiry(1, TimeUnit.DAYS)
+                                    .expiry(7, TimeUnit.DAYS)
                                     .build()
                     );
                 } catch (InvalidKeyException | InsufficientDataException | InternalException
