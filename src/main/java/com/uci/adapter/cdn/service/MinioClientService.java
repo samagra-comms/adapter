@@ -9,12 +9,9 @@ import com.uci.utils.cache.service.RedisCacheService;
 import io.fusionauth.client.FusionAuthClient;
 import io.fusionauth.domain.api.LoginRequest;
 import io.fusionauth.domain.api.LoginResponse;
-import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.UploadObjectArgs;
 import io.minio.credentials.StaticProvider;
-import io.minio.errors.*;
-import io.minio.http.Method;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +26,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -73,15 +68,15 @@ public class MinioClientService implements FileCdnProvider {
      * Load default empty object
      */
     private void loadDefaultObjects() {
-        log.info("Minio details, loginID: "+minioLoginId+", password: "+minioPassword+", appId: "+minioAppId+", bucketId: "+minioBucketId+", faKey: "+minioFAKey+", faUrl: "+minioFAUrl+", url: "+minioUrl);
+        log.info("Minio details, loginID: " + minioLoginId + ", password: " + minioPassword + ", appId: " + minioAppId + ", bucketId: " + minioBucketId + ", faKey: " + minioFAKey + ", faUrl: " + minioFAUrl + ", url: " + minioUrl);
         UUID appID = null;
-        if(minioAppId != null) {
+        if (minioAppId != null) {
             appID = UUID.fromString(minioAppId);
         }
-        if(this.loginRequest == null) {
+        if (this.loginRequest == null) {
             this.loginRequest = new LoginRequest(appID, minioLoginId, minioPassword);
         }
-        if(this.fusionAuth == null) {
+        if (this.fusionAuth == null) {
             this.fusionAuth = new FusionAuthClient(minioFAKey, minioFAUrl);
         }
 
@@ -157,6 +152,7 @@ public class MinioClientService implements FileCdnProvider {
 
     /**
      * Upload file from file path
+     *
      * @param filePath
      * @param name
      * @return
@@ -303,6 +299,7 @@ public class MinioClientService implements FileCdnProvider {
 
     /**
      * Get Minio Credentials from Redis Cache
+     *
      * @return
      */
     private Map<String, String> getMinioCredentialsCache() {
