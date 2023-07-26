@@ -9,12 +9,9 @@ import com.uci.utils.cache.service.RedisCacheService;
 import io.fusionauth.client.FusionAuthClient;
 import io.fusionauth.domain.api.LoginRequest;
 import io.fusionauth.domain.api.LoginResponse;
-import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.UploadObjectArgs;
 import io.minio.credentials.StaticProvider;
-import io.minio.errors.*;
-import io.minio.http.Method;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +26,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -73,62 +68,91 @@ public class MinioClientService implements FileCdnProvider {
      * Load default empty object
      */
     private void loadDefaultObjects() {
-        log.info("Minio details, loginID: "+minioLoginId+", password: "+minioPassword+", appId: "+minioAppId+", bucketId: "+minioBucketId+", faKey: "+minioFAKey+", faUrl: "+minioFAUrl+", url: "+minioUrl);
+        log.info("Minio details, loginID: " + minioLoginId + ", password: " + minioPassword + ", appId: " + minioAppId + ", bucketId: " + minioBucketId + ", faKey: " + minioFAKey + ", faUrl: " + minioFAUrl + ", url: " + minioUrl);
         UUID appID = null;
-        if(minioAppId != null) {
+        if (minioAppId != null) {
             appID = UUID.fromString(minioAppId);
         }
-        if(this.loginRequest == null) {
+        if (this.loginRequest == null) {
             this.loginRequest = new LoginRequest(appID, minioLoginId, minioPassword);
         }
-        if(this.fusionAuth == null) {
+        if (this.fusionAuth == null) {
             this.fusionAuth = new FusionAuthClient(minioFAKey, minioFAUrl);
         }
 
     }
 
+//    /**
+//     * Get File Signed URL from name
+//     *
+//     * @param name
+//     * @return
+//     */
+//    public String getFileSignedUrl(String name) {
+//        String url = "";
+//        try {
+//            /* Load default objects */
+//            loadDefaultObjects();
+//
+//            MinioClient minioClient = getMinioClient();
+//            if (minioClient != null) {
+//                try {
+//                    url = minioClient.getPresignedObjectUrl(
+//                            GetPresignedObjectUrlArgs.builder()
+//                                    .method(Method.GET)
+//                                    .bucket(this.minioBucketId)
+//                                    .object(name)
+//                                    .expiry(7, TimeUnit.DAYS)
+//                                    .build()
+//                    );
+//                } catch (InvalidKeyException | InsufficientDataException | InternalException
+//                        | InvalidResponseException | NoSuchAlgorithmException | XmlParserException | ServerException
+//                        | IllegalArgumentException | IOException e) {
+//                    // TODO Auto-generated catch block
+//                    log.error("Exception in getCdnSignedUrl: " + e.getMessage());
+//                } catch (ErrorResponseException e1) {
+//                    log.error("Exception in getFileSignedUrl: " + e1.getMessage() + ", name: " + e1.getClass());
+//                }
+//            }
+//            log.info("minioClient url: " + url);
+//        } catch (Exception ex) {
+//            log.error("Exception in minio getFileSignedUrl: " + ex.getMessage());
+//        }
+//
+//        return url;
+//    }
+
     /**
      * Get File Signed URL from name
      *
-     * @param name
-     * @return
+     * @param name of file
+     * @return url of image
      */
     public String getFileSignedUrl(String name) {
-        String url = "";
-        try {
-            /* Load default objects */
-            loadDefaultObjects();
-
-            MinioClient minioClient = getMinioClient();
-            if (minioClient != null) {
-                try {
-                    url = minioClient.getPresignedObjectUrl(
-                            GetPresignedObjectUrlArgs.builder()
-                                    .method(Method.GET)
-                                    .bucket(this.minioBucketId)
-                                    .object(name)
-                                    .expiry(7, TimeUnit.DAYS)
-                                    .build()
-                    );
-                } catch (InvalidKeyException | InsufficientDataException | InternalException
-                        | InvalidResponseException | NoSuchAlgorithmException | XmlParserException | ServerException
-                        | IllegalArgumentException | IOException e) {
-                    // TODO Auto-generated catch block
-                    log.error("Exception in getCdnSignedUrl: " + e.getMessage());
-                } catch (ErrorResponseException e1) {
-                    log.error("Exception in getFileSignedUrl: " + e1.getMessage() + ", name: " + e1.getClass());
-                }
-            }
-            log.info("minioClient url: " + url);
-        } catch (Exception ex) {
-            log.error("Exception in minio getFileSignedUrl: " + ex.getMessage());
+        if (this.minioUrl.isEmpty() || this.minioBucketId.isEmpty()) {
+            log.error("Minio URL or Minio Bucket was null. Minio URL: " + this.minioUrl + ", Minio Bucket: " + this.minioBucketId);
+            return "";
+        }
+        if (name.isEmpty()) {
+            log.error("Passed filename was empty.");
+            return "";
         }
 
-        return url;
+        // Trim last '/' if present
+        if (this.minioUrl.charAt(this.minioUrl.length() - 1) == '/') {
+            this.minioUrl = this.minioUrl.substring(0, this.minioUrl.length() - 1);
+        }
+        if (this.minioBucketId.charAt(this.minioBucketId.length() - 1) == '/') {
+            this.minioBucketId = this.minioBucketId.substring(0, this.minioBucketId.length() - 1);
+        }
+
+        // For public files {cdn_url}/{bucket}/{filename} can be directly accessed
+        return String.format("%s/%s/%s", this.minioUrl, this.minioBucketId, name);
     }
 
     /**
      * Upload file from file path
+     *
      * @param filePath
      * @param name
      * @return
@@ -275,6 +299,7 @@ public class MinioClientService implements FileCdnProvider {
 
     /**
      * Get Minio Credentials from Redis Cache
+     *
      * @return
      */
     private Map<String, String> getMinioCredentialsCache() {
