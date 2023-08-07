@@ -146,27 +146,47 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                     @Override
                     public Mono<XMessage> apply(JsonNode credentials) {
                         String channelMessageId = UUID.randomUUID().toString();
-                        log.info("credentials: " + credentials);
-                        if (credentials != null && credentials.path("serviceKey") != null
-                                && !credentials.path("serviceKey").asText().isEmpty()) {
+
+                        if (credentials != null && credentials.path("serviceKey") != null) {
                             String click_action = null;
                             if (data.get("fcmClickActionUrl") != null && !data.get("fcmClickActionUrl").isEmpty()) {
                                 click_action = data.get("fcmClickActionUrl");
                             }
-
-
-                            return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable, data)
-                                    .map(new Function<Boolean, XMessage>() {
+                            String serviceKey = credentials.path("serviceKey").toString();
+                            log.info("FCM serviceKey: " + credentials);
+                            FirebaseMessaging firebaseMessaging = null;
+                            try {
+                                firebaseMessaging = configureFirebaseMessaging(serviceKey, nextMsg.getAdapterId());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable,
+                                            data, firebaseMessaging)
+                                    .map(new Function<String, XMessage>() {
                                         @Override
-                                        public XMessage apply(Boolean result) {
-                                            if (result) {
+                                        public XMessage apply(String messageId) {
+                                            if (messageId != null && !messageId.isEmpty()) {
                                                 nextMsg.setTo(to);
                                                 nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
                                                 nextMsg.setMessageState(XMessage.MessageState.SENT);
+                                                nextMsg.setRespMsgId(messageId);
                                             }
                                             return nextMsg;
                                         }
                                     });
+
+//                            return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable, data)
+//                                    .map(new Function<Boolean, XMessage>() {
+//                                        @Override
+//                                        public XMessage apply(Boolean result) {
+//                                            if (result) {
+//                                                nextMsg.setTo(to);
+//                                                nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
+//                                                nextMsg.setMessageState(XMessage.MessageState.SENT);
+//                                            }
+//                                            return nextMsg;
+//                                        }
+//                                    });
                         }
                         return null;
                     }
