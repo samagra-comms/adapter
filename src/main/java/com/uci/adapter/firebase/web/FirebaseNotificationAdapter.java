@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
-import com.google.api.gax.rpc.ApiException;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.firebase.FirebaseApp;
@@ -22,7 +21,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
 import org.jetbrains.annotations.NotNull;
-import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,8 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,6 +46,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
     public BotService botService;
 
     private String notificationKeyEnable;
+    private long fcmAndroidConfigTTl;
 
     /**
      * Convert Firebase Message Object to XMessage Object
@@ -160,7 +157,8 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
-                            return (new FirebaseNotificationService()).sendNotificationMessage(credentials.path("serviceKey").asText(), data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable,
+                          
+                            return (new FirebaseNotificationService()).sendNotificationMessage(data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable,
                                             data, firebaseMessaging)
                                     .map(new Function<String, XMessage>() {
                                         @Override
@@ -254,7 +252,8 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                             .setBody(nextMsg.getPayload().getText())
                                             .build();
                                 }
-
+                                String botName = nextMsg.getApp().replaceAll(" ", "_");
+                                log.info("FirebaseNotificationAdapter:processOutBoundMessageF:: BotName : " + botName + " : fcmAndroidConfigTTl : " + fcmAndroidConfigTTl);
                                 Message message = Message.builder()
                                         .setNotification(notification)
                                         .setToken(data.get("fcmToken"))
@@ -264,6 +263,8 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                         .putData("destAdd", nextMsg.getTo().getUserID())
                                         .putData("fcmDestAdd", data.get("fcmToken"))
                                         .putData("click_action", click_action)
+                                        .setFcmOptions(FcmOptions.withAnalyticsLabel(botName))
+                                        .setAndroidConfig(AndroidConfig.builder().setTtl(1000 * fcmAndroidConfigTTl).build())
                                         .putAllData(dataMap)
                                         .build();
 //                                uniqueUserSet.add(nextMsg.getTo().getUserID());

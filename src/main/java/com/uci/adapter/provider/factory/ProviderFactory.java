@@ -44,6 +44,8 @@ public class ProviderFactory {
     @Value("${fcm.notificationKeyEnable:#{'true'}}")
     private String notificationKeyEnable;
 
+    @Value("${fcm.androidconfig.ttl:#{36000}}")
+    private long fcmAndgoidConfigTTl;
 
     public IProvider getProvider(String provider, String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
@@ -72,7 +74,9 @@ public class ProviderFactory {
             netcoreWhatsappAdapter.setFileCdnProvider(fileCdnFactory.getFileCdnProvider());
             return netcoreWhatsappAdapter;
         } else if (provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")) {
-            return FirebaseNotificationAdapter.builder().botService(botService).notificationKeyEnable(notificationKeyEnable).build();
+            return FirebaseNotificationAdapter.builder().botService(botService).notificationKeyEnable(notificationKeyEnable).fcmAndroidConfigTTl(fcmAndgoidConfigTTl)
+                    .build();
+
         }
         return null;
     }
