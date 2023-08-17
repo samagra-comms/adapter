@@ -33,7 +33,7 @@ public class FirebaseNotificationService {
      * @param body
      * @return
      */
-    public Mono<String> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data, FirebaseMessaging firebaseMessaging) {
+    public Mono<String> sendNotificationMessage(String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data, FirebaseMessaging firebaseMessaging) {
         return Mono.fromCallable(() -> {
             try {
                 Map<String, String> dataMap = new HashMap<>();
