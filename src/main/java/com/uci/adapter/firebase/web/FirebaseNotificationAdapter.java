@@ -157,6 +157,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
+                          
                             return (new FirebaseNotificationService()).sendNotificationMessage(data.get("fcmToken"), nextMsg.getPayload().getTitle(), nextMsg.getPayload().getText(), click_action, nextMsg.getTo().getUserID(), channelMessageId, notificationKeyEnable,
                                             data, firebaseMessaging)
                                     .map(new Function<String, XMessage>() {
