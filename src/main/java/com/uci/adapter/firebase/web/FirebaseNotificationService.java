@@ -3,13 +3,21 @@ package com.uci.adapter.firebase.web;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
+import com.google.firebase.messaging.SendResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -19,74 +27,117 @@ public class FirebaseNotificationService {
 
     /**
      * Send FCM Notification to token with title & body
+     *
      * @param token
      * @param title
      * @param body
      * @return
      */
-    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data) {
-        try {
-            WebClient client = WebClient.builder()
-                    .baseUrl(url)
-                    .defaultHeaders(httpHeaders -> {
-                        httpHeaders.set("Authorization", "key=" + serviceKey);
-                        httpHeaders.set("Content-Type", "application/json");
-                    })
-                    .build();
-            ObjectMapper mapper = new ObjectMapper();
-            ObjectNode node = mapper.createObjectNode();
-            node.put("to", token);
-            node.put("collapse_key", "type_a");
-            // Notification Key Enable and Disable from Payload
-            if (notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")) {
-                ObjectNode notificationNode = mapper.createObjectNode();
-                notificationNode.put("body", body);
-                notificationNode.put("title", title);
-                if (click_action != null && !click_action.isEmpty()) {
-                    notificationNode.put("click_action", click_action);
-                }
-                node.put("notification", notificationNode);
-            }
-
-            ObjectNode dataNode = mapper.createObjectNode();
-            dataNode.put("body", body);
-            dataNode.put("title", title);
-            dataNode.put("externalId", channelMessageId);
-            dataNode.put("destAdd", phone);
-            dataNode.put("fcmDestAdd", token);
-            dataNode.put("click_action", click_action);
-
-            if (data != null) {
-                for (String dataKey : data.keySet()) {
-                    if (!dataKey.equalsIgnoreCase("fcmToken") && !dataKey.equalsIgnoreCase("fcmClickActionUrl")) {
-                        dataNode.put(dataKey, data.get(dataKey));
-                    }
-                }
-            }
-
-            node.put("data", dataNode);
-
-            return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {
-                if (response != null) {
-                    try {
-                        ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
-                        if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
-                            log.info("FirebaseNotificationService:Notification triggered success : " + phone + " fcm token : " + token + " FCM Response : " + resultNode.toString());
-                            return true;
-                        } else {
-                            log.error("FirebaseNotificationService:Notification not sent : " + phone + " fcm Token : " + token + " error :" + resultNode.toString());
+    public Mono<String> sendNotificationMessage(String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data, FirebaseMessaging firebaseMessaging) {
+        return Mono.fromCallable(() -> {
+            try {
+                Map<String, String> dataMap = new HashMap<>();
+                if (data != null) {
+                    for (String dataKey : data.keySet()) {
+                        if (!dataKey.equalsIgnoreCase("fcmToken") && !dataKey.equalsIgnoreCase("fcmClickActionUrl")) {
+                            dataMap.put(dataKey, data.get(dataKey));
                         }
-                    } catch (Exception ex) {
-                        log.error("FirebaseNotificationService:sendNotificationMessage::Exception: " + ex.getMessage());
                     }
                 }
-                return false;
-            });
-        } catch (Exception ex){
-            log.error("FirebaseNotificationService:sendNotificationMessage::Exception: "+ex.getMessage());
-        }
-        return Mono.just(false);
+                Notification notification = null;
+                if (notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")) {
+                    notification = Notification.builder()
+                            .setTitle(title)
+                            .setBody(body)
+                            .build();
+                }
+                Message message = Message.builder()
+                        .setNotification(notification)
+                        .setToken(data.get("fcmToken"))
+                        .putData("body", body)
+                        .putData("title", title)
+                        .putData("externalId", channelMessageId)
+                        .putData("destAdd", phone)
+                        .putData("fcmDestAdd", token)
+                        .putData("click_action", click_action)
+                        .putAllData(dataMap)
+                        .build();
+                String messageId = firebaseMessaging.send(message);
+                log.info("FCM Returned MessageID  : " + messageId);
+                return messageId;
+            } catch (Exception ex) {
+                log.error("FirebaseNotificationService:sendNotificationMessage::Exception: " + ex.getMessage());
+                return null;
+            }
+        });
     }
+
+    /**
+     * FCM Old Implementation
+     */
+//    public Mono<Boolean> sendNotificationMessage(String serviceKey, String token, String title, String body, String click_action, String phone, String channelMessageId, String notificationKeyEnable, Map<String, String> data) {
+//        try {
+//            WebClient client = WebClient.builder()
+//                    .baseUrl(url)
+//                    .defaultHeaders(httpHeaders -> {
+//                        httpHeaders.set("Authorization", "key=" + serviceKey);
+//                        httpHeaders.set("Content-Type", "application/json");
+//                    })
+//                    .build();
+//            ObjectMapper mapper = new ObjectMapper();
+//            ObjectNode node = mapper.createObjectNode();
+//            node.put("to", token);
+//            node.put("collapse_key", "type_a");
+//            // Notification Key Enable and Disable from Payload
+//            if (notificationKeyEnable != null && notificationKeyEnable.equalsIgnoreCase("true")) {
+//                ObjectNode notificationNode = mapper.createObjectNode();
+//                notificationNode.put("body", body);
+//                notificationNode.put("title", title);
+//                if (click_action != null && !click_action.isEmpty()) {
+//                    notificationNode.put("click_action", click_action);
+//                }
+//                node.put("notification", notificationNode);
+//            }
+//
+//            ObjectNode dataNode = mapper.createObjectNode();
+//            dataNode.put("body", body);
+//            dataNode.put("title", title);
+//            dataNode.put("externalId", channelMessageId);
+//            dataNode.put("destAdd", phone);
+//            dataNode.put("fcmDestAdd", token);
+//            dataNode.put("click_action", click_action);
+//
+//            if (data != null) {
+//                for (String dataKey : data.keySet()) {
+//                    if (!dataKey.equalsIgnoreCase("fcmToken") && !dataKey.equalsIgnoreCase("fcmClickActionUrl")) {
+//                        dataNode.put(dataKey, data.get(dataKey));
+//                    }
+//                }
+//            }
+//
+//            node.put("data", dataNode);
+//
+//            return client.post().bodyValue(node.toString()).retrieve().bodyToMono(String.class).map(response -> {
+//                if (response != null) {
+//                    try {
+//                        ObjectNode resultNode = (ObjectNode) mapper.readTree(response);
+//                        if (resultNode.get("success") != null && Integer.parseInt(resultNode.get("success").toString()) >= 1) {
+//                            log.info("FirebaseNotificationService:Notification triggered success : " + phone + " fcm token : " + token + " FCM Response : " + resultNode.toString());
+//                            return true;
+//                        } else {
+//                            log.error("FirebaseNotificationService:Notification not sent : " + phone + " fcm Token : " + token + " error :" + resultNode.toString());
+//                        }
+//                    } catch (Exception ex) {
+//                        log.error("FirebaseNotificationService:sendNotificationMessage::Exception: " + ex.getMessage());
+//                    }
+//                }
+//                return false;
+//            });
+//        } catch (Exception ex){
+//            log.error("FirebaseNotificationService:sendNotificationMessage::Exception: "+ex.getMessage());
+//        }
+//        return Mono.just(false);
+//    }
 
 //    public Mono<Boolean> sendNotificationMessage2(String token, String title, String body) {
 //        OkHttpClient client = new OkHttpClient().newBuilder().build();
