@@ -14,7 +14,9 @@ import com.uci.adapter.firebase.web.inbound.FirebaseWebMessage;
 import com.uci.adapter.firebase.web.inbound.FirebaseWebReport;
 import com.uci.adapter.provider.factory.AbstractProvider;
 import com.uci.adapter.provider.factory.IProvider;
+import com.uci.dao.models.XMessageDAO;
 import com.uci.utils.BotService;
+import com.uci.utils.cache.service.RedisCacheService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -47,6 +49,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
 
     private String notificationKeyEnable;
     private long fcmAndroidConfigTTl;
+    private RedisCacheService redisCacheService;
 
     /**
      * Convert Firebase Message Object to XMessage Object
@@ -279,6 +282,10 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                 }
                                 nextMsg.setTo(to);
                                 nextMsg.setMessageId(MessageId.builder().channelMessageId(channelMessageId).build());
+                                XMessageDAO xMessageDAO = new XMessageDAO();
+                                xMessageDAO.setApp(nextMsg.getApp());
+                                xMessageDAO.setBotUuid(nextMsg.getBotId());
+                                redisCacheService.setCache(channelMessageId + "_" +nextMsg.getTo().getUserID() , xMessageDAO);
                                 xMessageListCass.add(nextMsg);
                             } else {
                                 log.error("FirebaseNotificationAdapter:processOutBoundMessageF:: Fcm Token not found : " + data);
