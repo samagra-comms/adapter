@@ -10,6 +10,7 @@ import com.uci.adapter.utils.CommonUtils;
 import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.BotService;
 
+import com.uci.utils.cache.service.RedisCacheService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,9 @@ public class ProviderFactory {
     @Value("${fcm.androidconfig.ttl:#{36000}}")
     private long fcmAndgoidConfigTTl;
 
+    @Autowired
+    private RedisCacheService redisCacheService;
+
     public IProvider getProvider(String provider, String channel) {
         if (provider.toLowerCase().equals("gupshup") && channel.toLowerCase().equals("whatsapp")) {
             GupShupWhatsappAdapter gupshupWhatsapp = GupShupWhatsappAdapter
@@ -75,6 +79,7 @@ public class ProviderFactory {
             return netcoreWhatsappAdapter;
         } else if (provider.toLowerCase().equals("firebase") && channel.toLowerCase().equals("web")) {
             return FirebaseNotificationAdapter.builder().botService(botService).notificationKeyEnable(notificationKeyEnable).fcmAndroidConfigTTl(fcmAndgoidConfigTTl)
+                    .redisCacheService(redisCacheService)
                     .build();
 
         }
