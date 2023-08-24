@@ -255,8 +255,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                             .setBody(nextMsg.getPayload().getText())
                                             .build();
                                 }
-                                String botName = nextMsg.getApp().replaceAll(" ", "_");
-                                log.info("FirebaseNotificationAdapter:processOutBoundMessageF:: BotName : " + botName + " : fcmAndroidConfigTTl : " + fcmAndroidConfigTTl);
+                                log.info("FirebaseNotificationAdapter:processOutBoundMessageF:: fcmAndroidConfigTTl : " + fcmAndroidConfigTTl);
                                 Message message = Message.builder()
                                         .setNotification(notification)
                                         .setToken(data.get("fcmToken"))
@@ -266,7 +265,7 @@ public class FirebaseNotificationAdapter extends AbstractProvider implements IPr
                                         .putData("destAdd", nextMsg.getTo().getUserID())
                                         .putData("fcmDestAdd", data.get("fcmToken"))
                                         .putData("click_action", click_action)
-                                        .setFcmOptions(FcmOptions.withAnalyticsLabel(botName))
+                                        .setFcmOptions(FcmOptions.withAnalyticsLabel(nextMsg.getBotId().toString()))
                                         .setAndroidConfig(AndroidConfig.builder().setTtl(1000 * fcmAndroidConfigTTl).build())
                                         .putAllData(dataMap)
                                         .build();
