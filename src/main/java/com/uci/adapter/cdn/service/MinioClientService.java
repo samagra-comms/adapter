@@ -164,6 +164,7 @@ public class MinioClientService implements FileCdnProvider {
 
             MinioClient minioClient = getMinioClient();
             if (minioClient != null) {
+                log.info("uploadFileFromPath:: filePath: " + filePath + " Name : " + name);
                 minioClient.uploadObject(
                         UploadObjectArgs.builder()
                                 .bucket(this.minioBucketId)
@@ -172,6 +173,8 @@ public class MinioClientService implements FileCdnProvider {
                                 .build());
 
                 return getFileSignedUrl(name);
+            } else {
+                log.error("uploadFileFromPath:: Minio client is null : " + minioClient);
             }
         } catch (Exception ex) {
             log.error("Exception in minio uploadFileFromPath: " + ex.getMessage());
@@ -189,7 +192,7 @@ public class MinioClientService implements FileCdnProvider {
         if (this.minioUrl != null) {
             try {
                 StaticProvider provider = getMinioCredentialsProvider();
-                log.info("provider: " + provider + ", url: " + this.minioUrl);
+                log.info("getMinioClient:: provider: " + provider + ", url: " + this.minioUrl);
                 if (provider != null) {
                     return MinioClient.builder()
                             .endpoint(this.minioUrl)
@@ -210,16 +213,9 @@ public class MinioClientService implements FileCdnProvider {
      */
     private StaticProvider getMinioCredentialsProvider() {
         try {
-            /* Get credentials in cache */
-            Map<String, String> cacheData = getMinioCredentialsCache();
-            if (cacheData.get("sessionToken") != null && cacheData.get("accessKey") != null && cacheData.get("secretAccessKey") != null) {
-                return new StaticProvider(cacheData.get("accessKey"), cacheData.get("secretAccessKey"), cacheData.get("sessionToken"));
-            }
-
             String token = getFusionAuthToken();
-            log.info("token: " + token);
+            log.info("getMinioCredentialsProvider:: token : " + token);
             if (!token.isEmpty()) {
-                Integer duration = 36000;
                 OkHttpClient client = new OkHttpClient().newBuilder().connectTimeout(90, TimeUnit.SECONDS)
                         .writeTimeout(90, TimeUnit.SECONDS).readTimeout(90, TimeUnit.SECONDS).build();
                 MediaType mediaType = MediaType.parse("application/json");
@@ -238,7 +234,7 @@ public class MinioClientService implements FileCdnProvider {
                 try {
                     Response callResponse = client.newCall(request).execute();
                     String response = callResponse.body().string();
-
+                    log.info("Minio getMinioCredentialsProvider Response::" + response);
                     JSONObject xmlJSONObj = XML.toJSONObject(response);
                     String jsonPrettyPrintString = xmlJSONObj.toString(4);
 
@@ -251,14 +247,10 @@ public class MinioClientService implements FileCdnProvider {
                         String accessKey = credentials.get("AccessKeyId").asText();
                         String secretAccessKey = credentials.get("SecretAccessKey").asText();
 
-                        log.info("sessionToken: " + sessionToken + ", accessKey: " + accessKey + ",secretAccessKey: " + secretAccessKey);
+                        log.info("getMinioCredentialsProvider:: sessionToken: " + sessionToken + ", accessKey: " + accessKey + ", secretAccessKey: " + secretAccessKey);
 
                         if (!accessKey.isEmpty() && !secretAccessKey.isEmpty() && !sessionToken.isEmpty()) {
-                            /* Set credentials in cache */
-                            setMinioCredentialsCache(sessionToken, accessKey, secretAccessKey);
-
                             return new StaticProvider(accessKey, secretAccessKey, sessionToken);
-                            //						return new StaticProvider("test", secretAccessKey, sessionToken);
                         }
                     } else {
                         if (node.path("ErrorResponse") != null
@@ -275,52 +267,6 @@ public class MinioClientService implements FileCdnProvider {
             log.error("Exception in getMinioCredentialsProvider: " + e.getMessage());
         }
         return null;
-    }
-
-    /**
-     * Set Minio Credentials Cache
-     *
-     * @param sessionToken
-     * @param accessKey
-     * @param secretAccessKey
-     */
-    private void setMinioCredentialsCache(String sessionToken, String accessKey, String secretAccessKey) {
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-
-        /* local date time */
-        LocalDateTime localTomorrow = LocalDateTime.now().plusDays(1);
-        String expiryDateString = fmt.format(localTomorrow).toString();
-
-        redisCacheService.setMinioCDNCache("sessionToken", sessionToken);
-        redisCacheService.setMinioCDNCache("accessKey", accessKey);
-        redisCacheService.setMinioCDNCache("secretAccessKey", secretAccessKey);
-        redisCacheService.setMinioCDNCache("expiresAt", expiryDateString);
-    }
-
-    /**
-     * Get Minio Credentials from Redis Cache
-     *
-     * @return
-     */
-    private Map<String, String> getMinioCredentialsCache() {
-        Map<String, String> credentials = new HashMap();
-
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-
-        /* local date time */
-        LocalDateTime localNow = LocalDateTime.now();
-        /* Expiry Date time */
-        String expiry = (String) redisCacheService.getMinioCDNCache("expiresAt");
-        if (expiry != null) {
-            LocalDateTime expiryDateTime = LocalDateTime.parse(expiry, fmt);
-
-            if (localNow.compareTo(expiryDateTime) < 0) {
-                credentials.put("sessionToken", (String) redisCacheService.getMinioCDNCache("sessionToken"));
-                credentials.put("accessKey", (String) redisCacheService.getMinioCDNCache("accessKey"));
-                credentials.put("secretAccessKey", (String) redisCacheService.getMinioCDNCache("secretAccessKey"));
-            }
-        }
-        return credentials;
     }
 
     /**
