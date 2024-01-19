@@ -138,16 +138,17 @@ public class MinioClientService implements FileCdnProvider {
             return "";
         }
 
+        // Value copied to prevent race condition in substring
+        String mUrl = this.minioUrl, mBucket = this.minioBucketId;
         // Trim last '/' if present
-        if (this.minioUrl.charAt(this.minioUrl.length() - 1) == '/') {
-            this.minioUrl = this.minioUrl.substring(0, this.minioUrl.length() - 1);
+        if (mUrl.charAt(mUrl.length() - 1) == '/') {
+            mUrl = mUrl.substring(0, mUrl.length() - 1);
         }
-        if (this.minioBucketId.charAt(this.minioBucketId.length() - 1) == '/') {
-            this.minioBucketId = this.minioBucketId.substring(0, this.minioBucketId.length() - 1);
+        if (mBucket.charAt(mBucket.length() - 1) == '/') {
+            mBucket = mBucket.substring(0, mBucket.length() - 1);
         }
-
         // For public files {cdn_url}/{bucket}/{filename} can be directly accessed
-        return String.format("%s/%s/%s", this.minioUrl, this.minioBucketId, name);
+        return String.format("%s/%s/%s", mUrl, mBucket, name);
     }
 
     /**
