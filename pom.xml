@@ -19,9 +19,9 @@
 
     <properties>
         <java.version>11</java.version>
-        <utils.version>2.4.0</utils.version>
-        <messagerosa.version>2.4.0</messagerosa.version>
-        <dao.version>2.4.0</dao.version>
+        <utils.version>2.4.1</utils.version>
+        <messagerosa.version>2.4.1</messagerosa.version>
+        <dao.version>2.4.1</dao.version>
     </properties>
     <!-- For Dao repository to upload to github packages -->
     <profiles>
